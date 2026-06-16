@@ -36,11 +36,11 @@ public class ValoracionesApiController {
                 serviceValoracion.obtenerValoracionesDTOPorUsuario(authHelper.usuarioAutenticado().getId(), pageable)));
     }
 
-    @GetMapping("/evento/{eventoId}")
-    public ResponseEntity<ApiResponse<Page<ValoracionDTO>>> valoracionesPorEvento(
-            @PathVariable String eventoId, Pageable pageable) {
-        return ResponseEntity.ok(ApiResponse.ok("Valoraciones del evento",
-                serviceValoracion.obtenerValoracionesDTOPorEvento(eventoId, pageable)));
+    @GetMapping("/organizador/{organizadorId}")
+        public ResponseEntity<ApiResponse<Page<ValoracionDTO>>> valoracionesPorOrganizador(
+            @PathVariable("organizadorId") String organizadorId, Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.ok("Valoraciones del organizador",
+            serviceValoracion.obtenerValoracionesDTOPorOrganizador(organizadorId, pageable)));
     }
 
     @PostMapping
@@ -49,7 +49,8 @@ public class ValoracionesApiController {
             @RequestParam String eventoId,
             @RequestParam String comentario,
             @RequestParam long calificacion) {
-
+        // Nota: el parámetro se mantiene como "eventoId" por compatibilidad del cliente,
+        // pero ahora se interpreta como el id del organizador.
         serviceValoracion.crearValoracion(authHelper.usuarioAutenticado(), eventoId, comentario, calificacion);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Valoración creada exitosamente"));
     }

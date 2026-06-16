@@ -36,6 +36,7 @@ public class EventosApiController {
     @GetMapping
     public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> listar(
             @RequestParam(required = false) String categoriaId, Pageable pageable) {
+                
         Page<Evento> page = categoriaId != null && !categoriaId.isBlank()
                 ? serviceEvento.listarPorCategoria(categoriaId, pageable)
                 : serviceEvento.listarTodos(pageable);

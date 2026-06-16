@@ -9,10 +9,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.demo.dto.ValoracionDTO;
 import com.example.demo.exception.BusinessException;
 import com.example.demo.exception.ResourceNotFoundException;
-import com.example.demo.model.Evento;
 import com.example.demo.model.Usuario;
 import com.example.demo.model.Valoracion;
-import com.example.demo.repository.EventoRepository;
+import com.example.demo.repository.UsuarioRepository;
 import com.example.demo.repository.ValoracionRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -22,32 +21,31 @@ import lombok.RequiredArgsConstructor;
 public class ServiceValoracion {
 
     private final ValoracionRepository valoracionRepository;
-    private final EventoRepository     eventoRepository;
+    private final UsuarioRepository    usuarioRepository;
 
     @Transactional(readOnly = true)
     public Page<ValoracionDTO> obtenerValoracionesDTOPorUsuario(String usuarioId, Pageable pageable) {
-        return valoracionRepository.findByClienteIdConEvento(usuarioId, pageable).map(this::toDTO);
+        return valoracionRepository.findByClienteIdConOrganizador(usuarioId, pageable).map(this::toDTO);
     }
 
     @Transactional(readOnly = true)
-    public Page<ValoracionDTO> obtenerValoracionesDTOPorEvento(String eventoId, Pageable pageable) {
-        return valoracionRepository.findByEventoIdConCliente(eventoId, pageable).map(this::toDTO);
+    public Page<ValoracionDTO> obtenerValoracionesDTOPorOrganizador(String organizadorId, Pageable pageable) {
+        return valoracionRepository.findByOrganizadorIdConCliente(organizadorId, pageable).map(this::toDTO);
     }
 
     @Transactional
     @PreAuthorize("hasRole('CLIENTE')")
-    public void crearValoracion(Usuario cliente, String eventoId, String comentario, long calificacion) {
+    public void crearValoracion(Usuario cliente, String organizadorId, String comentario, long calificacion) {
         validarCalificacion(calificacion);
+        if (valoracionRepository.existsByClienteIdAndOrganizadorId(cliente.getId(), organizadorId))
+            throw new BusinessException("Ya valoraste a este organizador");
 
-        if (valoracionRepository.existsByClienteIdAndEventoId(cliente.getId(), eventoId))
-            throw new BusinessException("Ya valoraste este evento");
-
-        Evento evento = eventoRepository.findById(eventoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado"));
+        Usuario organizador = usuarioRepository.findById(organizadorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organizador no encontrado"));
 
         Valoracion v = new Valoracion();
         v.setCliente(cliente);
-        v.setEvento(evento);
+        v.setOrganizador(organizador);
         v.setComentario(comentario);
         v.setCalificacion((int) calificacion);
         valoracionRepository.save(v);
@@ -89,9 +87,9 @@ public class ServiceValoracion {
         dto.setId(v.getId());
         dto.setComentario(v.getComentario());
         dto.setCalificacion(v.getCalificacion());
-        if (v.getEvento() != null) {
-            dto.setEventoId(v.getEvento().getId());
-            dto.setEventoTitulo(v.getEvento().getTitulo());
+        if (v.getOrganizador() != null) {
+            dto.setOrganizadorId(v.getOrganizador().getId());
+            dto.setOrganizadorNombre(v.getOrganizador().getNombre() + " " + v.getOrganizador().getApellido());
         }
         return dto;
     }

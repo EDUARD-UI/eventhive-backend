@@ -12,11 +12,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.example.demo.dto.ApiResponse;
 import com.example.demo.dto.SolicitudVerificacionDTO;
+import com.example.demo.dto.SolicitudVerificacionRequest;
 import com.example.demo.service.ServiceSolicitudVerificacion;
 
 import lombok.RequiredArgsConstructor;
@@ -31,41 +33,41 @@ public class VerificacionApiController {
     @PostMapping(value = "/solicitar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ORGANIZADOR')")
     public ResponseEntity<ApiResponse<Void>> crearSolicitud(
-            @RequestParam String mensaje,
-            @RequestParam(required = false) MultipartFile archivo) {
-        serviceSolicitud.crearSolicitud(mensaje, archivo);
+            @RequestPart("datos") SolicitudVerificacionRequest request,
+            @RequestPart(value = "rut", required = false) MultipartFile archivoRut) {
+
+        serviceSolicitud.crearSolicitud(request, archivoRut);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.ok("Solicitud de verificación enviada. Await admin response"));
+                .body(ApiResponse.ok("Solicitud de verificación enviada correctamente"));
     }
 
     @GetMapping("/mis-solicitudes")
     @PreAuthorize("hasRole('ORGANIZADOR')")
     public ResponseEntity<ApiResponse<SolicitudVerificacionDTO>> miSolicitud() {
-        SolicitudVerificacionDTO dto = serviceSolicitud.miSolicitud();
-        return ResponseEntity.ok(ApiResponse.ok("Solicitud obtenida", dto));
+        return ResponseEntity.ok(ApiResponse.ok("Solicitud obtenida", serviceSolicitud.miSolicitud()));
     }
 
     @GetMapping("/panel")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Page<SolicitudVerificacionDTO>>> obtenerSolicitudes(Pageable pageable) {
-        Page<SolicitudVerificacionDTO> solicitudes = serviceSolicitud.obtenerSolicitudesPendientes(pageable);
-        return ResponseEntity.ok(ApiResponse.ok("Solicitudes obtenidas", solicitudes));
+        return ResponseEntity.ok(ApiResponse.ok("Solicitudes obtenidas",
+                serviceSolicitud.obtenerSolicitudesPendientes(pageable)));
     }
 
     @GetMapping("/{solicitudId}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<SolicitudVerificacionDTO>> obtenerDetalles(
             @PathVariable String solicitudId) {
-        SolicitudVerificacionDTO dto = serviceSolicitud.obtenerSolicitud(solicitudId);
-        return ResponseEntity.ok(ApiResponse.ok("Solicitud obtenida", dto));
+        return ResponseEntity.ok(ApiResponse.ok("Solicitud obtenida",
+                serviceSolicitud.obtenerSolicitud(solicitudId)));
     }
 
     @PutMapping("/{solicitudId}/aprobar")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<Void>> aprobarSolicitud(
-            @PathVariable String solicitudId) {
-        serviceSolicitud.aprobarSolicitud(solicitudId);
-        return ResponseEntity.ok(ApiResponse.ok("Solicitud aprobada. Organizador verificado"));
+    public ResponseEntity<ApiResponse<String>> aprobarSolicitud(@PathVariable String solicitudId) {
+        String claveGenerada = serviceSolicitud.aprobarSolicitud(solicitudId);
+        return ResponseEntity.ok(ApiResponse.ok(
+                "Solicitud aprobada. Comparte esta contraseña con el organizador", claveGenerada));
     }
 
     @PutMapping("/{solicitudId}/rechazar")

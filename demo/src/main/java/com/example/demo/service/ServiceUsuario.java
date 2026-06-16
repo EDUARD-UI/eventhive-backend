@@ -23,9 +23,9 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ServiceUsuario {
 
-    private final UsuarioRepository  usuarioRepository;
-    private final RolesRepository    rolesRepository;
-    private final PasswordEncoder    passwordEncoder;
+    private final UsuarioRepository usuarioRepository;
+    private final RolesRepository rolesRepository;
+    private final PasswordEncoder passwordEncoder;
     private final AuthenticatedUserHelper authHelper;
 
     @Transactional(readOnly = true)
@@ -50,10 +50,16 @@ public class ServiceUsuario {
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public Page<Usuario> buscarPorFiltros(String nombre, String rolId, Pageable pageable) {
         boolean tieneNombre = nombre != null && !nombre.isBlank();
-        boolean tieneRol    = rolId  != null && !rolId.isBlank();
-        if (tieneNombre && tieneRol)  return usuarioRepository.findByNombreYRolId(nombre.trim(), rolId, pageable);
-        if (tieneNombre)              return usuarioRepository.findByNombreContieneIgnoreCase(nombre.trim(), pageable);
-        if (tieneRol)                 return usuarioRepository.findByRolId(rolId, pageable);
+        boolean tieneRol = rolId != null && !rolId.isBlank();
+        if (tieneNombre && tieneRol) {
+            return usuarioRepository.findByNombreYRolId(nombre.trim(), rolId, pageable);
+        }
+        if (tieneNombre) {
+            return usuarioRepository.findByNombreContieneIgnoreCase(nombre.trim(), pageable);
+        }
+        if (tieneRol) {
+            return usuarioRepository.findByRolId(rolId, pageable);
+        }
         return usuarioRepository.findAll(pageable);
     }
 
@@ -82,9 +88,10 @@ public class ServiceUsuario {
     @Transactional
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public void crearUsuario(String nombre, String apellido, String correo,
-                             String telefono, String clave, String rolId) {
-        if (usuarioRepository.existsByCorreo(correo))
+            String telefono, String clave, String rolId) {
+        if (usuarioRepository.existsByCorreo(correo)) {
             throw new BusinessException("Correo ya registrado");
+        }
 
         Rol rol = rolesRepository.findById(rolId)
                 .orElseThrow(() -> new ResourceNotFoundException("Rol no existe"));
@@ -123,13 +130,31 @@ public class ServiceUsuario {
     @Transactional
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public void eliminarUsuario(String id) {
-        if (!usuarioRepository.existsById(id))
+        if (!usuarioRepository.existsById(id)) {
             throw new ResourceNotFoundException("Usuario no encontrado");
+        }
         usuarioRepository.deleteById(id);
     }
 
-    // --- helpers privados ---
+    // Valida la clave actual y la reemplaza con la nueva cifrada
+    @Transactional
+    @PreAuthorize("isAuthenticated()")
+    public void cambiarClave(String claveActual, String claveNueva) {
+        Usuario u = authHelper.usuarioAutenticado();
 
+        if (!passwordEncoder.matches(claveActual, u.getClave())) {
+            throw new BusinessException("La contraseña actual es incorrecta");
+        }
+
+        if (claveNueva == null || claveNueva.length() < 8) {
+            throw new BusinessException("La nueva contraseña debe tener al menos 8 caracteres");
+        }
+
+        u.setClave(passwordEncoder.encode(claveNueva));
+        usuarioRepository.save(u);
+    }
+
+    // --- helpers privados ---
     private UsuarioDTO toDTO(Usuario u) {
         UsuarioDTO dto = new UsuarioDTO();
         dto.setId(u.getId());
@@ -138,7 +163,9 @@ public class ServiceUsuario {
         dto.setCorreo(u.getCorreo());
         dto.setTelefono(u.getTelefono());
         dto.setEsVerificado(u.getEsVerificado() != null && u.getEsVerificado());
-        if (u.getRol() != null) dto.setRolNombre(u.getRol().getNombre());
+        if (u.getRol() != null) {
+            dto.setRolNombre(u.getRol().getNombre());
+        }
         return dto;
     }
 

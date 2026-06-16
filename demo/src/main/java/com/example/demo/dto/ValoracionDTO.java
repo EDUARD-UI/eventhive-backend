@@ -10,6 +10,6 @@ public class ValoracionDTO {
     private String id;
     private String comentario;
     private long calificacion;
-    private String eventoId;
-    private String eventoTitulo;
+    private String organizadorId;
+    private String organizadorNombre;
 }

@@ -169,6 +169,15 @@ public class UsuariosApiController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Object>> eventosDeseados() {
         return ResponseEntity.ok(ApiResponse.ok("Eventos deseados",
-            eventosDeseadosService.listar()));
+                eventosDeseadosService.listar()));
+    }
+
+    @PutMapping("/perfil/cambiar-clave")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> cambiarClave(
+            @RequestParam String claveActual,
+            @RequestParam String claveNueva) {
+        usuarioService.cambiarClave(claveActual, claveNueva);
+        return ResponseEntity.ok(ApiResponse.ok("Contraseña actualizada correctamente"));
     }
 }
