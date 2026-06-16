@@ -38,25 +38,23 @@ public class ServiceRoles {
     }
 
     @Transactional
-    public void crearRol(String nombre, String descripcion) {
+    public void crearRol(String nombre) {
         if (rolesRepository.existsByNombre(nombre))
             throw new BusinessException("Ya existe un rol con ese nombre");
 
         Rol nuevo = new Rol();
         nuevo.setNombre(nombre);
-        nuevo.setDescripcion(descripcion);
         rolesRepository.save(nuevo);
     }
 
     @Transactional
-    public void actualizarRol(String id, String nombre, String descripcion) {
+    public void actualizarRol(String id, String nombre) {
         Rol existente = findById(id);
 
         if (!existente.getNombre().equalsIgnoreCase(nombre) && rolesRepository.existsByNombre(nombre))
             throw new BusinessException("Ya existe otro rol con ese nombre");
 
         existente.setNombre(nombre);
-        existente.setDescripcion(descripcion);
         rolesRepository.save(existente);
     }
 

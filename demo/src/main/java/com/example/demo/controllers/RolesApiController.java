@@ -44,10 +44,9 @@ public class RolesApiController {
     @PostMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> crearRol(
-            @RequestParam String nombre,
-            @RequestParam(required = false) String descripcion) {
+            @RequestParam String nombre) {
 
-        serviceRoles.crearRol(nombre, descripcion);
+        serviceRoles.crearRol(nombre);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Rol creado exitosamente"));
     }
 
@@ -55,10 +54,9 @@ public class RolesApiController {
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> actualizarRol(
             @PathVariable String id,
-            @RequestParam String nombre,
-            @RequestParam(required = false) String descripcion) {
+            @RequestParam String nombre) {
 
-        serviceRoles.actualizarRol(id, nombre, descripcion);
+        serviceRoles.actualizarRol(id, nombre);
         return ResponseEntity.ok(ApiResponse.ok("Rol actualizado exitosamente"));
     }
 

@@ -5,6 +5,7 @@ import java.time.LocalTime;
 import java.util.List;
 
 import com.example.demo.model.Localidad;
+import com.example.demo.enums.EstadoEvento;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -17,7 +18,7 @@ public class EventoDTO {
     LocalDate fecha;
     LocalTime hora;
     Categoria categoria;
-    Estado estado;
+    EstadoEvento estado;
     Organizador organizador;
     List<Localidad> localidades;
 
@@ -35,15 +36,7 @@ public class EventoDTO {
 
     @Getter
     @Setter
-    public static class Estado {
-        String id;
-        String nombre;
-
-        public Estado(String id, String nombre) {
-            this.id = id;
-            this.nombre = nombre;
-        }
-    }
+    // Estado ahora se representa con el enum EstadoEvento
 
     // ← Agrega esta clase interna
     @Getter

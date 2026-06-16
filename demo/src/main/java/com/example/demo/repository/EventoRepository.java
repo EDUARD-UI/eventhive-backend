@@ -17,7 +17,7 @@ public interface EventoRepository extends JpaRepository<Evento, String> {
 
     // Devuelve página de eventos con sus referencias (categoria, estado, organizador y rol)
     @Query("""
-        SELECT e FROM Evento e JOIN FETCH e.categoria JOIN FETCH e.estado JOIN FETCH e.organizador o JOIN FETCH o.rol
+        SELECT e FROM Evento e JOIN FETCH e.categoria JOIN FETCH e.organizador o JOIN FETCH o.rol
         """)
     Page<Evento> findAllConReferencias(Pageable pageable);
 
@@ -25,7 +25,6 @@ public interface EventoRepository extends JpaRepository<Evento, String> {
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
-        JOIN FETCH e.estado
         JOIN FETCH e.organizador o
         JOIN FETCH o.rol
         WHERE e.id = :id
@@ -36,10 +35,10 @@ public interface EventoRepository extends JpaRepository<Evento, String> {
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
-        JOIN FETCH e.estado
         JOIN FETCH e.organizador o
         JOIN FETCH o.rol
         WHERE o.id = :organizadorId
+        ORDER BY e.fechaCreacion DESC
         """)
     Page<Evento> findByOrganizadorIdConReferencias(@Param("organizadorId") String organizadorId, Pageable pageable);
 
@@ -47,7 +46,6 @@ public interface EventoRepository extends JpaRepository<Evento, String> {
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria c
-        JOIN FETCH e.estado
         JOIN FETCH e.organizador o
         JOIN FETCH o.rol
         WHERE c.id = :categoriaId
@@ -58,18 +56,16 @@ public interface EventoRepository extends JpaRepository<Evento, String> {
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
-        JOIN FETCH e.estado est
         JOIN FETCH e.organizador o
         JOIN FETCH o.rol
-        WHERE est.id = :estadoId
+        WHERE e.estado = :estado
         """)
-    Page<Evento> findByEstadoIdConReferencias(@Param("estadoId") String estadoId, Pageable pageable);
+    Page<Evento> findByEstadoConReferencias(@Param("estado") com.example.demo.enums.EstadoEvento estado, Pageable pageable);
 
     // Busca eventos por título (contains) y trae referencias
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
-        JOIN FETCH e.estado
         JOIN FETCH e.organizador o
         JOIN FETCH o.rol
         WHERE LOWER(e.titulo) LIKE LOWER(CONCAT('%', :titulo, '%'))
@@ -80,7 +76,6 @@ public interface EventoRepository extends JpaRepository<Evento, String> {
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
-        JOIN FETCH e.estado
         JOIN FETCH e.organizador o
         JOIN FETCH o.rol
         WHERE o.id = :organizadorId
@@ -92,8 +87,9 @@ public interface EventoRepository extends JpaRepository<Evento, String> {
             Pageable pageable);
 
     List<Evento> findByOrganizadorId(String organizadorId);
+    List<Evento> findByOrganizadorIdOrderByFechaCreacionDesc(String organizadorId);
 
     long countByCategoriaId(String categoriaId);
-    long countByEstadoId(String estadoId);
+    long countByEstado(com.example.demo.enums.EstadoEvento estado);
     long countByOrganizadorId(String organizadorId);
 }

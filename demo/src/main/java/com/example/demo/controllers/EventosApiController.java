@@ -124,7 +124,7 @@ public class EventosApiController {
         if (e.getCategoria() != null)
             dto.setCategoria(new EventoDTO.Categoria(e.getCategoria().getId(), e.getCategoria().getNombre()));
         if (e.getEstado() != null)
-            dto.setEstado(new EventoDTO.Estado(e.getEstado().getId(), e.getEstado().getNombre()));
+            dto.setEstado(e.getEstado());
         if (e.getOrganizador() != null)
             dto.setOrganizador(new EventoDTO.Organizador(
                     e.getOrganizador().getId(),

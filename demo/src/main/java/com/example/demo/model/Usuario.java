@@ -2,8 +2,12 @@ package com.example.demo.model;
 
 import java.util.List;
 
+import com.example.demo.enums.NivelUsuario;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -20,9 +24,11 @@ import lombok.Setter;
 @Entity
 @Table(name = "usuarios", indexes = {
     @Index(name = "idx_usuario_correo", columnList = "correo", unique = true),
-    @Index(name = "idx_usuario_rol",    columnList = "rol_id")
+    @Index(name = "idx_usuario_rol", columnList = "rol_id"),
+    @Index(name = "idx_usuario_nivel", columnList = "nivel")
 })
-@Getter @Setter
+@Getter
+@Setter
 public class Usuario {
 
     @Id
@@ -51,15 +57,23 @@ public class Usuario {
     @Column(name = "es_verificado", nullable = false)
     private Boolean esVerificado = false;
 
+    @Column(name = "cantidad_compras", nullable = false)
+    private Integer cantidadCompras = 0;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private NivelUsuario nivel = NivelUsuario.BRONCE;
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "usuario_eventos_deseados",
-        joinColumns        = @JoinColumn(name = "usuario_id"),
+        joinColumns = @JoinColumn(name = "usuario_id"),
         inverseJoinColumns = @JoinColumn(name = "evento_id"),
         indexes = {
             @Index(name = "idx_ued_usuario", columnList = "usuario_id"),
-            @Index(name = "idx_ued_evento",  columnList = "evento_id")
+            @Index(name = "idx_ued_evento", columnList = "evento_id")
         }
     )
     private List<Evento> eventosDeseados;
+
 }

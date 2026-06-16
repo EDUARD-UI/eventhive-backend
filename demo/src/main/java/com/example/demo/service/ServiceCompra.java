@@ -25,6 +25,7 @@ import com.example.demo.repository.CompraRepository;
 import com.example.demo.repository.LocalidadRepository;
 import com.example.demo.repository.PromocionRepository;
 import com.example.demo.repository.TiqueteRepository;
+import com.example.demo.repository.UsuarioRepository;
 import com.example.demo.utils.AuthenticatedUserHelper;
 
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,8 @@ public class ServiceCompra {
     private final TiqueteRepository   tiqueteRepository;
     private final PromocionRepository promocionRepository;
     private final AuthenticatedUserHelper authHelper;
+    private final UsuarioRepository usuarioRepository;
+    private final ServiceFidelizacion serviceFidelizacion;
 
     @Transactional(readOnly = true)
     @PreAuthorize("isAuthenticated()")
@@ -101,6 +104,16 @@ public class ServiceCompra {
 
         Compra guardada = compraRepository.save(compra);
         generarTiquetes(itemsValidados, guardada);
+
+        // Actualizar sistema de fidelización: contador de compras y nivel
+        try {
+            usuario.setCantidadCompras(usuario.getCantidadCompras() + 1);
+            usuario.setNivel(serviceFidelizacion.calcularNivel(usuario.getCantidadCompras()));
+            usuarioRepository.save(usuario);
+        } catch (Exception ex) {
+            // no propagamos fallo de fidelización para no bloquear la compra
+        }
+
         return guardada;
     }
 
