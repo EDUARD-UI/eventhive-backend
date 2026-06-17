@@ -9,15 +9,21 @@ import lombok.Getter;
 @Configuration
 public class SupabaseStorageConfig {
 
-    // URL base del proyecto Supabase (ej: https://xyzabc.supabase.co)
+    //url del storage
     @Value("${supabase.url}")
     private String url;
 
-    // Service Role Key de Supabase (con permisos de escritura en Storage)
+    //clave del storage
     @Value("${supabase.key}")
     private String key;
 
-    // Nombre del bucket configurado en Supabase Storage
-    @Value("${supabase.bucket:verificacion-docs}")
-    private String bucket;
+    //nombre de los buckets
+    @Value("${supabase.bucket.verificaciones}")
+    private String bucketVerificaciones;
+
+    @Value("${supabase.bucket.eventos}")
+    private String bucketEventos;
+
+    @Value("${supabase.bucket.categorias}")
+    private String bucketCategorias;
 }

@@ -178,6 +178,8 @@ public class ServiceUsuario {
         dto.setTelefono(u.getTelefono());
         dto.setEsVerificado(u.getEsVerificado() != null && u.getEsVerificado());
         dto.setRolNombre(u.getRol() != null ? u.getRol().getNombre() : "");
+        dto.setNivel(u.getNivel());
+        dto.setCantidadCompras(u.getCantidadCompras());
         return dto;
     }
 }

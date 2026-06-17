@@ -1,5 +1,7 @@
 package com.example.demo.dto;
 
+import com.example.demo.enums.NivelUsuario;
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -13,6 +15,8 @@ public class UsuarioSesionDTO {
     private String telefono;
     private String rolNombre;
     private boolean esVerificado;
+    private NivelUsuario nivel;
+    private Integer cantidadCompras;
 
     public UsuarioSesionDTO() {
     }
