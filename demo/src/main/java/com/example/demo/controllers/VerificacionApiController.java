@@ -57,14 +57,14 @@ public class VerificacionApiController {
     @GetMapping("/{solicitudId}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<SolicitudVerificacionDTO>> obtenerDetalles(
-            @PathVariable String solicitudId) {
+            @PathVariable Long solicitudId) {
         return ResponseEntity.ok(ApiResponse.ok("Solicitud obtenida",
-                serviceSolicitud.obtenerSolicitud(solicitudId)));
+            serviceSolicitud.obtenerSolicitud(solicitudId)));
     }
 
     @PutMapping("/{solicitudId}/aprobar")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<String>> aprobarSolicitud(@PathVariable String solicitudId) {
+    public ResponseEntity<ApiResponse<String>> aprobarSolicitud(@PathVariable Long solicitudId) {
         String claveGenerada = serviceSolicitud.aprobarSolicitud(solicitudId);
         return ResponseEntity.ok(ApiResponse.ok(
                 "Solicitud aprobada. Comparte esta contraseña con el organizador", claveGenerada));
@@ -73,7 +73,7 @@ public class VerificacionApiController {
     @PutMapping("/{solicitudId}/rechazar")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> rechazarSolicitud(
-            @PathVariable String solicitudId,
+            @PathVariable Long solicitudId,
             @RequestParam String motivo) {
         serviceSolicitud.rechazarSolicitud(solicitudId, motivo);
         return ResponseEntity.ok(ApiResponse.ok("Solicitud rechazada"));

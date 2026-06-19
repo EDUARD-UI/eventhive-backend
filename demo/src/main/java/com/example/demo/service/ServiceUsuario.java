@@ -29,7 +29,7 @@ public class ServiceUsuario {
     private final AuthenticatedUserHelper authHelper;
 
     @Transactional(readOnly = true)
-    public Usuario obtenerUsuarioPorId(String id) {
+    public Usuario obtenerUsuarioPorId(Long id) {
         return usuarioRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
     }
@@ -48,9 +48,9 @@ public class ServiceUsuario {
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public Page<Usuario> buscarPorFiltros(String nombre, String rolId, Pageable pageable) {
+    public Page<Usuario> buscarPorFiltros(String nombre, Long rolId, Pageable pageable) {
         boolean tieneNombre = nombre != null && !nombre.isBlank();
-        boolean tieneRol = rolId != null && !rolId.isBlank();
+        boolean tieneRol = rolId != null;
         if (tieneNombre && tieneRol) {
             return usuarioRepository.findByNombreYRolId(nombre.trim(), rolId, pageable);
         }
@@ -85,10 +85,10 @@ public class ServiceUsuario {
         return toDTO(usuarioRepository.save(u));
     }
 
-    @Transactional
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public void crearUsuario(String nombre, String apellido, String correo,
-            String telefono, String clave, String rolId) {
+        @Transactional
+        @PreAuthorize("hasRole('ADMINISTRADOR')")
+        public void crearUsuario(String nombre, String apellido, String correo,
+            String telefono, String clave, Long rolId) {
         if (usuarioRepository.existsByCorreo(correo)) {
             throw new BusinessException("Correo ya registrado");
         }
@@ -109,7 +109,7 @@ public class ServiceUsuario {
 
     @Transactional
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public void actualizarUsuario(String id, String nombre, String apellido, String telefono) {
+    public void actualizarUsuario(Long id, String nombre, String apellido, String telefono) {
         Usuario u = obtenerUsuarioPorId(id);
         u.setNombre(nombre);
         u.setApellido(apellido);
@@ -119,7 +119,7 @@ public class ServiceUsuario {
 
     @Transactional
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public void asignarRol(String usuarioId, String rolId) {
+    public void asignarRol(Long usuarioId, Long rolId) {
         Usuario u = obtenerUsuarioPorId(usuarioId);
         Rol rol = rolesRepository.findById(rolId)
                 .orElseThrow(() -> new ResourceNotFoundException("Rol no existe"));
@@ -129,7 +129,7 @@ public class ServiceUsuario {
 
     @Transactional
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public void eliminarUsuario(String id) {
+    public void eliminarUsuario(Long id) {
         if (!usuarioRepository.existsById(id)) {
             throw new ResourceNotFoundException("Usuario no encontrado");
         }

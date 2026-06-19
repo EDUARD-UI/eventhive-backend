@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 import com.example.demo.model.Tiquete;
 
 @Repository
-public interface TiqueteRepository extends JpaRepository<Tiquete, String> {
+public interface TiqueteRepository extends JpaRepository<Tiquete, Long> {
 
     @Query("""
         SELECT t FROM Tiquete t
@@ -20,5 +20,5 @@ public interface TiqueteRepository extends JpaRepository<Tiquete, String> {
         WHERE t.compra.id = :compraId
         """)
     // Devuelve tiquetes de una compra con detalles (evento, localidad, categoria)
-    List<Tiquete> findByCompraIdConDetalles(@Param("compraId") String compraId);
+    List<Tiquete> findByCompraIdConDetalles(@Param("compraId") Long compraId);
 }

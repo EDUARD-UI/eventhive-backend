@@ -34,7 +34,7 @@ public class BoletosApiController {
 
     @GetMapping("/{compraId}")
     @PreAuthorize("hasRole('CLIENTE')")
-    public ResponseEntity<ApiResponse<BoletosCompraDTO>> obtener(@PathVariable String compraId) {
+    public ResponseEntity<ApiResponse<BoletosCompraDTO>> obtener(@PathVariable Long compraId) {
         Usuario usuario = authHelper.usuarioAutenticado();
         Compra compra   = serviceCompra.obtenerPorId(compraId);
 
@@ -64,7 +64,7 @@ public class BoletosApiController {
             Evento evento = tiquete.getEvento();
                 if (evento != null) {
                 BoletosCompraDTO.LocalidadDTO localidadDTO = new BoletosCompraDTO.LocalidadDTO();
-                String localidadId = tiquete.getLocalidad() != null ? tiquete.getLocalidad().getId() : null;
+                Long localidadId = tiquete.getLocalidad() != null ? tiquete.getLocalidad().getId() : null;
                 localidadDTO.setId(localidadId);
 
                 // Buscar la localidad dentro del evento por su id almacenado en el tiquete

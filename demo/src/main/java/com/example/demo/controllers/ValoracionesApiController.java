@@ -38,7 +38,7 @@ public class ValoracionesApiController {
 
     @GetMapping("/organizador/{organizadorId}")
         public ResponseEntity<ApiResponse<Page<ValoracionDTO>>> valoracionesPorOrganizador(
-            @PathVariable("organizadorId") String organizadorId, Pageable pageable) {
+            @PathVariable("organizadorId") Long organizadorId, Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.ok("Valoraciones del organizador",
             serviceValoracion.obtenerValoracionesDTOPorOrganizador(organizadorId, pageable)));
     }
@@ -46,7 +46,7 @@ public class ValoracionesApiController {
     @PostMapping
     @PreAuthorize("hasRole('CLIENTE')")
     public ResponseEntity<ApiResponse<Void>> crearValoracion(
-            @RequestParam String eventoId,
+            @RequestParam Long eventoId,
             @RequestParam String comentario,
             @RequestParam long calificacion) {
         // Nota: el parámetro se mantiene como "eventoId" por compatibilidad del cliente,
@@ -58,7 +58,7 @@ public class ValoracionesApiController {
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('CLIENTE')")
     public ResponseEntity<ApiResponse<Void>> actualizarValoracion(
-            @PathVariable String id,
+            @PathVariable Long id,
             @RequestParam String comentario,
             @RequestParam long calificacion) {
 
@@ -68,7 +68,7 @@ public class ValoracionesApiController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('CLIENTE')")
-    public ResponseEntity<ApiResponse<Void>> eliminarValoracion(@PathVariable String id) {
+    public ResponseEntity<ApiResponse<Void>> eliminarValoracion(@PathVariable Long id) {
         serviceValoracion.eliminarValoracion(id, authHelper.usuarioAutenticado());
         return ResponseEntity.ok(ApiResponse.ok("Valoración eliminada exitosamente"));
     }

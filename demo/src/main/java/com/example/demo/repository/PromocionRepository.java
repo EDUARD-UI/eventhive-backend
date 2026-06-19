@@ -14,7 +14,7 @@ import org.springframework.stereotype.Repository;
 import com.example.demo.model.Promocion;
 
 @Repository
-public interface PromocionRepository extends JpaRepository<Promocion, String> {
+public interface PromocionRepository extends JpaRepository<Promocion, Long> {
 
     // Busca promoción vigente para un evento en una fecha dada
     @Query("""
@@ -24,14 +24,14 @@ public interface PromocionRepository extends JpaRepository<Promocion, String> {
         AND p.fechaInicio <= :hoy
         AND p.fechaFin    >= :hoy
         """)
-    Optional<Promocion> findVigenteByEventoId(@Param("eventoId") String eventoId,
+    Optional<Promocion> findVigenteByEventoId(@Param("eventoId") Long eventoId,
                                                @Param("hoy")      LocalDate hoy);
 
     @Query("SELECT p FROM Promocion p JOIN p.eventos e WHERE e.id = :eventoId")
-    List<Promocion> findByEventoId(@Param("eventoId") String eventoId);
+    List<Promocion> findByEventoId(@Param("eventoId") Long eventoId);
 
     @Query("SELECT COUNT(p) > 0 FROM Promocion p JOIN p.eventos e WHERE e.id = :eventoId")
-    boolean existsByEventoId(@Param("eventoId") String eventoId);
+    boolean existsByEventoId(@Param("eventoId") Long eventoId);
 
     // Comprueba si existe otra promoción para el mismo evento que choque con el rango
     @Query("""
@@ -41,10 +41,10 @@ public interface PromocionRepository extends JpaRepository<Promocion, String> {
         AND p.fechaFin   >= :inicio
         AND (:excludeId IS NULL OR p.id <> :excludeId)
         """)
-    boolean existsConflictoFechas(@Param("eventoId") String eventoId,
+    boolean existsConflictoFechas(@Param("eventoId") Long eventoId,
                                    @Param("inicio") LocalDate inicio,
                                    @Param("fin") LocalDate fin,
-                                   @Param("excludeId") String excludeId);
+                                   @Param("excludeId") Long excludeId);
 
     // Para el panel de organizador
     @Query("""
@@ -52,5 +52,5 @@ public interface PromocionRepository extends JpaRepository<Promocion, String> {
         JOIN FETCH p.eventos e
         WHERE e.organizador.id = :organizadorId
         """)
-    Page<Promocion> findByOrganizadorId(@Param("organizadorId") String organizadorId, Pageable pageable);
+    Page<Promocion> findByOrganizadorId(@Param("organizadorId") Long organizadorId, Pageable pageable);
 }

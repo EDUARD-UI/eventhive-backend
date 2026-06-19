@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 import com.example.demo.model.Compra;
 
 @Repository
-public interface CompraRepository extends JpaRepository<Compra, String> {
+public interface CompraRepository extends JpaRepository<Compra, Long> {
 
     // Devuelve compras de un cliente con items y detalles (evento, localidad)
     @Query("""
@@ -22,5 +22,5 @@ public interface CompraRepository extends JpaRepository<Compra, String> {
         WHERE c.cliente.id = :clienteId
         ORDER BY c.fechaCompra DESC
         """)
-    Page<Compra> findByClienteIdConItems(@Param("clienteId") String clienteId, Pageable pageable);
+    Page<Compra> findByClienteIdConItems(@Param("clienteId") Long clienteId, Pageable pageable);
 }

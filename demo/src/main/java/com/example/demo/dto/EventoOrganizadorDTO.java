@@ -6,11 +6,11 @@ import lombok.Setter;
 @Getter
 @Setter
 public class EventoOrganizadorDTO {
-    private String id;
+    private Long id;
     private String nombre;
     private Boolean esVerificado;
 
-    public EventoOrganizadorDTO(String id, String nombre, Boolean esVerificado) {
+    public EventoOrganizadorDTO(Long id, String nombre, Boolean esVerificado) {
         this.id = id;
         this.nombre = nombre;
         this.esVerificado = esVerificado;

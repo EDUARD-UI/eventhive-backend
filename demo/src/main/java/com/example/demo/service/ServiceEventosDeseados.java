@@ -33,7 +33,7 @@ public class ServiceEventosDeseados {
 
     @Transactional
     @PreAuthorize("isAuthenticated()")
-    public void agregar(String eventoId) {
+    public void agregar(Long eventoId) {
         Usuario u = authHelper.usuarioAutenticado();
         Evento evento = serviceEvento.obtenerReferencia(eventoId);
 
@@ -49,7 +49,7 @@ public class ServiceEventosDeseados {
 
     @Transactional
     @PreAuthorize("isAuthenticated()")
-    public void eliminar(String eventoId) {
+    public void eliminar(Long eventoId) {
         Usuario u = authHelper.usuarioAutenticado();
 
         if (u.getEventosDeseados() == null || u.getEventosDeseados().isEmpty())

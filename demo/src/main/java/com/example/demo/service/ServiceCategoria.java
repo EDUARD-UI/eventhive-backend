@@ -1,23 +1,21 @@
 package com.example.demo.service;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.example.demo.config.SupabaseStorageConfig;
 import com.example.demo.dto.CategoriaDTO;
 import com.example.demo.dto.CategoriaEventosDTO;
 import com.example.demo.exception.BusinessException;
 import com.example.demo.model.Categoria;
 import com.example.demo.repository.CategoriaRepository;
 import com.example.demo.repository.EventoRepository;
-import com.example.demo.utils.Utilidades;
 
 import lombok.RequiredArgsConstructor;
 
@@ -25,11 +23,10 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ServiceCategoria {
 
-    private final CategoriaRepository categoriaRepository;
-    private final EventoRepository    eventoRepository;
-
-    @Value("${upload.path:uploads/categorias}")
-    private String uploadPath;
+    private final CategoriaRepository    categoriaRepository;
+    private final EventoRepository       eventoRepository;
+    private final SupabaseStorageService storageService;
+    private final SupabaseStorageConfig  storageConfig;
 
     @Transactional(readOnly = true)
     public Page<Categoria> obtenerTodasCategorias(Pageable pageable) {
@@ -37,7 +34,7 @@ public class ServiceCategoria {
     }
 
     @Transactional(readOnly = true)
-    public Categoria obtenerCategoriaPorId(String id) {
+    public Categoria obtenerCategoriaPorId(Long id) {
         return categoriaRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Categoría no encontrada"));
     }
@@ -68,23 +65,21 @@ public class ServiceCategoria {
     }
 
     @Transactional
-    public void crearCategoria(String nombre, MultipartFile foto) throws IOException {
+    public void crearCategoria(String nombre, MultipartFile foto) {
         if (categoriaRepository.existsByNombre(nombre))
             throw new BusinessException("Categoría ya existe");
 
         Categoria c = new Categoria();
         c.setNombre(nombre);
 
-        if (foto != null && !foto.isEmpty()) {
-            Utilidades.validarFoto(foto);
-            c.setFoto(Utilidades.guardarFoto(foto, uploadPath));
-        }
+        if (foto != null && !foto.isEmpty())
+            c.setFoto(storageService.subirImagenCategoria(foto));
 
         categoriaRepository.save(c);
     }
 
     @Transactional
-    public void actualizarCategoria(String id, String nombre, MultipartFile foto) throws IOException {
+    public void actualizarCategoria(Long id, String nombre, MultipartFile foto) {
         Categoria existente = obtenerCategoriaPorId(id);
 
         if (!existente.getNombre().equalsIgnoreCase(nombre) && categoriaRepository.existsByNombre(nombre))
@@ -93,24 +88,29 @@ public class ServiceCategoria {
         existente.setNombre(nombre);
 
         if (foto != null && !foto.isEmpty()) {
-            Utilidades.validarFoto(foto);
-            if (existente.getFoto() != null) Utilidades.eliminarFoto(existente.getFoto(), uploadPath);
-            existente.setFoto(Utilidades.guardarFoto(foto, uploadPath));
+            eliminarFotoAnterior(existente.getFoto());
+            existente.setFoto(storageService.subirImagenCategoria(foto));
         }
 
         categoriaRepository.save(existente);
     }
 
     @Transactional
-    public void eliminarCategoria(String id) {
+    public void eliminarCategoria(Long id) {
         Categoria cat = obtenerCategoriaPorId(id);
-        long eventos = eventoRepository.countByCategoriaId(id);
+        long eventos  = eventoRepository.countByCategoriaId(id);
 
         if (eventos > 0)
             throw new BusinessException(
                 "No se puede eliminar '" + cat.getNombre() + "' porque tiene " + eventos + " evento(s)");
 
-        if (cat.getFoto() != null) Utilidades.eliminarFoto(cat.getFoto(), uploadPath);
+        eliminarFotoAnterior(cat.getFoto());
         categoriaRepository.deleteById(id);
+    }
+
+    private void eliminarFotoAnterior(String urlFoto) {
+        if (urlFoto == null || urlFoto.isBlank()) return;
+        String nombre = storageService.extraerNombreArchivo(urlFoto);
+        storageService.eliminarArchivo(storageConfig.getBucketCategorias(), nombre);
     }
 }

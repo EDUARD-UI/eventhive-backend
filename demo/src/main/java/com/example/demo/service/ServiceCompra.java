@@ -50,7 +50,7 @@ public class ServiceCompra {
     }
 
     @Transactional(readOnly = true)
-    public Compra obtenerPorId(String id) {
+    public Compra obtenerPorId(Long id) {
         return compraRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Compra no encontrada con id: " + id));
     }
@@ -119,7 +119,7 @@ public class ServiceCompra {
 
     @Transactional
     @PreAuthorize("isAuthenticated()")
-    public void cancelarCompra(String id) {
+    public void cancelarCompra(Long id) {
         Compra compra = obtenerPorId(id);
         Usuario u = authHelper.usuarioAutenticado();
 

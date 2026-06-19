@@ -64,7 +64,7 @@ public class UsuariosApiController {
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<PagedResponse<UsuarioDTO>>> buscar(
             @RequestParam(required = false) String nombre,
-            @RequestParam(required = false) String rolId,
+            @RequestParam(required = false) Long rolId,
             Pageable pageable) {
         try {
             Page<Usuario> page = usuarioService.buscarPorFiltros(nombre, rolId, pageable);
@@ -93,7 +93,7 @@ public class UsuariosApiController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<UsuarioDTO>> obtenerPorId(@PathVariable String id) {
+    public ResponseEntity<ApiResponse<UsuarioDTO>> obtenerPorId(@PathVariable Long id) {
         var usuario = usuarioService.obtenerUsuarioPorId(id);
         UsuarioDTO dto = new UsuarioDTO();
         dto.setId(usuario.getId());
@@ -115,7 +115,7 @@ public class UsuariosApiController {
             @RequestParam String correo,
             @RequestParam String telefono,
             @RequestParam String clave,
-            @RequestParam String rolId) {
+            @RequestParam Long rolId) {
 
         usuarioService.crearUsuario(nombre, apellido, correo, telefono, clave, rolId);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -125,7 +125,7 @@ public class UsuariosApiController {
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> actualizar(
-            @PathVariable String id,
+            @PathVariable Long id,
             @RequestParam String nombre,
             @RequestParam String apellido,
             @RequestParam String telefono) {
@@ -137,8 +137,8 @@ public class UsuariosApiController {
     @PutMapping("/{id}/asignar-rol")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> asignarRol(
-            @PathVariable String id,
-            @RequestParam String rolId) {
+            @PathVariable Long id,
+            @RequestParam Long rolId) {
 
         usuarioService.asignarRol(id, rolId);
         return ResponseEntity.ok(ApiResponse.ok("Rol asignado exitosamente"));
@@ -146,7 +146,7 @@ public class UsuariosApiController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRADOR') or isAuthenticated()")
-    public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable String id) {
+    public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long id) {
         usuarioService.eliminarUsuario(id);
         return ResponseEntity.ok(ApiResponse.ok("Usuario eliminado exitosamente"));
     }

@@ -1,21 +1,28 @@
 package com.example.demo.service;
 
-import com.example.demo.dto.PromocionDTO;
-import com.example.demo.exception.BusinessException;
-import com.example.demo.exception.ResourceNotFoundException;
-import com.example.demo.model.*;
-import com.example.demo.repository.*;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.*;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.example.demo.dto.PromocionDTO;
+import com.example.demo.exception.BusinessException;
+import com.example.demo.exception.ResourceNotFoundException;
+import com.example.demo.model.Evento;
+import com.example.demo.model.Promocion;
+import com.example.demo.model.Usuario;
+import com.example.demo.repository.EventoRepository;
+import com.example.demo.repository.PromocionRepository;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -26,7 +33,7 @@ public class ServicePromocion {
     private static final DateTimeFormatter FMT = DateTimeFormatter.ISO_LOCAL_DATE;
 
     @Transactional(readOnly = true)
-    public List<Promocion> obtenerPorEvento(String eventoId) {
+    public List<Promocion> obtenerPorEvento(Long eventoId) {
         return promocionRepository.findByEventoId(eventoId);
     }
 
@@ -36,13 +43,13 @@ public class ServicePromocion {
     }
 
     @Transactional(readOnly = true)
-    public Page<PromocionDTO> obtenerDTOPorOrganizador(String organizadorId, Pageable pageable) {
+    public Page<PromocionDTO> obtenerDTOPorOrganizador(Long organizadorId, Pageable pageable) {
         return promocionRepository.findByOrganizadorId(organizadorId, pageable).map(this::toDTO);
     }
 
     @Transactional
     @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
-    public void crearPromocion(String eventoId, String descripcion, BigDecimal descuento,
+    public void crearPromocion(Long eventoId, String descripcion, BigDecimal descuento,
                                String fechaInicio, String fechaFin, Usuario organizador) {
         validarDescuento(descuento);
         LocalDate inicio = LocalDate.parse(fechaInicio, FMT);
@@ -71,7 +78,7 @@ public class ServicePromocion {
 
     @Transactional
     @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
-    public void actualizarPromocion(String id, String eventoId, String descripcion,
+    public void actualizarPromocion(Long id, Long eventoId, String descripcion,
                                     BigDecimal descuento, String fechaInicio,
                                     String fechaFin, Usuario organizador) {
         Promocion p = obtenerPromocionPorId(id);
@@ -81,7 +88,7 @@ public class ServicePromocion {
         LocalDate fin    = LocalDate.parse(fechaFin, FMT);
         validarFechas(inicio, fin);
 
-        if (eventoId != null && !eventoId.isBlank()) {
+        if (eventoId != null) {
             Evento nuevoEvento = eventoRepository.findById(eventoId)
                     .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado: " + eventoId));
 
@@ -105,7 +112,7 @@ public class ServicePromocion {
 
     @Transactional
     @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
-    public void eliminarPromocion(String id, Usuario organizador) {
+    public void eliminarPromocion(Long id, Usuario organizador) {
         Promocion p = obtenerPromocionPorId(id);
         validarPermiso(p, organizador);
         promocionRepository.deleteById(id);
@@ -113,7 +120,7 @@ public class ServicePromocion {
 
     // --- helpers privados ---
 
-    private Promocion obtenerPromocionPorId(String id) {
+    private Promocion obtenerPromocionPorId(Long id) {
         return promocionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Promoción no encontrada: " + id));
     }

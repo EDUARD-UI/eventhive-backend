@@ -24,18 +24,18 @@ public class ServiceValoracion {
     private final UsuarioRepository    usuarioRepository;
 
     @Transactional(readOnly = true)
-    public Page<ValoracionDTO> obtenerValoracionesDTOPorUsuario(String usuarioId, Pageable pageable) {
+    public Page<ValoracionDTO> obtenerValoracionesDTOPorUsuario(Long usuarioId, Pageable pageable) {
         return valoracionRepository.findByClienteIdConOrganizador(usuarioId, pageable).map(this::toDTO);
     }
 
     @Transactional(readOnly = true)
-    public Page<ValoracionDTO> obtenerValoracionesDTOPorOrganizador(String organizadorId, Pageable pageable) {
+    public Page<ValoracionDTO> obtenerValoracionesDTOPorOrganizador(Long organizadorId, Pageable pageable) {
         return valoracionRepository.findByOrganizadorIdConCliente(organizadorId, pageable).map(this::toDTO);
     }
 
     @Transactional
     @PreAuthorize("hasRole('CLIENTE')")
-    public void crearValoracion(Usuario cliente, String organizadorId, String comentario, long calificacion) {
+    public void crearValoracion(Usuario cliente, Long organizadorId, String comentario, long calificacion) {
         validarCalificacion(calificacion);
         if (valoracionRepository.existsByClienteIdAndOrganizadorId(cliente.getId(), organizadorId))
             throw new BusinessException("Ya valoraste a este organizador");
@@ -53,7 +53,7 @@ public class ServiceValoracion {
 
     @Transactional
     @PreAuthorize("hasRole('CLIENTE')")
-    public void actualizarValoracion(String id, Usuario cliente, String comentario, long calificacion) {
+    public void actualizarValoracion(Long id, Usuario cliente, String comentario, long calificacion) {
         validarCalificacion(calificacion);
         Valoracion v = obtenerVerificada(id, cliente);
         v.setComentario(comentario);
@@ -63,14 +63,14 @@ public class ServiceValoracion {
 
     @Transactional
     @PreAuthorize("hasRole('CLIENTE')")
-    public void eliminarValoracion(String id, Usuario cliente) {
+    public void eliminarValoracion(Long id, Usuario cliente) {
         obtenerVerificada(id, cliente);
         valoracionRepository.deleteById(id);
     }
 
     // --- helpers ---
 
-    private Valoracion obtenerVerificada(String id, Usuario cliente) {
+    private Valoracion obtenerVerificada(Long id, Usuario cliente) {
         Valoracion v = valoracionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Valoración no encontrada"));
         if (!v.getCliente().getId().equals(cliente.getId()))

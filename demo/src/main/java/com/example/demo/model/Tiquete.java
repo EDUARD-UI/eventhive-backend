@@ -23,8 +23,8 @@ import lombok.Setter;
 public class Tiquete {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(name = "codigo_qr", nullable = false, unique = true, length = 100)
     private String codigoQR;

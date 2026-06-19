@@ -11,8 +11,8 @@ import lombok.Setter;
 @Setter
 public class SolicitudVerificacionDTO {
 
-    private String id;
-    private String organizadorId;
+    private Long id;
+    private Long organizadorId;
     private String organizadorNombre;
     private String organizadorCorreo;
 

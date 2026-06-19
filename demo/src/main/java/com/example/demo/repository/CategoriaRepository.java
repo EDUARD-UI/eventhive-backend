@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository;
 import com.example.demo.model.Categoria;
 
 @Repository
-public interface CategoriaRepository extends JpaRepository<Categoria, String> {
+public interface CategoriaRepository extends JpaRepository<Categoria, Long> {
     Optional<Categoria> findByNombre(String nombre);
     boolean existsByNombre(String nombre);
     List<Categoria> findTop4ByOrderByNombreAsc();

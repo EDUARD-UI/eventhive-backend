@@ -14,7 +14,7 @@ import com.example.demo.enums.EstadoSolicitud;
 import com.example.demo.model.SolicitudVerificacion;
 
 @Repository
-public interface SolicitudVerificacionRepository extends JpaRepository<SolicitudVerificacion, String> {
+public interface SolicitudVerificacionRepository extends JpaRepository<SolicitudVerificacion, Long> {
 
     // Busca la solicitud más reciente de un organizador con sus relaciones cargadas (evita N+1)
     @Query("""
@@ -23,7 +23,7 @@ public interface SolicitudVerificacionRepository extends JpaRepository<Solicitud
         WHERE s.organizador.id = :organizadorId
         ORDER BY s.fechaSolicitud DESC
         """)
-    Optional<SolicitudVerificacion> findFirstByOrganizadorId(@Param("organizadorId") String organizadorId);
+    Optional<SolicitudVerificacion> findFirstByOrganizadorId(@Param("organizadorId") Long organizadorId);
 
     // Lista solicitudes por estado con el organizador ya cargado (evita N+1 en paginación)
     @Query("""
@@ -40,8 +40,8 @@ public interface SolicitudVerificacionRepository extends JpaRepository<Solicitud
         WHERE s.organizador.id = :organizadorId
         AND s.estado = :estado
         """)
-    boolean existsByOrganizadorIdAndEstado(
-            @Param("organizadorId") String organizadorId,
+        boolean existsByOrganizadorIdAndEstado(
+            @Param("organizadorId") Long organizadorId,
             @Param("estado") EstadoSolicitud estado);
 
     // Verifica si el correo empresarial ya está en una solicitud pendiente o aprobada

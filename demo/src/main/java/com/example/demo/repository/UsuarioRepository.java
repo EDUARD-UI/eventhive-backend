@@ -12,7 +12,7 @@ import org.springframework.stereotype.Repository;
 import com.example.demo.model.Usuario;
 
 @Repository
-public interface UsuarioRepository extends JpaRepository<Usuario, String> {
+public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
     Usuario findByCorreo(String correo);
     boolean existsByCorreo(String correo);
@@ -22,7 +22,7 @@ public interface UsuarioRepository extends JpaRepository<Usuario, String> {
     Optional<Usuario> findByCorreoConRol(@Param("correo") String correo);
 
     @Query("SELECT u FROM Usuario u JOIN FETCH u.rol r WHERE r.id = :rolId")
-    Page<Usuario> findByRolId(@Param("rolId") String rolId, Pageable pageable);
+    Page<Usuario> findByRolId(@Param("rolId") Long rolId, Pageable pageable);
 
     // Busca usuarios por nombre y rol (contains) incluyendo rol
     @Query("""
@@ -31,7 +31,7 @@ public interface UsuarioRepository extends JpaRepository<Usuario, String> {
         AND r.id = :rolId
         """)
     Page<Usuario> findByNombreYRolId(@Param("nombre") String nombre,
-                                      @Param("rolId")   String rolId,
+                                      @Param("rolId")   Long rolId,
                                       Pageable pageable);
 
     // Busca usuarios cuyo nombre contiene el texto (insensible a mayúsculas)
@@ -39,5 +39,5 @@ public interface UsuarioRepository extends JpaRepository<Usuario, String> {
     Page<Usuario> findByNombreContieneIgnoreCase(@Param("nombre") String nombre, Pageable pageable);
 
     @Query("SELECT COUNT(u) FROM Usuario u WHERE u.rol.id = :rolId")
-    long countByRolId(@Param("rolId") String rolId);
+    long countByRolId(@Param("rolId") Long rolId);
 }

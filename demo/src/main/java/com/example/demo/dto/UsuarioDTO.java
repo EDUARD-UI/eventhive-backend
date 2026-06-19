@@ -6,7 +6,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class UsuarioDTO {
-    private String id;
+    private Long id;
     private String nombre;
     private String apellido;
     private String correo;
@@ -18,7 +18,7 @@ public class UsuarioDTO {
         this.esVerificado = false; // Default value
     }
 
-    public UsuarioDTO(String id, String nombre, String apellido, String correo, 
+    public UsuarioDTO(Long id, String nombre, String apellido, String correo, 
                       String telefono, String rolNombre) {
         this.id = id;
         this.nombre = nombre;
@@ -29,7 +29,7 @@ public class UsuarioDTO {
         this.esVerificado = false;
     }
 
-    public UsuarioDTO(String id, String nombre, String apellido, String correo, 
+    public UsuarioDTO(Long id, String nombre, String apellido, String correo, 
                       String telefono, String rolNombre, boolean esVerificado) {
         this.id = id;
         this.nombre = nombre;

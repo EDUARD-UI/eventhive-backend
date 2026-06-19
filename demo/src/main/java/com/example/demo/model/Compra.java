@@ -29,8 +29,8 @@ import lombok.Setter;
 public class Compra {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(name = "fecha_compra", nullable = false)
     private LocalDateTime fechaCompra;

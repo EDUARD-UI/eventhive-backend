@@ -21,7 +21,7 @@ public class ServiceRoles {
     private final UsuarioRepository usuarioRepository;
 
     @Transactional(readOnly = true)
-    public Rol findById(String id) {
+    public Rol findById(Long id) {
         return rolesRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Rol no encontrado: " + id));
     }
@@ -48,7 +48,7 @@ public class ServiceRoles {
     }
 
     @Transactional
-    public void actualizarRol(String id, String nombre) {
+    public void actualizarRol(Long id, String nombre) {
         Rol existente = findById(id);
 
         if (!existente.getNombre().equalsIgnoreCase(nombre) && rolesRepository.existsByNombre(nombre))
@@ -59,7 +59,7 @@ public class ServiceRoles {
     }
 
     @Transactional
-    public void eliminarRol(String id) {
+    public void eliminarRol(Long id) {
         Rol rol = findById(id);
 
         long usuarios = usuarioRepository.countByRolId(id);

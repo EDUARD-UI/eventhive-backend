@@ -13,7 +13,7 @@ import org.springframework.stereotype.Repository;
 import com.example.demo.model.Evento;
 
 @Repository
-public interface EventoRepository extends JpaRepository<Evento, String> {
+public interface EventoRepository extends JpaRepository<Evento, Long> {
 
     // Devuelve página de eventos con sus referencias (categoria, estado, organizador y rol)
     @Query("""
@@ -29,7 +29,7 @@ public interface EventoRepository extends JpaRepository<Evento, String> {
         JOIN FETCH o.rol
         WHERE e.id = :id
         """)
-    Optional<Evento> findByIdConReferencias(@Param("id") String id);
+    Optional<Evento> findByIdConReferencias(@Param("id") Long id);
 
     // Lista eventos de un organizador con sus referencias
     @Query("""
@@ -40,7 +40,7 @@ public interface EventoRepository extends JpaRepository<Evento, String> {
         WHERE o.id = :organizadorId
         ORDER BY e.fechaCreacion DESC
         """)
-    Page<Evento> findByOrganizadorIdConReferencias(@Param("organizadorId") String organizadorId, Pageable pageable);
+    Page<Evento> findByOrganizadorIdConReferencias(@Param("organizadorId") Long organizadorId, Pageable pageable);
 
     // Lista eventos de una categoria con sus referencias
     @Query("""
@@ -50,7 +50,7 @@ public interface EventoRepository extends JpaRepository<Evento, String> {
         JOIN FETCH o.rol
         WHERE c.id = :categoriaId
         """)
-    Page<Evento> findByCategoriaIdConReferencias(@Param("categoriaId") String categoriaId, Pageable pageable);
+    Page<Evento> findByCategoriaIdConReferencias(@Param("categoriaId") Long categoriaId, Pageable pageable);
 
     // Lista eventos por estado con sus referencias
     @Query("""
@@ -81,15 +81,15 @@ public interface EventoRepository extends JpaRepository<Evento, String> {
         WHERE o.id = :organizadorId
         AND LOWER(e.titulo) LIKE LOWER(CONCAT('%', :titulo, '%'))
         """)
-    Page<Evento> findByOrganizadorIdAndTituloConReferencias(
-            @Param("organizadorId") String organizadorId,
+        Page<Evento> findByOrganizadorIdAndTituloConReferencias(
+            @Param("organizadorId") Long organizadorId,
             @Param("titulo") String titulo,
             Pageable pageable);
 
-    List<Evento> findByOrganizadorId(String organizadorId);
-    List<Evento> findByOrganizadorIdOrderByFechaCreacionDesc(String organizadorId);
+        List<Evento> findByOrganizadorId(Long organizadorId);
+        List<Evento> findByOrganizadorIdOrderByFechaCreacionDesc(Long organizadorId);
 
-    long countByCategoriaId(String categoriaId);
+        long countByCategoriaId(Long categoriaId);
     long countByEstado(com.example.demo.enums.EstadoEvento estado);
-    long countByOrganizadorId(String organizadorId);
+        long countByOrganizadorId(Long organizadorId);
 }

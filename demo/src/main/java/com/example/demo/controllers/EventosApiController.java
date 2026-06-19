@@ -2,15 +2,25 @@ package com.example.demo.controllers;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.example.demo.dto.ApiResponse;
 import com.example.demo.dto.EventoBusquedaDTO;
 import com.example.demo.dto.EventoDTO;
+import com.example.demo.dto.EventoRequest;
 import com.example.demo.dto.PagedResponse;
-import com.example.demo.model.Evento;
 import com.example.demo.service.ServiceEvento;
 import com.example.demo.utils.AuthenticatedUserHelper;
 
@@ -26,10 +36,10 @@ public class EventosApiController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> listar(
-            @RequestParam(required = false) String categoriaId,
+            @RequestParam(required = false) Long categoriaId,
             Pageable pageable) {
 
-        var page = categoriaId != null && !categoriaId.isBlank()
+        var page = categoriaId != null
                 ? serviceEvento.listarPorCategoria(categoriaId, pageable)
                 : serviceEvento.listarTodos(pageable);
 
@@ -37,9 +47,9 @@ public class EventosApiController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<EventoDTO>> obtener(@PathVariable String id) {
-        return ResponseEntity.ok(ApiResponse.ok("Evento obtenido",
-                serviceEvento.toDTO(serviceEvento.obtenerPorId(id))));
+        public ResponseEntity<ApiResponse<EventoDTO>> obtener(@PathVariable Long id) {
+                return ResponseEntity.ok(ApiResponse.ok("Evento obtenido",
+                                serviceEvento.toDTO(serviceEvento.obtenerPorId(id))));
     }
 
     @GetMapping("/buscar")
@@ -60,7 +70,7 @@ public class EventosApiController {
     @GetMapping("/organizador")
     @PreAuthorize("hasRole('ORGANIZADOR')")
     public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> listarMisEventos(Pageable pageable) {
-        String id = authHelper.usuarioAutenticado().getId();
+        Long id = authHelper.usuarioAutenticado().getId();
         return ResponseEntity.ok(ApiResponse.ok("Eventos obtenidos",
                 serviceEvento.toPagedDTO(serviceEvento.listarPorOrganizador(id, pageable))));
     }
@@ -75,7 +85,7 @@ public class EventosApiController {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("El parámetro 'titulo' es requerido"));
 
-        String id = authHelper.usuarioAutenticado().getId();
+        Long id = authHelper.usuarioAutenticado().getId();
         return ResponseEntity.ok(ApiResponse.ok("Resultados de búsqueda",
                 serviceEvento.toPagedDTO(
                         serviceEvento.buscarPorOrganizadorYTitulo(id, titulo, pageable))));
@@ -85,7 +95,7 @@ public class EventosApiController {
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> buscarAdmin(
             @RequestParam(required = false) String titulo,
-            @RequestParam(required = false) String categoriaId,
+            @RequestParam(required = false) Long categoriaId,
             @RequestParam(required = false) String estado,
             Pageable pageable) {
 
@@ -94,28 +104,32 @@ public class EventosApiController {
                         serviceEvento.buscarAdmin(titulo, categoriaId, estado, pageable))));
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<EventoDTO>> crear(@RequestBody Evento evento) {
+    public ResponseEntity<ApiResponse<EventoDTO>> crear(
+            @RequestPart("datos") EventoRequest request,
+            @RequestPart(value = "foto", required = false) MultipartFile foto) {
+
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("Evento creado",
-                        serviceEvento.toDTO(serviceEvento.crearEvento(evento))));
+                        serviceEvento.toDTO(serviceEvento.crearEvento(request, foto))));
     }
 
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<EventoDTO>> actualizar(
-            @PathVariable String id,
-            @RequestBody Evento evento) {
+            @PathVariable Long id,
+            @RequestPart("datos") EventoRequest request,
+            @RequestPart(value = "foto", required = false) MultipartFile foto) {
 
         return ResponseEntity.ok(ApiResponse.ok("Evento actualizado",
-                serviceEvento.toDTO(serviceEvento.actualizarEvento(id, evento))));
+                serviceEvento.toDTO(serviceEvento.actualizarEvento(id, request, foto))));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable String id) {
-        serviceEvento.eliminarEvento(id);
+        public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long id) {
+                serviceEvento.eliminarEvento(id);
         return ResponseEntity.ok(ApiResponse.ok("Evento eliminado"));
     }
 }

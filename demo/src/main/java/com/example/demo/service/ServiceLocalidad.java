@@ -22,20 +22,20 @@ public class ServiceLocalidad {
     private final ServiceEvento       serviceEvento;
 
     @Transactional(readOnly = true)
-    public List<Localidad> listarPorEvento(String eventoId) {
+    public List<Localidad> listarPorEvento(Long eventoId) {
         serviceEvento.obtenerPorId(eventoId); // valida que el evento exista
         return localidadRepository.findByEventoId(eventoId);
     }
 
     @Transactional(readOnly = true)
-    public Localidad obtenerPorId(String id) {
+    public Localidad obtenerPorId(Long id) {
         return localidadRepository.findByIdConEvento(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Localidad no encontrada con id: " + id));
     }
 
     @Transactional
     @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
-    public Localidad agregar(String eventoId, Localidad localidad) {
+    public Localidad agregar(Long eventoId, Localidad localidad) {
         Evento evento = serviceEvento.obtenerPorId(eventoId);
         serviceEvento.verificarPermiso(evento);
 
@@ -51,7 +51,7 @@ public class ServiceLocalidad {
 
     @Transactional
     @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
-    public Localidad actualizar(String eventoId, String localidadId, Localidad datos) {
+    public Localidad actualizar(Long eventoId, Long localidadId, Localidad datos) {
         Evento evento = serviceEvento.obtenerPorId(eventoId);
         serviceEvento.verificarPermiso(evento);
 
@@ -72,7 +72,7 @@ public class ServiceLocalidad {
 
     @Transactional
     @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
-    public void eliminar(String eventoId, String localidadId) {
+    public void eliminar(Long eventoId, Long localidadId) {
         Evento evento = serviceEvento.obtenerPorId(eventoId);
         serviceEvento.verificarPermiso(evento);
 

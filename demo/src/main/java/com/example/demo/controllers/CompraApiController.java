@@ -46,7 +46,7 @@ public class CompraApiController {
 
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Compra>> obtener(@PathVariable String id) {
+    public ResponseEntity<ApiResponse<Compra>> obtener(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok("Compra obtenida", 
             compraService.obtenerPorId(id)));
     }
@@ -60,7 +60,7 @@ public class CompraApiController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Void>> cancelar(@PathVariable String id) {
+    public ResponseEntity<ApiResponse<Void>> cancelar(@PathVariable Long id) {
         compraService.cancelarCompra(id);
         return ResponseEntity.ok(ApiResponse.ok("Compra cancelada"));
     }

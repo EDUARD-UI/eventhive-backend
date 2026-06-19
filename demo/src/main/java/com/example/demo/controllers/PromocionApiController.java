@@ -39,7 +39,7 @@ public class PromocionApiController {
     // ── Endpoint público: promoción vigente de un evento ──────────────────────
     // No requiere autenticación — lo consulta InfoEvento y PaymentFlow
     @GetMapping("/evento/{eventoId}")
-    public ResponseEntity<ApiResponse<PromocionDTO>> porEvento(@PathVariable String eventoId) {
+    public ResponseEntity<ApiResponse<PromocionDTO>> porEvento(@PathVariable Long eventoId) {
         try {
             List<Promocion> promociones = servicePromocion.obtenerPorEvento(eventoId);
 
@@ -105,7 +105,7 @@ public class PromocionApiController {
     @PostMapping
     @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> crear(
-            @RequestParam String eventoId,
+            @RequestParam Long eventoId,
             @RequestParam String descripcion,
             @RequestParam BigDecimal descuento,
             @RequestParam String fechaInicio,
@@ -118,8 +118,8 @@ public class PromocionApiController {
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> actualizar(
-            @PathVariable String id,
-            @RequestParam String eventoId,
+            @PathVariable Long id,
+            @RequestParam Long eventoId,
             @RequestParam String descripcion,
             @RequestParam BigDecimal descuento,
             @RequestParam String fechaInicio,
@@ -131,7 +131,7 @@ public class PromocionApiController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable String id) {
+    public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long id) {
         Usuario usuario = authHelper.usuarioAutenticado();
         servicePromocion.eliminarPromocion(id, usuario);
         return ResponseEntity.ok(ApiResponse.ok("Promoción eliminada"));

@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 import com.example.demo.model.Valoracion;
 
 @Repository
-public interface ValoracionRepository extends JpaRepository<Valoracion, String> {
+public interface ValoracionRepository extends JpaRepository<Valoracion, Long> {
 
     @Query("""
         SELECT v FROM Valoracion v
@@ -19,7 +19,7 @@ public interface ValoracionRepository extends JpaRepository<Valoracion, String> 
         ORDER BY v.id DESC
         """)
     // Devuelve valoraciones de un cliente incluyendo el organizador
-    Page<Valoracion> findByClienteIdConOrganizador(@Param("clienteId") String clienteId, Pageable pageable);
+    Page<Valoracion> findByClienteIdConOrganizador(@Param("clienteId") Long clienteId, Pageable pageable);
 
     @Query("""
         SELECT v FROM Valoracion v
@@ -28,10 +28,10 @@ public interface ValoracionRepository extends JpaRepository<Valoracion, String> 
         ORDER BY v.id DESC
         """)
     // Devuelve valoraciones de un organizador incluyendo el cliente
-    Page<Valoracion> findByOrganizadorIdConCliente(@Param("organizadorId") String organizadorId, Pageable pageable);
+    Page<Valoracion> findByOrganizadorIdConCliente(@Param("organizadorId") Long organizadorId, Pageable pageable);
 
-    long countByOrganizadorId(String organizadorId);
-    long countByClienteId(String clienteId);
+    long countByOrganizadorId(Long organizadorId);
+    long countByClienteId(Long clienteId);
 
-    boolean existsByClienteIdAndOrganizadorId(String clienteId, String organizadorId);
+    boolean existsByClienteIdAndOrganizadorId(Long clienteId, Long organizadorId);
 }

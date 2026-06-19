@@ -13,7 +13,7 @@ import lombok.Setter;
 @Setter
 public class BoletosCompraDTO {
 
-    private String id;
+    private Long id;
     private LocalDateTime fechaCompra;
     private BigDecimal total;
     private String metodoPago;
@@ -22,14 +22,14 @@ public class BoletosCompraDTO {
     @Getter
     @Setter
     public static class BoletoDTO {
-        private String id;
+        private Long id;
         private TiqueteDTO tiquete;
     }
 
     @Getter
     @Setter
     public static class TiqueteDTO {
-        private String id;
+        private Long id;
         private String codigoQR;
         private LocalidadDTO localidad;
     }
@@ -37,7 +37,7 @@ public class BoletosCompraDTO {
     @Getter
     @Setter
     public static class LocalidadDTO {
-        private String id;
+        private Long id;
         private String nombre;
         private BigDecimal precio;
         private EventoDTO evento;
@@ -46,7 +46,7 @@ public class BoletosCompraDTO {
     @Getter
     @Setter
     public static class EventoDTO {
-        private String id;
+        private Long id;
         private String titulo;
         private LocalDate fecha;
         private LocalTime hora;

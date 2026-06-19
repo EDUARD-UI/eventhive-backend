@@ -25,8 +25,8 @@ import lombok.Setter;
 public class Promocion {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(length = 255)
     private String descripcion;

@@ -22,14 +22,14 @@ public class EventosDeseadosApiController {
 
     @PostMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Void>> agregar(@PathVariable String eventoId) {
+    public ResponseEntity<ApiResponse<Void>> agregar(@PathVariable Long eventoId) {
         serviceDeseados.agregar(eventoId);
         return ResponseEntity.ok(ApiResponse.ok("Evento agregado a favoritos"));
     }
 
     @DeleteMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable String eventoId) {
+    public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long eventoId) {
         serviceDeseados.eliminar(eventoId);
         return ResponseEntity.ok(ApiResponse.ok("Evento eliminado de favoritos"));
     }

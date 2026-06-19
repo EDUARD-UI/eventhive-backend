@@ -53,7 +53,7 @@ public class RolesApiController {
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> actualizarRol(
-            @PathVariable String id,
+            @PathVariable Long id,
             @RequestParam String nombre) {
 
         serviceRoles.actualizarRol(id, nombre);
@@ -62,7 +62,7 @@ public class RolesApiController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<Void>> eliminarRol(@PathVariable String id) {
+    public ResponseEntity<ApiResponse<Void>> eliminarRol(@PathVariable Long id) {
         serviceRoles.eliminarRol(id);
         return ResponseEntity.ok(ApiResponse.ok("Rol eliminado exitosamente"));
     }

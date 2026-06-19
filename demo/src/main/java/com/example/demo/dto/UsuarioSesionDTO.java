@@ -8,7 +8,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class UsuarioSesionDTO {
-    private String id;
+    private Long id;
     private String nombre;
     private String apellido;
     private String correo;
@@ -21,7 +21,7 @@ public class UsuarioSesionDTO {
     public UsuarioSesionDTO() {
     }
 
-    public UsuarioSesionDTO(String id, String nombre, String apellido, String correo,
+    public UsuarioSesionDTO(Long id, String nombre, String apellido, String correo,
                             String telefono, String rolNombre, boolean esVerificado) {
         this.id = id;
         this.nombre = nombre;

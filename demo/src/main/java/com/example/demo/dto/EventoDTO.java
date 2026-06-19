@@ -13,7 +13,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class EventoDTO {
-    private String id;
+    private Long id;
     private String titulo;
     private String descripcion;
     private String lugar;

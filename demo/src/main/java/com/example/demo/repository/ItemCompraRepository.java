@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 import com.example.demo.model.ItemCompra;
 
 @Repository
-public interface ItemCompraRepository extends JpaRepository<ItemCompra, String> {
+public interface ItemCompraRepository extends JpaRepository<ItemCompra, Long> {
 
     @Query("""
         SELECT i FROM ItemCompra i
@@ -19,5 +19,5 @@ public interface ItemCompraRepository extends JpaRepository<ItemCompra, String> 
         WHERE i.compra.id = :compraId
         """)
     // Devuelve items de una compra con evento y localidad
-    List<ItemCompra> findByCompraIdConDetalles(@Param("compraId") String compraId);
+    List<ItemCompra> findByCompraIdConDetalles(@Param("compraId") Long compraId);
 }
