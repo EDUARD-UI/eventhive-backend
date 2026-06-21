@@ -192,7 +192,7 @@ public class ServiceEvento {
         if (e.getOrganizador() != null)
             dto.setOrganizador(new EventoOrganizadorDTO(
                     e.getOrganizador().getId(),
-                    e.getOrganizador().getNombre(),
+                    e.getOrganizador().getNombreCompleto(),
                     e.getOrganizador().getEsVerificado()));
 
         return dto;

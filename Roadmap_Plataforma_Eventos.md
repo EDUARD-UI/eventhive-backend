@@ -29,7 +29,7 @@
 ---
 
 ## 5. Programa de Fidelización
-
+ 
 * **Tecnología:** PostgreSQL.
 * **Implementación:** En lugar de recalcular constantemente el historial completo de compras, el sistema mantendrá campos acumulados dentro del perfil del usuario, como total de compras, puntos acumulados y nivel actual. Estos valores se actualizarán automáticamente después de cada compra confirmada, reduciendo la carga de consultas y mejorando el rendimiento.
 

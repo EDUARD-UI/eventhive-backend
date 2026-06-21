@@ -30,30 +30,28 @@ public class ServiceAutenticacion {
     }
 
     @Transactional
-    public void registrarCliente(String nombre, String apellido, String correo,
+    public void registrarCliente(String nombre, String correo,
                                  String telefono, String clave) {
         validarRegistro(correo);
         Rol rol = rolesRepository.findByNombre("CLIENTE")
                 .orElseThrow(() -> new BusinessException("Rol CLIENTE no existe"));
-        usuarioRepository.save(crearUsuario(nombre, apellido, correo, telefono, clave, rol));
+        usuarioRepository.save(crearUsuario(nombre, correo, telefono, clave, rol));
     }
 
     @Transactional
-    public void registrarOrganizador(String nombre, String apellido, String correo,
+    public void registrarOrganizador(String nombre, String correo,
                                      String telefono, String clave) {
         validarRegistro(correo);
         Rol rol = rolesRepository.findByNombre("ORGANIZADOR")
                 .orElseThrow(() -> new BusinessException("Rol ORGANIZADOR no existe"));
-        usuarioRepository.save(crearUsuario(nombre, apellido, correo, telefono, clave, rol));
+        usuarioRepository.save(crearUsuario(nombre, correo, telefono, clave, rol));
     }
 
     // --- helpers ---
-
-    private Usuario crearUsuario(String nombre, String apellido, String correo,
+    private Usuario crearUsuario(String nombre, String correo,
                                  String telefono, String clave, Rol rol) {
         Usuario u = new Usuario();
-        u.setNombre(nombre);
-        u.setApellido(apellido);
+        u.setNombreCompleto(nombre);
         u.setCorreo(correo);
         u.setTelefono(telefono);
         u.setClave(passwordEncoder.encode(clave));

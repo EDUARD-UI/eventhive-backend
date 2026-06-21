@@ -91,7 +91,7 @@ public class AuthApiController {
             @RequestParam String telefono,
             @RequestParam String clave) {
         try {
-            serviceAutenticacion.registrarCliente(nombre, apellido, correo, telefono, clave);
+            serviceAutenticacion.registrarCliente(nombre, correo, telefono, clave);
             return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Registro exitoso"));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -107,7 +107,7 @@ public class AuthApiController {
             @RequestParam String telefono,
             @RequestParam String clave) {
         try {
-            serviceAutenticacion.registrarOrganizador(nombre, apellido, correo, telefono, clave);
+            serviceAutenticacion.registrarOrganizador(nombre, correo, telefono, clave);
             return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Registro exitoso"));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)

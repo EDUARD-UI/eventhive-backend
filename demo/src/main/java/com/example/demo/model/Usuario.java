@@ -36,10 +36,7 @@ public class Usuario {
     private Long id;
 
     @Column(nullable = false, length = 100)
-    private String nombre;
-
-    @Column(nullable = false, length = 100)
-    private String apellido;
+    private String nombreCompleto;
 
     @Column(nullable = false, unique = true, length = 150)
     private String correo;

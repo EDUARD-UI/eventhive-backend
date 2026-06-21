@@ -9,11 +9,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
 import com.example.demo.model.Promocion;
 
-@Repository
 public interface PromocionRepository extends JpaRepository<Promocion, Long> {
 
     // Busca promoción vigente para un evento en una fecha dada

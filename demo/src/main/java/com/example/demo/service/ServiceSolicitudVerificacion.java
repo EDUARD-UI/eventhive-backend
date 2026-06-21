@@ -101,8 +101,7 @@ public class ServiceSolicitudVerificacion {
         String claveGenerada = PasswordGeneratorUtil.generar(12);
 
         Usuario nuevoOrganizador = new Usuario();
-        nuevoOrganizador.setNombre(solicitud.getRazonSocial());
-        nuevoOrganizador.setApellido("");
+        nuevoOrganizador.setNombreCompleto(solicitud.getRazonSocial());
         nuevoOrganizador.setCorreo(solicitud.getCorreoEmpresarial());
         nuevoOrganizador.setClave(passwordEncoder.encode(claveGenerada));
         nuevoOrganizador.setRol(rolOrganizador);
@@ -150,11 +149,11 @@ public class ServiceSolicitudVerificacion {
         dto.setMotivoRechazo(s.getMotivoRechazo());
         if (s.getOrganizador() != null) {
             dto.setOrganizadorId(s.getOrganizador().getId());
-            dto.setOrganizadorNombre(s.getOrganizador().getNombre() + " " + s.getOrganizador().getApellido());
+            dto.setOrganizadorNombre(s.getOrganizador().getNombreCompleto());
             dto.setOrganizadorCorreo(s.getOrganizador().getCorreo());
         }
         if (s.getAdministradorQueResolvi() != null)
-            dto.setAdministradorNombre(s.getAdministradorQueResolvi().getNombre());
+            dto.setAdministradorNombre(s.getAdministradorQueResolvi().getNombreCompleto());
         return dto;
     }
 }

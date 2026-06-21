@@ -31,7 +31,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class EventosApiController {
 
-    private final ServiceEvento           serviceEvento;
+    private final ServiceEvento serviceEvento;
     private final AuthenticatedUserHelper authHelper;
 
     @GetMapping
@@ -47,9 +47,8 @@ public class EventosApiController {
     }
 
     @GetMapping("/{id}")
-        public ResponseEntity<ApiResponse<EventoDTO>> obtener(@PathVariable Long id) {
-                return ResponseEntity.ok(ApiResponse.ok("Evento obtenido",
-                                serviceEvento.toDTO(serviceEvento.obtenerPorId(id))));
+    public ResponseEntity<ApiResponse<EventoDTO>> obtener(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok("Evento obtenido", serviceEvento.toDTO(serviceEvento.obtenerPorId(id))));
     }
 
     @GetMapping("/buscar")
@@ -57,9 +56,10 @@ public class EventosApiController {
             @RequestParam String titulo,
             Pageable pageable) {
 
-        if (titulo == null || titulo.isBlank())
+        if (titulo == null || titulo.isBlank()) {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("El parámetro 'titulo' es requerido"));
+        }
 
         var page = serviceEvento.buscarPorTitulo(titulo, pageable);
         return ResponseEntity.ok(ApiResponse.ok("Resultados de búsqueda",
@@ -69,7 +69,7 @@ public class EventosApiController {
 
     @GetMapping("/organizador")
     @PreAuthorize("hasRole('ORGANIZADOR')")
-    public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> listarMisEventos(Pageable pageable) {
+    public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> eventosPorOrganzador(Pageable pageable) {
         Long id = authHelper.usuarioAutenticado().getId();
         return ResponseEntity.ok(ApiResponse.ok("Eventos obtenidos",
                 serviceEvento.toPagedDTO(serviceEvento.listarPorOrganizador(id, pageable))));
@@ -81,9 +81,10 @@ public class EventosApiController {
             @RequestParam String titulo,
             Pageable pageable) {
 
-        if (titulo == null || titulo.isBlank())
+        if (titulo == null || titulo.isBlank()) {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("El parámetro 'titulo' es requerido"));
+        }
 
         Long id = authHelper.usuarioAutenticado().getId();
         return ResponseEntity.ok(ApiResponse.ok("Resultados de búsqueda",
@@ -93,7 +94,7 @@ public class EventosApiController {
 
     @GetMapping("/admin/buscar")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> buscarAdmin(
+    public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> filtrarEventosAdmin(
             @RequestParam(required = false) String titulo,
             @RequestParam(required = false) Long categoriaId,
             @RequestParam(required = false) String estado,
@@ -128,8 +129,8 @@ public class EventosApiController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
-        public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long id) {
-                serviceEvento.eliminarEvento(id);
+    public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long id) {
+        serviceEvento.eliminarEvento(id);
         return ResponseEntity.ok(ApiResponse.ok("Evento eliminado"));
     }
 }

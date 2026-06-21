@@ -39,8 +39,7 @@ public class UsuariosApiController {
                 .map(usuario -> {
                     UsuarioDTO dto = new UsuarioDTO();
                     dto.setId(usuario.getId());
-                    dto.setNombre(usuario.getNombre());
-                    dto.setApellido(usuario.getApellido());
+                    dto.setNombre(usuario.getNombreCompleto());
                     dto.setCorreo(usuario.getCorreo());
                     dto.setTelefono(usuario.getTelefono());
                     if (usuario.getRol() != null) {
@@ -71,8 +70,7 @@ public class UsuariosApiController {
             Page<UsuarioDTO> pageDto = page.map(usuario -> {
                 UsuarioDTO dto = new UsuarioDTO();
                 dto.setId(usuario.getId());
-                dto.setNombre(usuario.getNombre());
-                dto.setApellido(usuario.getApellido());
+                dto.setNombre(usuario.getNombreCompleto());
                 dto.setCorreo(usuario.getCorreo());
                 dto.setTelefono(usuario.getTelefono());
                 if (usuario.getRol() != null) {
@@ -97,8 +95,7 @@ public class UsuariosApiController {
         var usuario = usuarioService.obtenerUsuarioPorId(id);
         UsuarioDTO dto = new UsuarioDTO();
         dto.setId(usuario.getId());
-        dto.setNombre(usuario.getNombre());
-        dto.setApellido(usuario.getApellido());
+        dto.setNombre(usuario.getNombreCompleto());
         dto.setCorreo(usuario.getCorreo());
         dto.setTelefono(usuario.getTelefono());
         if (usuario.getRol() != null) {
@@ -111,13 +108,12 @@ public class UsuariosApiController {
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> crear(
             @RequestParam String nombre,
-            @RequestParam String apellido,
             @RequestParam String correo,
             @RequestParam String telefono,
             @RequestParam String clave,
             @RequestParam Long rolId) {
 
-        usuarioService.crearUsuario(nombre, apellido, correo, telefono, clave, rolId);
+        usuarioService.crearUsuario(nombre, correo, telefono, clave, rolId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("Usuario creado exitosamente"));
     }
@@ -127,10 +123,9 @@ public class UsuariosApiController {
     public ResponseEntity<ApiResponse<Void>> actualizar(
             @PathVariable Long id,
             @RequestParam String nombre,
-            @RequestParam String apellido,
             @RequestParam String telefono) {
 
-        usuarioService.actualizarUsuario(id, nombre, apellido, telefono);
+        usuarioService.actualizarUsuario(id, nombre, telefono);
         return ResponseEntity.ok(ApiResponse.ok("Usuario actualizado exitosamente"));
     }
 

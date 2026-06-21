@@ -89,7 +89,7 @@ public class ServiceValoracion {
         dto.setCalificacion(v.getCalificacion());
         if (v.getOrganizador() != null) {
             dto.setOrganizadorId(v.getOrganizador().getId());
-            dto.setOrganizadorNombre(v.getOrganizador().getNombre() + " " + v.getOrganizador().getApellido());
+            dto.setOrganizadorNombre(v.getOrganizador().getNombreCompleto());
         }
         return dto;
     }

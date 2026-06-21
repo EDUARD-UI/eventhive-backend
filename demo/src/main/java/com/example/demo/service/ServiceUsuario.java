@@ -79,8 +79,7 @@ public class ServiceUsuario {
     @PreAuthorize("isAuthenticated()")
     public UsuarioDTO actualizarPerfil(UsuarioDTO dto) {
         Usuario u = authHelper.usuarioAutenticado();
-        u.setNombre(dto.getNombre());
-        u.setApellido(dto.getApellido());
+        u.setNombreCompleto(dto.getNombre());
         u.setTelefono(dto.getTelefono());
         return toDTO(usuarioRepository.save(u));
     }
@@ -97,8 +96,7 @@ public class ServiceUsuario {
                 .orElseThrow(() -> new ResourceNotFoundException("Rol no existe"));
 
         Usuario u = new Usuario();
-        u.setNombre(nombre);
-        u.setApellido(apellido);
+        u.setNombreCompleto(nombre);
         u.setCorreo(correo);
         u.setTelefono(telefono);
         u.setClave(passwordEncoder.encode(clave));
@@ -109,10 +107,9 @@ public class ServiceUsuario {
 
     @Transactional
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public void actualizarUsuario(Long id, String nombre, String apellido, String telefono) {
+    public void actualizarUsuario(Long id, String nombre, String telefono) {
         Usuario u = obtenerUsuarioPorId(id);
-        u.setNombre(nombre);
-        u.setApellido(apellido);
+        u.setNombreCompleto(nombre);
         u.setTelefono(telefono);
         usuarioRepository.save(u);
     }
@@ -158,8 +155,7 @@ public class ServiceUsuario {
     private UsuarioDTO toDTO(Usuario u) {
         UsuarioDTO dto = new UsuarioDTO();
         dto.setId(u.getId());
-        dto.setNombre(u.getNombre());
-        dto.setApellido(u.getApellido());
+        dto.setNombre(u.getNombreCompleto());
         dto.setCorreo(u.getCorreo());
         dto.setTelefono(u.getTelefono());
         dto.setEsVerificado(u.getEsVerificado() != null && u.getEsVerificado());
@@ -172,8 +168,7 @@ public class ServiceUsuario {
     private UsuarioSesionDTO toSesionDTO(Usuario u) {
         UsuarioSesionDTO dto = new UsuarioSesionDTO();
         dto.setId(u.getId());
-        dto.setNombre(u.getNombre());
-        dto.setApellido(u.getApellido());
+        dto.setNombre(u.getNombreCompleto());
         dto.setCorreo(u.getCorreo());
         dto.setTelefono(u.getTelefono());
         dto.setEsVerificado(u.getEsVerificado() != null && u.getEsVerificado());
