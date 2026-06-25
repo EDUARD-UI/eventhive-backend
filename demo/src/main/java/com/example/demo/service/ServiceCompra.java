@@ -25,7 +25,6 @@ import com.example.demo.repository.CompraRepository;
 import com.example.demo.repository.LocalidadRepository;
 import com.example.demo.repository.PromocionRepository;
 import com.example.demo.repository.TiqueteRepository;
-import com.example.demo.repository.UsuarioRepository;
 import com.example.demo.utils.AuthenticatedUserHelper;
 
 import lombok.RequiredArgsConstructor;
@@ -34,12 +33,13 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ServiceCompra {
 
-    private final CompraRepository    compraRepository;
+    private final CompraRepository compraRepository;
     private final LocalidadRepository localidadRepository;
-    private final TiqueteRepository   tiqueteRepository;
+    private final TiqueteRepository tiqueteRepository;
     private final PromocionRepository promocionRepository;
     private final AuthenticatedUserHelper authHelper;
-    private final UsuarioRepository usuarioRepository;
+    private final ServiceUsuario serviceUsuario;
+    private final ServiceNotification serviceNotification;
     private final ServiceFidelizacion serviceFidelizacion;
 
     @Transactional(readOnly = true)
@@ -58,33 +58,37 @@ public class ServiceCompra {
     @Transactional
     @PreAuthorize("isAuthenticated()")
     public Compra realizarCompra(List<ItemCompra> items) {
-        if (items == null || items.isEmpty())
+        if (items == null || items.isEmpty()) {
             throw new BusinessException("Debe incluir al menos un ítem en la compra");
+        }
 
         Usuario usuario = authHelper.usuarioAutenticado();
         BigDecimal total = BigDecimal.ZERO;
         List<ItemCompra> itemsValidados = new ArrayList<>();
 
         for (ItemCompra item : items) {
-            if (item.getLocalidad() == null || item.getLocalidad().getId() == null)
+            if (item.getLocalidad() == null || item.getLocalidad().getId() == null) {
                 throw new BusinessException("Cada ítem debe tener una localidad válida");
+            }
 
-            if (item.getCantidad() == null || item.getCantidad() <= 0)
+            if (item.getCantidad() == null || item.getCantidad() <= 0) {
                 throw new BusinessException("La cantidad debe ser mayor a 0");
+            }
 
             Localidad localidad = localidadRepository.findByIdConEvento(item.getLocalidad().getId())
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            "Localidad no encontrada: " + item.getLocalidad().getId()));
+                    "Localidad no encontrada: " + item.getLocalidad().getId()));
 
             // Decremento atómico — devuelve 0 si no hay suficientes disponibles
             int filasAfectadas = localidadRepository.decrementarDisponibles(
                     localidad.getId(), item.getCantidad());
 
-            if (filasAfectadas == 0)
+            if (filasAfectadas == 0) {
                 throw new BusinessException(
                         "No hay suficientes entradas disponibles en '" + localidad.getNombre()
                         + "'. Disponibles: " + localidad.getDisponibles()
                         + ", solicitados: " + item.getCantidad());
+            }
 
             BigDecimal precio = calcularPrecioConPromocion(localidad);
             item.setLocalidad(localidad);
@@ -105,13 +109,20 @@ public class ServiceCompra {
         Compra guardada = compraRepository.save(compra);
         generarTiquetes(itemsValidados, guardada);
 
-        // Actualizar sistema de fidelización: contador de compras y nivel
         try {
-            usuario.setCantidadCompras(usuario.getCantidadCompras() + 1);
-            usuario.setNivel(serviceFidelizacion.calcularNivel(usuario.getCantidadCompras()));
-            usuarioRepository.save(usuario);
+            int nuevasCompras = usuario.getCantidadCompras() + 1;
+            boolean subioNivel = serviceFidelizacion.hayCambioDeNivel(usuario.getNivel(), nuevasCompras);
+
+            usuario.setCantidadCompras(nuevasCompras);
+            usuario.setNivel(serviceFidelizacion.calcularNivel(nuevasCompras));
+            serviceUsuario.guardar(usuario);
+
+            if (subioNivel) {
+                serviceNotification.notificarNuevoNivel(usuario);
+            }
+
         } catch (Exception ex) {
-            // no propagamos fallo de fidelización para no bloquear la compra
+            // no propagar fallo de fidelización
         }
 
         return guardada;
@@ -123,24 +134,24 @@ public class ServiceCompra {
         Compra compra = obtenerPorId(id);
         Usuario u = authHelper.usuarioAutenticado();
 
-        if (!compra.getCliente().getId().equals(u.getId()))
+        if (!compra.getCliente().getId().equals(u.getId())) {
             throw new BusinessException("No autorizado para cancelar esta compra");
+        }
 
-        compra.getItems().forEach(item ->
-                localidadRepository.incrementarDisponibles(
+        compra.getItems().forEach(item
+                -> localidadRepository.incrementarDisponibles(
                         item.getLocalidad().getId(), item.getCantidad()));
 
         compraRepository.deleteById(id);
     }
 
     // --- helpers privados ---
-
     private BigDecimal calcularPrecioConPromocion(Localidad localidad) {
         return promocionRepository
                 .findVigenteByEventoId(localidad.getEvento().getId(), LocalDate.now())
                 .map(promo -> localidad.getPrecio()
-                        .multiply(BigDecimal.valueOf(100).subtract(BigDecimal.valueOf(promo.getDescuento())))
-                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP))
+                .multiply(BigDecimal.valueOf(100).subtract(BigDecimal.valueOf(promo.getDescuento())))
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP))
                 .orElse(localidad.getPrecio());
     }
 

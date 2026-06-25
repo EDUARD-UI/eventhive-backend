@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.demo.dto.UsuarioDTO;
 import com.example.demo.dto.UsuarioSesionDTO;
+import com.example.demo.enums.NivelUsuario;
 import com.example.demo.exception.BusinessException;
 import com.example.demo.exception.ResourceNotFoundException;
 import com.example.demo.model.Rol;
@@ -27,7 +28,7 @@ public class ServiceUsuario {
     private final RolesRepository rolesRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticatedUserHelper authHelper;
-
+    private final ServiceFidelizacion serviceFidelizacion;
     @Transactional(readOnly = true)
     public Usuario obtenerUsuarioPorId(Long id) {
         return usuarioRepository.findById(id)
@@ -76,6 +77,21 @@ public class ServiceUsuario {
     }
 
     @Transactional
+    public boolean actualizarNivelSiCambia(Usuario usuario) {
+        NivelUsuario nivelAnterior = usuario.getNivel();
+        NivelUsuario nivelNuevo = serviceFidelizacion.calcularNivel(usuario.getCantidadCompras());
+
+        if (nivelNuevo != nivelAnterior) {
+            usuario.setNivel(nivelNuevo);
+            usuarioRepository.save(usuario);
+            return true; // indica que hubo cambio de nivel
+        }
+
+        usuarioRepository.save(usuario);
+        return false;
+    }
+
+    @Transactional
     @PreAuthorize("isAuthenticated()")
     public UsuarioDTO actualizarPerfil(UsuarioDTO dto) {
         Usuario u = authHelper.usuarioAutenticado();
@@ -84,9 +100,9 @@ public class ServiceUsuario {
         return toDTO(usuarioRepository.save(u));
     }
 
-        @Transactional
-        @PreAuthorize("hasRole('ADMINISTRADOR')")
-        public void crearUsuario(String nombre, String apellido, String correo,
+    @Transactional
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    public void crearUsuario(String nombre, String correo,
             String telefono, String clave, Long rolId) {
         if (usuarioRepository.existsByCorreo(correo)) {
             throw new BusinessException("Correo ya registrado");

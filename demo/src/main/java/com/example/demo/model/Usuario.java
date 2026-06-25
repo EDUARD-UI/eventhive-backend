@@ -1,7 +1,5 @@
 package com.example.demo.model;
 
-import java.util.List;
-
 import com.example.demo.enums.NivelUsuario;
 
 import jakarta.persistence.Column;
@@ -14,8 +12,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -51,7 +47,7 @@ public class Usuario {
     @JoinColumn(name = "rol_id", nullable = false)
     private Rol rol;
 
-    @Column(name = "es_verificado", nullable = false)
+    @Column(name = "verificacionCheck", nullable = false)
     private Boolean esVerificado = false;
 
     @Column(name = "cantidad_compras", nullable = false)
@@ -60,17 +56,5 @@ public class Usuario {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private NivelUsuario nivel = NivelUsuario.BRONCE;
-
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-        name = "usuario_eventos_deseados",
-        joinColumns = @JoinColumn(name = "usuario_id"),
-        inverseJoinColumns = @JoinColumn(name = "evento_id"),
-        indexes = {
-            @Index(name = "idx_ued_usuario", columnList = "usuario_id"),
-            @Index(name = "idx_ued_evento", columnList = "evento_id")
-        }
-    )
-    private List<Evento> eventosDeseados;
 
 }

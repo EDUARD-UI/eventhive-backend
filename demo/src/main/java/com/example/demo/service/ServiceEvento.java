@@ -22,6 +22,7 @@ import com.example.demo.dto.EventoRequest;
 import com.example.demo.dto.PagedResponse;
 import com.example.demo.enums.EstadoEvento;
 import com.example.demo.enums.NivelUsuario;
+import com.example.demo.enums.TipoNotification;
 import com.example.demo.exception.BusinessException;
 import com.example.demo.exception.ResourceNotFoundException;
 import com.example.demo.model.Categoria;
@@ -41,10 +42,13 @@ public class ServiceEvento {
     private final CategoriaRepository     categoriaRepository;
     private final AuthenticatedUserHelper authHelper;
     private final ServiceFidelizacion     serviceFidelizacion;
+    private final ServiceNotification     serviceNotification;
     private final SupabaseStorageService  storageService;
     private final SupabaseStorageConfig   storageConfig;
 
     private static final DateTimeFormatter FMT = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+
+    // Consultas
 
     @Transactional(readOnly = true)
     public Page<Evento> listarTodos(Pageable pageable) {
@@ -122,6 +126,8 @@ public class ServiceEvento {
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con id: " + id));
     }
 
+    // Creación, actualización y eliminación  
+
     @Transactional
     @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
     public Evento crearEvento(EventoRequest request, MultipartFile foto) {
@@ -135,7 +141,12 @@ public class ServiceEvento {
         if (foto != null && !foto.isEmpty())
             evento.setFoto(storageService.subirImagenEvento(foto));
 
-        return eventoRepository.save(evento);
+        Evento guardado = eventoRepository.save(evento);
+
+        if (guardado.getEstado() == EstadoEvento.PUBLICADO)
+            serviceNotification.notificarNuevoEvento(guardado);
+
+        return guardado;
     }
 
     @Transactional
@@ -144,6 +155,7 @@ public class ServiceEvento {
         Evento evento = obtenerPorId(id);
         verificarPermiso(evento);
 
+        EstadoEvento estadoAnterior = evento.getEstado();
         Categoria categoria = resolverCategoria(request.getCategoriaId());
         mapearCampos(evento, request, categoria);
 
@@ -152,7 +164,11 @@ public class ServiceEvento {
             evento.setFoto(storageService.subirImagenEvento(foto));
         }
 
-        return eventoRepository.save(evento);
+        Evento guardado = eventoRepository.save(evento);
+
+        notificarCambioSiCorresponde(guardado, estadoAnterior);
+
+        return guardado;
     }
 
     @Transactional
@@ -164,6 +180,8 @@ public class ServiceEvento {
         eventoRepository.deleteById(id);
     }
 
+    // Permisos
+
     public void verificarPermiso(Evento evento) {
         Usuario u      = authHelper.usuarioAutenticado();
         boolean esAdmin = u.getRol() != null && "ADMINISTRADOR".equals(u.getRol().getNombre());
@@ -172,6 +190,8 @@ public class ServiceEvento {
         if (!esAdmin && !esOwner)
             throw new BusinessException("No autorizado para modificar este evento");
     }
+
+    // Mapeo DTO
 
     public EventoDTO toDTO(Evento e) {
         EventoDTO dto = new EventoDTO();
@@ -207,7 +227,7 @@ public class ServiceEvento {
                 page.getTotalPages());
     }
 
-    // ── Helpers privados ──────────────────────────────────────────────────────
+    // metodos auxiliares
 
     private void mapearCampos(Evento evento, EventoRequest req, Categoria categoria) {
         evento.setTitulo(req.getTitulo());
@@ -252,5 +272,20 @@ public class ServiceEvento {
             nivel = authHelper.usuarioAutenticado().getNivel();
         } catch (Exception ex) { /* usuario no autenticado */ }
         return serviceFidelizacion.obtenerHorasAnticipacion(nivel);
+    }
+
+    private void notificarCambioSiCorresponde(Evento guardado, EstadoEvento estadoAnterior) {
+        EstadoEvento estadoActual = guardado.getEstado();
+
+        if (estadoActual == EstadoEvento.CANCELADO) {
+            serviceNotification.notificarCambioEvento(guardado, TipoNotification.EVENTO_CANCELADO);
+            return;
+        }
+
+        boolean estabaPublicado = estadoAnterior == EstadoEvento.PUBLICADO;
+        boolean siguePublicado  = estadoActual  == EstadoEvento.PUBLICADO;
+
+        if (estabaPublicado && siguePublicado)
+            serviceNotification.notificarCambioEvento(guardado, TipoNotification.EVENTO_MODIFICADO);
     }
 }

@@ -8,7 +8,7 @@ Spring MVC (REST controllers), Spring Data JPA, Hibernate
 Maven como gestor de dependencias
 
 Base de datos
-MongoDB---Esquema gestionado por Hibernate
+MongoDB y PostgreSQL---Esquema gestionado por Hibernate
 
 Frontend
 HTML + REACT JSX

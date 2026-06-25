@@ -11,7 +11,6 @@ import org.springframework.data.repository.query.Param;
 
 import com.example.demo.model.Evento;
 
-
 public interface EventoRepository extends JpaRepository<Evento, Long> {
 
     // Devuelve página de eventos con sus referencias (categoria, estado, organizador y rol)
@@ -80,15 +79,30 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
         WHERE o.id = :organizadorId
         AND LOWER(e.titulo) LIKE LOWER(CONCAT('%', :titulo, '%'))
         """)
-        Page<Evento> findByOrganizadorIdAndTituloConReferencias(
+    Page<Evento> findByOrganizadorIdAndTituloConReferencias(
             @Param("organizadorId") Long organizadorId,
             @Param("titulo") String titulo,
             Pageable pageable);
 
-        List<Evento> findByOrganizadorId(Long organizadorId);
-        List<Evento> findByOrganizadorIdOrderByFechaCreacionDesc(Long organizadorId);
+    List<Evento> findByOrganizadorId(Long organizadorId);
 
-        long countByCategoriaId(Long categoriaId);
+    List<Evento> findByOrganizadorIdOrderByFechaCreacionDesc(Long organizadorId);
+
+    long countByCategoriaId(Long categoriaId);
+
     long countByEstado(com.example.demo.enums.EstadoEvento estado);
-        long countByOrganizadorId(Long organizadorId);
+
+    long countByOrganizadorId(Long organizadorId);
+
+    // Query necesaria para RecordatorioEventoScheduler
+    @Query("""
+    SELECT e FROM Evento e
+    JOIN FETCH e.organizador o
+    WHERE e.fecha = :fecha
+    AND e.estado = :estado
+    """)
+    List<Evento> findByFechaAndEstado(
+            @Param("fecha") java.time.LocalDate fecha,
+            @Param("estado") com.example.demo.enums.EstadoEvento estado
+    );
 }

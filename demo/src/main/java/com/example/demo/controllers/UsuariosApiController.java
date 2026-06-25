@@ -19,7 +19,6 @@ import com.example.demo.dto.ApiResponse;
 import com.example.demo.dto.PagedResponse;
 import com.example.demo.dto.UsuarioDTO;
 import com.example.demo.model.Usuario;
-import com.example.demo.service.ServiceEventosDeseados;
 import com.example.demo.service.ServiceUsuario;
 
 import lombok.RequiredArgsConstructor;
@@ -30,7 +29,6 @@ import lombok.RequiredArgsConstructor;
 public class UsuariosApiController {
 
     private final ServiceUsuario usuarioService;
-    private final ServiceEventosDeseados eventosDeseadosService;
 
     @GetMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")
@@ -158,13 +156,6 @@ public class UsuariosApiController {
     public ResponseEntity<ApiResponse<UsuarioDTO>> actualizarPerfil(@RequestBody UsuarioDTO dto) {
         return ResponseEntity.ok(ApiResponse.ok("Perfil actualizado",
                 usuarioService.actualizarPerfil(dto)));
-    }
-
-    @GetMapping("/eventos-deseados")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Object>> eventosDeseados() {
-        return ResponseEntity.ok(ApiResponse.ok("Eventos deseados",
-                eventosDeseadosService.listar()));
     }
 
     @PutMapping("/perfil/cambiar-clave")
