@@ -83,7 +83,7 @@
                             <schemaPaths>
                                 <param>src/main/resources/graphql-client</param>
                             </schemaPaths>
-                            <packageName>com.example.demo.codegen</packageName>
+                            <packageName>com.eventhive.app.codegen</packageName>
                             <addGeneratedAnnotation>true</addGeneratedAnnotation>
                             <disableDatesInGeneratedAnnotation>true</disableDatesInGeneratedAnnotation>
                         </configuration>
