@@ -6,9 +6,11 @@ import lombok.Setter;
 @Getter
 @Setter
 public class ValoracionDTO {
-    private Long id;
+    private Long   id;
     private String comentario;
-    private long calificacion;
-    private Long organizadorId;
+    private long   calificacion;
+    private Long   organizadorId;
     private String organizadorNombre;
+    private Long   clienteId;
+    private String clienteNombre;
 }

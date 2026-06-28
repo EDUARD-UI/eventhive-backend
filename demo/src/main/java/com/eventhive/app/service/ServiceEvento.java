@@ -38,13 +38,14 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ServiceEvento {
 
-    private final EventoRepository        eventoRepository;
-    private final CategoriaRepository     categoriaRepository;
-    private final AuthenticatedUserHelper authHelper;
-    private final ServiceFidelizacion     serviceFidelizacion;
-    private final ServiceNotification     serviceNotification;
-    private final SupabaseStorageService  storageService;
-    private final SupabaseStorageConfig   storageConfig;
+    private final EventoRepository           eventoRepository;
+    private final CategoriaRepository        categoriaRepository;
+    private final AuthenticatedUserHelper    authHelper;
+    private final ServiceFidelizacion        serviceFidelizacion;
+    private final ServiceNotification        serviceNotification;
+    private final SupabaseStorageService     storageService;
+    private final SupabaseStorageConfig      storageConfig;
+    private final ServiceMetricasOrganizador serviceMetricasOrganizador;
 
     private static final DateTimeFormatter FMT = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
@@ -126,7 +127,7 @@ public class ServiceEvento {
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con id: " + id));
     }
 
-    // Creación, actualización y eliminación  
+    //Creación, actualización y eliminación
 
     @Transactional
     @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
@@ -145,6 +146,8 @@ public class ServiceEvento {
 
         if (guardado.getEstado() == EstadoEvento.PUBLICADO)
             serviceNotification.notificarNuevoEvento(guardado);
+
+        serviceMetricasOrganizador.actualizarTotalEventos(organizador.getId());
 
         return guardado;
     }
@@ -165,7 +168,6 @@ public class ServiceEvento {
         }
 
         Evento guardado = eventoRepository.save(evento);
-
         notificarCambioSiCorresponde(guardado, estadoAnterior);
 
         return guardado;
@@ -176,14 +178,19 @@ public class ServiceEvento {
     public void eliminarEvento(Long id) {
         Evento evento = obtenerPorId(id);
         verificarPermiso(evento);
+
+        Long organizadorId = evento.getOrganizador().getId();
+
         eliminarFotoAnterior(evento.getFoto());
         eventoRepository.deleteById(id);
+
+        serviceMetricasOrganizador.actualizarTotalEventos(organizadorId); 
     }
 
-    // Permisos
+    //Permisos
 
     public void verificarPermiso(Evento evento) {
-        Usuario u      = authHelper.usuarioAutenticado();
+        Usuario u       = authHelper.usuarioAutenticado();
         boolean esAdmin = u.getRol() != null && "ADMINISTRADOR".equals(u.getRol().getNombre());
         boolean esOwner = evento.getOrganizador() != null
                 && u.getCorreo().equals(evento.getOrganizador().getCorreo());
@@ -191,7 +198,7 @@ public class ServiceEvento {
             throw new BusinessException("No autorizado para modificar este evento");
     }
 
-    // Mapeo DTO
+    //Mapeo DTO
 
     public EventoDTO toDTO(Evento e) {
         EventoDTO dto = new EventoDTO();
@@ -213,7 +220,7 @@ public class ServiceEvento {
             dto.setOrganizador(new EventoOrganizadorDTO(
                     e.getOrganizador().getId(),
                     e.getOrganizador().getNombreCompleto(),
-                    e.getOrganizador().getEsVerificado()));
+                    e.getOrganizador().getInsigniaVerificacion()));
 
         return dto;
     }
@@ -227,7 +234,7 @@ public class ServiceEvento {
                 page.getTotalPages());
     }
 
-    // metodos auxiliares
+    // Métodos auxiliares
 
     private void mapearCampos(Evento evento, EventoRequest req, Categoria categoria) {
         evento.setTitulo(req.getTitulo());
@@ -283,7 +290,7 @@ public class ServiceEvento {
         }
 
         boolean estabaPublicado = estadoAnterior == EstadoEvento.PUBLICADO;
-        boolean siguePublicado  = estadoActual  == EstadoEvento.PUBLICADO;
+        boolean siguePublicado  = estadoActual   == EstadoEvento.PUBLICADO;
 
         if (estabaPublicado && siguePublicado)
             serviceNotification.notificarCambioEvento(guardado, TipoNotification.EVENTO_MODIFICADO);

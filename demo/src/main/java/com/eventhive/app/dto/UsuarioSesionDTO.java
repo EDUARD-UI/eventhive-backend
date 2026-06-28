@@ -14,7 +14,7 @@ public class UsuarioSesionDTO {
     private String correo;
     private String telefono;
     private String rolNombre;
-    private boolean esVerificado;
+    private boolean InsigniaVerificacion;
     private NivelUsuario nivel;
     private Integer cantidadCompras;
 
@@ -22,13 +22,15 @@ public class UsuarioSesionDTO {
     }
 
     public UsuarioSesionDTO(Long id, String nombre, String apellido, String correo,
-                            String telefono, String rolNombre, boolean esVerificado) {
+                            String telefono, String rolNombre, boolean InsigniaVerificacion, NivelUsuario nivel, Integer cantidadCompras) {
         this.id = id;
         this.nombre = nombre;
         this.apellido = apellido;
         this.correo = correo;
         this.telefono = telefono;
         this.rolNombre = rolNombre;
-        this.esVerificado = esVerificado;
+        this.InsigniaVerificacion = InsigniaVerificacion;
+        this.nivel = nivel;
+        this.cantidadCompras = cantidadCompras;
     }
 }

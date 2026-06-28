@@ -16,7 +16,6 @@ public interface ValoracionRepository extends JpaRepository<Valoracion, Long> {
         WHERE v.cliente.id = :clienteId
         ORDER BY v.id DESC
         """)
-    // Devuelve valoraciones de un cliente incluyendo el organizador
     Page<Valoracion> findByClienteIdConOrganizador(@Param("clienteId") Long clienteId, Pageable pageable);
 
     @Query("""
@@ -25,8 +24,10 @@ public interface ValoracionRepository extends JpaRepository<Valoracion, Long> {
         WHERE v.organizador.id = :organizadorId
         ORDER BY v.id DESC
         """)
-    // Devuelve valoraciones de un organizador incluyendo el cliente
     Page<Valoracion> findByOrganizadorIdConCliente(@Param("organizadorId") Long organizadorId, Pageable pageable);
+
+    @Query("SELECT AVG(v.calificacion) FROM Valoracion v WHERE v.organizador.id = :organizadorId")
+    double calcularPromedioByOrganizadorId(@Param("organizadorId") Long organizadorId);
 
     long countByOrganizadorId(Long organizadorId);
     long countByClienteId(Long clienteId);

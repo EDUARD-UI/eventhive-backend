@@ -56,7 +56,7 @@ public class ServiceAutenticacion {
         u.setTelefono(telefono);
         u.setClave(passwordEncoder.encode(clave));
         u.setRol(rol);
-        u.setEsVerificado(false);
+        u.setInsigniaVerificacion(false);
         return u;
     }
 

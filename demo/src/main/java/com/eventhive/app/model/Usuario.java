@@ -1,5 +1,7 @@
 package com.eventhive.app.model;
 
+import java.time.LocalDateTime;
+
 import com.eventhive.app.enums.NivelUsuario;
 
 import jakarta.persistence.Column;
@@ -43,12 +45,15 @@ public class Usuario {
     @Column(nullable = false)
     private String clave;
 
+    @Column(name = "fecha_creacion", nullable = false, updatable = false)
+    private LocalDateTime fechaCreacion;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "rol_id", nullable = false)
     private Rol rol;
 
-    @Column(name = "verificacionCheck", nullable = false)
-    private Boolean esVerificado = false;
+    @Column(name = "insignia_verificacion", nullable = false)
+    private Boolean InsigniaVerificacion = false;
 
     @Column(name = "cantidad_compras", nullable = false)
     private Integer cantidadCompras = 0;
@@ -56,5 +61,18 @@ public class Usuario {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private NivelUsuario nivel = NivelUsuario.BRONCE;
+
+    //estadisticas de organizadores
+    @Column(name = "promedio_rating", nullable = false)
+    private Double promedioRating = 0.0;
+
+    @Column(name = "total_valoraciones", nullable = false)
+    private Integer totalValoraciones = 0;
+
+    @Column(name = "total_seguidores", nullable = false)
+    private Integer totalSeguidores = 0;
+
+    @Column(name = "total_eventos_creados", nullable = false)
+    private Integer totalEventosCreados = 0;
 
 }

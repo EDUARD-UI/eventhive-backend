@@ -22,6 +22,7 @@ public class ServiceSeguidor {
 
     private final SeguidorRepository     seguidorRepository;
     private final UsuarioRepository      usuarioRepository;
+    private final ServiceMetricasOrganizador serviceMetricasOrganizador;
     private final AuthenticatedUserHelper authHelper;
 
     @Transactional
@@ -39,6 +40,7 @@ public class ServiceSeguidor {
         Seguidor relacion = new Seguidor();
         relacion.setOrganizador(organizador);
         relacion.setSeguidor(seguidor);
+        serviceMetricasOrganizador.actualizarTotalSeguidores(organizadorId);
         seguidorRepository.save(relacion);
     }
 
@@ -51,6 +53,7 @@ public class ServiceSeguidor {
             throw new ResourceNotFoundException("No sigues a este organizador");
 
         seguidorRepository.deleteByOrganizadorIdAndSeguidorId(organizadorId, seguidor.getId());
+        serviceMetricasOrganizador.actualizarTotalSeguidores(organizadorId);
     }
 
     @Transactional(readOnly = true)

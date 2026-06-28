@@ -12,10 +12,10 @@ public class UsuarioDTO {
     private String correo;
     private String telefono;
     private String rolNombre;
-    private boolean esVerificado;
+    private boolean InsigniaVerificacion;
 
     public UsuarioDTO() {
-        this.esVerificado = false; // Default value
+        this.InsigniaVerificacion = false;
     }
 
     public UsuarioDTO(Long id, String nombre, String apellido, String correo, 
@@ -26,17 +26,17 @@ public class UsuarioDTO {
         this.correo = correo;
         this.telefono = telefono;
         this.rolNombre = rolNombre;
-        this.esVerificado = false;
+        this.InsigniaVerificacion = false;
     }
 
     public UsuarioDTO(Long id, String nombre, String apellido, String correo, 
-                      String telefono, String rolNombre, boolean esVerificado) {
+                      String telefono, String rolNombre, boolean InsigniaVerificacion) {
         this.id = id;
         this.nombre = nombre;
         this.apellido = apellido;
         this.correo = correo;
         this.telefono = telefono;
         this.rolNombre = rolNombre;
-        this.esVerificado = esVerificado;
+        this.InsigniaVerificacion = InsigniaVerificacion;
     }
 }

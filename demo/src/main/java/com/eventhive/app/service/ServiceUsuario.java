@@ -117,7 +117,7 @@ public class ServiceUsuario {
         u.setTelefono(telefono);
         u.setClave(passwordEncoder.encode(clave));
         u.setRol(rol);
-        u.setEsVerificado(false);
+        u.setInsigniaVerificacion(false);
         usuarioRepository.save(u);
     }
 
@@ -174,7 +174,7 @@ public class ServiceUsuario {
         dto.setNombre(u.getNombreCompleto());
         dto.setCorreo(u.getCorreo());
         dto.setTelefono(u.getTelefono());
-        dto.setEsVerificado(u.getEsVerificado() != null && u.getEsVerificado());
+        dto.setInsigniaVerificacion(u.getInsigniaVerificacion() != null && u.getInsigniaVerificacion());
         if (u.getRol() != null) {
             dto.setRolNombre(u.getRol().getNombre());
         }
@@ -187,7 +187,7 @@ public class ServiceUsuario {
         dto.setNombre(u.getNombreCompleto());
         dto.setCorreo(u.getCorreo());
         dto.setTelefono(u.getTelefono());
-        dto.setEsVerificado(u.getEsVerificado() != null && u.getEsVerificado());
+        dto.setInsigniaVerificacion(u.getInsigniaVerificacion() != null && u.getInsigniaVerificacion());
         dto.setRolNombre(u.getRol() != null ? u.getRol().getNombre() : "");
         dto.setNivel(u.getNivel());
         dto.setCantidadCompras(u.getCantidadCompras());
