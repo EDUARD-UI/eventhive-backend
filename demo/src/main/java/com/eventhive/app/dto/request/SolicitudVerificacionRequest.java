@@ -1,9 +1,8 @@
-package com.eventhive.app.dto;
+package com.eventhive.app.dto.request;
 
 import lombok.Getter;
 import lombok.Setter;
 
-// DTO para recibir los 5 campos del formulario de solicitud del organizador
 @Getter
 @Setter
 public class SolicitudVerificacionRequest {

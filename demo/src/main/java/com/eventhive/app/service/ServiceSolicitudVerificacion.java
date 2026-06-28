@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.eventhive.app.dto.SolicitudVerificacionDTO;
-import com.eventhive.app.dto.SolicitudVerificacionRequest;
+import com.eventhive.app.dto.request.SolicitudVerificacionRequest;
 import com.eventhive.app.enums.EstadoSolicitud;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.model.Rol;

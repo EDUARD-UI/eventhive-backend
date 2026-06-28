@@ -2,7 +2,7 @@ package com.eventhive.app.model;
 
 import java.time.LocalDateTime;
 
-import org.springframework.data.annotation.Id;              // ✅ CORRECTO para MongoDB
+import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -28,6 +28,6 @@ public class Notification {
     private String mensaje;
     private Boolean leida = false;
 
-    @Indexed(expireAfterSeconds = 604800) // TTL 7 días
+    @Indexed(expireAfter = "P7D") // TTL 7 días — ISO 8601
     private LocalDateTime fechaCreacion;
 }

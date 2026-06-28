@@ -1,7 +1,5 @@
 package com.eventhive.app.controllers;
 
-import java.util.List;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -16,11 +14,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.eventhive.app.dto.ApiResponse;
+import com.eventhive.app.dto.CompraResponseDTO;
 import com.eventhive.app.dto.PagedResponse;
-import com.eventhive.app.model.Compra;
-import com.eventhive.app.model.ItemCompra;
+import com.eventhive.app.dto.request.CompraRequestDTO;
 import com.eventhive.app.service.ServiceCompra;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -32,30 +31,25 @@ public class CompraApiController {
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<PagedResponse<Compra>>> listar(Pageable pageable) {
-        Page<Compra> page = compraService.listarMisCompras(pageable);
-        PagedResponse<Compra> response = new PagedResponse<>(
-            page.getContent(),
-            page.getNumber(),
-            page.getSize(),
-            page.getTotalElements(),
-            page.getTotalPages()
-        );
-        return ResponseEntity.ok(ApiResponse.ok("Compras obtenidas", response));
+    public ResponseEntity<ApiResponse<PagedResponse<CompraResponseDTO>>> listar(Pageable pageable) {
+        Page<CompraResponseDTO> page = compraService.listarMisCompras(pageable);
+        return ResponseEntity.ok(ApiResponse.ok("Compras obtenidas", new PagedResponse<>(
+                page.getContent(), page.getNumber(), page.getSize(),
+                page.getTotalElements(), page.getTotalPages())));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Compra>> obtener(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok("Compra obtenida", 
-            compraService.obtenerPorId(id)));
+    public ResponseEntity<ApiResponse<CompraResponseDTO>> obtener(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok("Compra obtenida", compraService.obtenerPorId(id)));
     }
 
     @PostMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Compra>> crear(@RequestBody List<ItemCompra> items) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Compra realizada",
-            compraService.realizarCompra(items)));
+    public ResponseEntity<ApiResponse<CompraResponseDTO>> crear(
+            @Valid @RequestBody CompraRequestDTO request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok("Compra realizada", compraService.realizarCompra(request)));
     }
 
     @DeleteMapping("/{id}")

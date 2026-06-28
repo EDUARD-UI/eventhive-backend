@@ -19,8 +19,8 @@ import org.springframework.web.multipart.MultipartFile;
 import com.eventhive.app.dto.ApiResponse;
 import com.eventhive.app.dto.EventoBusquedaDTO;
 import com.eventhive.app.dto.EventoDTO;
-import com.eventhive.app.dto.EventoRequest;
 import com.eventhive.app.dto.PagedResponse;
+import com.eventhive.app.dto.request.EventoRequest;
 import com.eventhive.app.service.ServiceEvento;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
 

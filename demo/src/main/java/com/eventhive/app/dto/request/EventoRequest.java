@@ -1,4 +1,4 @@
-package com.eventhive.app.dto;
+package com.eventhive.app.dto.request;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
