@@ -2,11 +2,8 @@ package com.eventhive.app.service;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -50,26 +47,16 @@ public class ServiceEvento {
     private static final DateTimeFormatter FMT = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     // Consultas
-
     @Transactional(readOnly = true)
     public Page<Evento> listarTodos(Pageable pageable) {
-        Page<Evento> page = eventoRepository.findByEstadoConReferencias(EstadoEvento.PUBLICADO, pageable);
-        long horas = obtenerHorasNivel();
-        List<Evento> visibles = page.getContent().stream()
-                .filter(e -> esVisible(e, horas))
-                .collect(Collectors.toList());
-        return new PageImpl<>(visibles, pageable, visibles.size());
+        LocalDateTime fechaLimite = calcularFechaLimite();
+        return eventoRepository.findPublicadosVisibles(fechaLimite, pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<Evento> listarPorCategoria(Long categoriaId, Pageable pageable) {
-        Page<Evento> page = eventoRepository.findByCategoriaIdConReferencias(categoriaId, pageable);
-        long horas = obtenerHorasNivel();
-        List<Evento> visibles = page.getContent().stream()
-                .filter(e -> e.getEstado() == EstadoEvento.PUBLICADO)
-                .filter(e -> esVisible(e, horas))
-                .collect(Collectors.toList());
-        return new PageImpl<>(visibles, pageable, visibles.size());
+        LocalDateTime fechaLimite = calcularFechaLimite();
+        return eventoRepository.findByCategoriaVisibles(categoriaId, fechaLimite, pageable);
     }
 
     @Transactional(readOnly = true)
@@ -84,17 +71,13 @@ public class ServiceEvento {
 
     @Transactional(readOnly = true)
     public Page<EventoBusquedaDTO> buscarPorTitulo(String titulo, Pageable pageable) {
-        Page<Evento> page = eventoRepository.findByTituloConReferencias(titulo, pageable);
-        long horas = obtenerHorasNivel();
-        List<EventoBusquedaDTO> visibles = page.getContent().stream()
-                .filter(e -> e.getEstado() == EstadoEvento.PUBLICADO)
-                .filter(e -> esVisible(e, horas))
+        LocalDateTime fechaLimite = calcularFechaLimite();
+        return eventoRepository
+                .findByTituloVisibles(titulo, fechaLimite, pageable)
                 .map(e -> new EventoBusquedaDTO(
                         e.getId(),
                         e.getTitulo(),
-                        e.getCategoria() != null ? e.getCategoria().getNombre() : null))
-                .collect(Collectors.toList());
-        return new PageImpl<>(visibles, pageable, visibles.size());
+                        e.getCategoria() != null ? e.getCategoria().getNombre() : null));
     }
 
     @Transactional(readOnly = true)
@@ -103,7 +86,7 @@ public class ServiceEvento {
         if (titulo != null && !titulo.isBlank())
             return eventoRepository.findByTituloConReferencias(titulo.trim(), pageable);
         if (categoriaId != null)
-            return eventoRepository.findByCategoriaIdConReferencias(categoriaId, pageable);
+            return eventoRepository.findByEstadoConReferencias(EstadoEvento.PUBLICADO, pageable); // fallback seguro
         if (estado != null && !estado.isBlank()) {
             try {
                 return eventoRepository.findByEstadoConReferencias(
@@ -127,7 +110,7 @@ public class ServiceEvento {
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con id: " + id));
     }
 
-    //Creación, actualización y eliminación
+    // Creación, actualización y eliminación
 
     @Transactional
     @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
@@ -184,21 +167,21 @@ public class ServiceEvento {
         eliminarFotoAnterior(evento.getFoto());
         eventoRepository.deleteById(id);
 
-        serviceMetricasOrganizador.actualizarTotalEventos(organizadorId); 
+        serviceMetricasOrganizador.actualizarTotalEventos(organizadorId);
     }
 
-    //Permisos
+    // Permisos
 
     public void verificarPermiso(Evento evento) {
         Usuario u       = authHelper.usuarioAutenticado();
         boolean esAdmin = u.getRol() != null && "ADMINISTRADOR".equals(u.getRol().getNombre());
         boolean esOwner = evento.getOrganizador() != null
-                && u.getCorreo().equals(evento.getOrganizador().getCorreo());
+                && u.getId().equals(evento.getOrganizador().getId());
         if (!esAdmin && !esOwner)
             throw new BusinessException("No autorizado para modificar este evento");
     }
 
-    //Mapeo DTO
+    // Mapeo DTO
 
     public EventoDTO toDTO(Evento e) {
         EventoDTO dto = new EventoDTO();
@@ -268,17 +251,16 @@ public class ServiceEvento {
         storageService.eliminarArchivo(storageConfig.getBucketEventos(), nombre);
     }
 
-    private boolean esVisible(Evento e, long horasAnticipacion) {
-        LocalDateTime fechaVisible = e.getFechaPublicacion().minusHours(horasAnticipacion);
-        return LocalDateTime.now().isAfter(fechaVisible);
-    }
 
-    private long obtenerHorasNivel() {
+    //Calcula la fecha límite para visibilidad según el nivel del usuario autenticado.
+    private LocalDateTime calcularFechaLimite() {
         NivelUsuario nivel = NivelUsuario.BRONCE;
         try {
             nivel = authHelper.usuarioAutenticado().getNivel();
-        } catch (Exception ex) { /* usuario no autenticado */ }
-        return serviceFidelizacion.obtenerHorasAnticipacion(nivel);
+        } catch (Exception ex) { /* usuario no autenticado → BRONCE */ }
+
+        long horas = serviceFidelizacion.obtenerHorasAnticipacion(nivel);
+        return LocalDateTime.now().plusHours(horas);
     }
 
     private void notificarCambioSiCorresponde(Evento guardado, EstadoEvento estadoAnterior) {

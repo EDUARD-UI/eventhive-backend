@@ -12,6 +12,9 @@ import com.eventhive.app.repository.ValoracionRepository;
 
 import lombok.RequiredArgsConstructor;
 
+//service creado para evitar hacer querys cada q se consulte el perifl de un organizador
+//se actualizan los datos cada q haya un cambio en las valoraciones, seguidores o eventos creados por el organizador
+
 @Service
 @RequiredArgsConstructor
 public class ServiceMetricasOrganizador {
