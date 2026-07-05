@@ -21,11 +21,10 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ServiceNotification {
 
-    private final NotificationRepository notificationRepository;
-    private final SeguidorRepository     seguidorRepository;
+    private final NotificationRepository  notificationRepository;
+    private final SeguidorRepository      seguidorRepository;
     private final AuthenticatedUserHelper authHelper;
 
-    // 1. Nuevo evento publicado → notificar seguidores del organizador
     public void notificarNuevoEvento(Evento evento) {
         notificarASeguidores(
                 evento,
@@ -35,7 +34,6 @@ public class ServiceNotification {
         );
     }
 
-    // 2. Recordatorio de evento próximo → llamado desde scheduler
     public void notificarRecordatorioEvento(Evento evento) {
         notificarASeguidores(
                 evento,
@@ -45,7 +43,6 @@ public class ServiceNotification {
         );
     }
 
-    // 3. Evento modificado o cancelado → notificar seguidores
     public void notificarCambioEvento(Evento evento, TipoNotification tipo) {
         String titulo  = tipo == TipoNotification.EVENTO_CANCELADO ? "Evento cancelado"    : "Evento actualizado";
         String mensaje = tipo == TipoNotification.EVENTO_CANCELADO
@@ -53,19 +50,6 @@ public class ServiceNotification {
                 : "El evento \"" + evento.getTitulo() + "\" fue actualizado.";
 
         notificarASeguidores(evento, tipo, titulo, mensaje);
-    }
-
-    // 4. Nuevo nivel de fidelidad → notificar solo al usuario
-    public void notificarNuevoNivel(Usuario usuario) {
-        String mensaje = "¡Felicitaciones! Alcanzaste el nivel " + usuario.getNivel().name()
-                + ". Ahora tienes acceso anticipado a eventos.";
-
-        crearNotificacion(
-                usuario.getId(), null, null, null,
-                TipoNotification.NUEVO_NIVEL_DE_FIDELIDAD,
-                "¡Subiste de nivel! 🎉",
-                mensaje
-        );
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -98,7 +82,7 @@ public class ServiceNotification {
         notificationRepository.deleteByUsuarioIdAndLeidaTrue(usuario.getId());
     }
 
-    //metodo auxiliar
+    //metodos auxiliares
     private void notificarASeguidores(Evento evento, TipoNotification tipo,
                                       String titulo, String mensaje) {
         List<Usuario> seguidores = seguidorRepository
@@ -109,9 +93,7 @@ public class ServiceNotification {
                 evento.getOrganizador().getId(),
                 evento.getId(),
                 evento.getTitulo(),
-                tipo,
-                titulo,
-                mensaje
+                tipo, titulo, mensaje
         ));
     }
 
@@ -130,7 +112,7 @@ public class ServiceNotification {
         n.setFechaCreacion(LocalDateTime.now());
         notificationRepository.save(n);
     }
-    
+
     private NotificationDTO toDTO(Notification n) {
         NotificationDTO dto = new NotificationDTO();
         dto.setId(n.getId());

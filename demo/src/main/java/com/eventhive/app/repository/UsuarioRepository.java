@@ -12,16 +12,21 @@ import com.eventhive.app.model.Usuario;
 
 public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
+    // Busca un usuario por correo
     Usuario findByCorreo(String correo);
+
+    // Verifica si existe un usuario con ese correo
     boolean existsByCorreo(String correo);
 
+    // Busca un usuario por correo con su rol cargado
     @Query("SELECT u FROM Usuario u JOIN FETCH u.rol WHERE u.correo = :correo")
     Optional<Usuario> findByCorreoConRol(@Param("correo") String correo);
 
+    // Busca usuarios por rol
     @Query("SELECT u FROM Usuario u JOIN FETCH u.rol r WHERE r.id = :rolId")
     Page<Usuario> findByRolId(@Param("rolId") Long rolId, Pageable pageable);
 
-    // ✅ Corregido: u.nombre → u.nombreCompleto
+    // Busca usuarios por nombre y rol
     @Query("""
         SELECT u FROM Usuario u JOIN FETCH u.rol r
         WHERE LOWER(u.nombreCompleto) LIKE LOWER(CONCAT('%', :nombre, '%'))
@@ -31,10 +36,11 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
                                       @Param("rolId")   Long rolId,
                                       Pageable pageable);
 
-    // ✅ Corregido: u.nombre → u.nombreCompleto
+    // Busca usuarios cuyo nombre contiene el texto indicado
     @Query("SELECT u FROM Usuario u JOIN FETCH u.rol WHERE LOWER(u.nombreCompleto) LIKE LOWER(CONCAT('%', :nombre, '%'))")
     Page<Usuario> findByNombreContieneIgnoreCase(@Param("nombre") String nombre, Pageable pageable);
 
+    // Cuenta usuarios por rol
     @Query("SELECT COUNT(u) FROM Usuario u WHERE u.rol.id = :rolId")
     long countByRolId(@Param("rolId") Long rolId);
 }

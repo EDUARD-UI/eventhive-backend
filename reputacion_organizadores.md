@@ -1,5 +1,4 @@
 Organizador
-
 ⭐⭐⭐⭐⭐ 4.8 (328 reseñas)
 
 Seguidores
@@ -8,14 +7,8 @@ Seguidores
 Eventos realizados
 187
 
-Eventos activos
-9
-
 Tiempo en la plataforma
 3 años
-
-Organizador tiene Insignia de verificacion
-
 
 ## reglas
 Solo usuarios autenticados pueden valorar.

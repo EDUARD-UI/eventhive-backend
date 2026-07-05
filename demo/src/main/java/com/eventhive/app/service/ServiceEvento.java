@@ -18,7 +18,6 @@ import com.eventhive.app.dto.EventoOrganizadorDTO;
 import com.eventhive.app.dto.PagedResponse;
 import com.eventhive.app.dto.request.EventoRequest;
 import com.eventhive.app.enums.EstadoEvento;
-import com.eventhive.app.enums.NivelUsuario;
 import com.eventhive.app.enums.TipoNotification;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
@@ -38,7 +37,6 @@ public class ServiceEvento {
     private final EventoRepository           eventoRepository;
     private final CategoriaRepository        categoriaRepository;
     private final AuthenticatedUserHelper    authHelper;
-    private final ServiceFidelizacion        serviceFidelizacion;
     private final ServiceNotification        serviceNotification;
     private final SupabaseStorageService     storageService;
     private final SupabaseStorageConfig      storageConfig;
@@ -49,14 +47,12 @@ public class ServiceEvento {
     // Consultas
     @Transactional(readOnly = true)
     public Page<Evento> listarTodos(Pageable pageable) {
-        LocalDateTime fechaLimite = calcularFechaLimite();
-        return eventoRepository.findPublicadosVisibles(fechaLimite, pageable);
+        return eventoRepository.findPublicadosVisibles(pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<Evento> listarPorCategoria(Long categoriaId, Pageable pageable) {
-        LocalDateTime fechaLimite = calcularFechaLimite();
-        return eventoRepository.findByCategoriaVisibles(categoriaId, fechaLimite, pageable);
+        return eventoRepository.findByCategoriaVisibles(categoriaId, pageable);
     }
 
     @Transactional(readOnly = true)
@@ -71,9 +67,8 @@ public class ServiceEvento {
 
     @Transactional(readOnly = true)
     public Page<EventoBusquedaDTO> buscarPorTitulo(String titulo, Pageable pageable) {
-        LocalDateTime fechaLimite = calcularFechaLimite();
         return eventoRepository
-                .findByTituloVisibles(titulo, fechaLimite, pageable)
+                .findByTituloVisibles(titulo, pageable)
                 .map(e -> new EventoBusquedaDTO(
                         e.getId(),
                         e.getTitulo(),
@@ -197,13 +192,13 @@ public class ServiceEvento {
 
         if (e.getCategoria() != null)
             dto.setCategoria(new EventoCategoriaDTO(
-                    e.getCategoria().getId(), e.getCategoria().getNombre()));
+                    e.getCategoria().getId(),
+                    e.getCategoria().getNombre()));
 
         if (e.getOrganizador() != null)
             dto.setOrganizador(new EventoOrganizadorDTO(
                     e.getOrganizador().getId(),
-                    e.getOrganizador().getNombreCompleto(),
-                    e.getOrganizador().getInsigniaVerificacion()));
+                    e.getOrganizador().getNombreCompleto()));
 
         return dto;
     }
@@ -249,18 +244,6 @@ public class ServiceEvento {
         if (urlFoto == null || urlFoto.isBlank()) return;
         String nombre = storageService.extraerNombreArchivo(urlFoto);
         storageService.eliminarArchivo(storageConfig.getBucketEventos(), nombre);
-    }
-
-
-    //Calcula la fecha límite para visibilidad según el nivel del usuario autenticado.
-    private LocalDateTime calcularFechaLimite() {
-        NivelUsuario nivel = NivelUsuario.BRONCE;
-        try {
-            nivel = authHelper.usuarioAutenticado().getNivel();
-        } catch (Exception ex) { /* usuario no autenticado → BRONCE */ }
-
-        long horas = serviceFidelizacion.obtenerHorasAnticipacion(nivel);
-        return LocalDateTime.now().plusHours(horas);
     }
 
     private void notificarCambioSiCorresponde(Evento guardado, EstadoEvento estadoAnterior) {

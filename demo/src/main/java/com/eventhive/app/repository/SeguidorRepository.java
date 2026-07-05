@@ -11,11 +11,13 @@ import com.eventhive.app.model.Usuario;
 
 public interface SeguidorRepository extends JpaRepository<Seguidor, Long> {
 
+    // Verifica si un usuario sigue a un organizador
     boolean existsByOrganizadorIdAndSeguidorId(Long organizadorId, Long seguidorId);
 
+    // Elimina la relación de seguimiento entre organizador y usuario
     void deleteByOrganizadorIdAndSeguidorId(Long organizadorId, Long seguidorId);
 
-    // Retorna los seguidores (usuarios) de un organizador
+    // Retorna los seguidores de un organizador
     @Query("SELECT s.seguidor FROM Seguidor s WHERE s.organizador.id = :organizadorId")
     List<Usuario> findSeguidoresByOrganizadorId(@Param("organizadorId") Long organizadorId);
 
@@ -23,5 +25,6 @@ public interface SeguidorRepository extends JpaRepository<Seguidor, Long> {
     @Query("SELECT s.organizador FROM Seguidor s WHERE s.seguidor.id = :seguidorId")
     List<Usuario> findOrganizadoresBySeguidorId(@Param("seguidorId") Long seguidorId);
 
+    // Cuenta los seguidores de un organizador
     long countByOrganizadorId(Long organizadorId);
 }

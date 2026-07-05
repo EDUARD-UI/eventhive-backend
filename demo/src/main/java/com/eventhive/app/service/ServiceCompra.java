@@ -31,20 +31,16 @@ import com.eventhive.app.repository.TiqueteRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ServiceCompra {
 
-    private final CompraRepository       compraRepository;
-    private final LocalidadRepository    localidadRepository;
-    private final TiqueteRepository      tiqueteRepository;
-    private final PromocionRepository    promocionRepository;
+    private final CompraRepository compraRepository;
+    private final LocalidadRepository localidadRepository;
+    private final TiqueteRepository tiqueteRepository;
+    private final PromocionRepository promocionRepository;
     private final AuthenticatedUserHelper authHelper;
-    private final ServiceUsuario         serviceUsuario;
-    private final ServiceNotification    serviceNotification;
 
     @Transactional(readOnly = true)
     @PreAuthorize("isAuthenticated()")
@@ -59,7 +55,7 @@ public class ServiceCompra {
     @PreAuthorize("isAuthenticated()")
     public CompraResponseDTO obtenerPorId(Long id) {
         Usuario usuario = authHelper.usuarioAutenticado();
-        Compra compra   = buscarCompra(id);
+        Compra compra = buscarCompra(id);
         validarOwnership(compra, usuario);
         return compraToDTO(compra);
     }
@@ -69,9 +65,9 @@ public class ServiceCompra {
     public CompraResponseDTO realizarCompra(CompraRequestDTO request) {
         validarRequest(request);
 
-        Usuario usuario           = authHelper.usuarioAutenticado();
-        List<ItemCompra> items    = new ArrayList<>();
-        BigDecimal total          = BigDecimal.ZERO;
+        Usuario usuario = authHelper.usuarioAutenticado();
+        List<ItemCompra> items = new ArrayList<>();
+        BigDecimal total = BigDecimal.ZERO;
 
         for (CompraRequestDTO.ItemRequest itemReq : request.getItems()) {
             Localidad localidad = buscarLocalidad(itemReq.getLocalidadId());
@@ -84,7 +80,6 @@ public class ServiceCompra {
 
         Compra guardada = guardarCompra(usuario, items, total);
         generarTiquetes(items, guardada);
-        actualizarFidelizacion(usuario);
 
         return compraToDTO(guardada);
     }
@@ -93,16 +88,17 @@ public class ServiceCompra {
     @PreAuthorize("isAuthenticated()")
     public void cancelarCompra(Long id) {
         Usuario usuario = authHelper.usuarioAutenticado();
-        Compra compra   = buscarCompra(id);
+        Compra compra = buscarCompra(id);
         validarOwnership(compra, usuario);
 
-        compra.getItems().forEach(item ->
-                localidadRepository.incrementarDisponibles(
+        compra.getItems().forEach(item
+                -> localidadRepository.incrementarDisponibles(
                         item.getLocalidad().getId(), item.getCantidad()));
 
         compraRepository.deleteById(id);
     }
-    
+
+    // --- HELPERS NEGOCIO ---
     private void validarRequest(CompraRequestDTO request) {
         if (request.getItems() == null || request.getItems().isEmpty()) {
             throw new BusinessException("Debe incluir al menos un ítem en la compra");
@@ -115,7 +111,6 @@ public class ServiceCompra {
         }
     }
 
-    // HELPERS — NEGOCIO
     private Compra buscarCompra(Long id) {
         return compraRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Compra no encontrada con id: " + id));
@@ -123,8 +118,7 @@ public class ServiceCompra {
 
     private Localidad buscarLocalidad(Long localidadId) {
         return localidadRepository.findByIdConEvento(localidadId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Localidad no encontrada: " + localidadId));
+                .orElseThrow(() -> new ResourceNotFoundException("Localidad no encontrada: " + localidadId));
     }
 
     private void descontarDisponibles(Localidad localidad, Integer cantidad) {
@@ -141,9 +135,9 @@ public class ServiceCompra {
         return promocionRepository
                 .findVigenteByEventoId(localidad.getEvento().getId(), LocalDate.now())
                 .map(promo -> localidad.getPrecio()
-                        .multiply(BigDecimal.valueOf(100)
-                                .subtract(BigDecimal.valueOf(promo.getDescuento())))
-                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP))
+                .multiply(BigDecimal.valueOf(100)
+                        .subtract(BigDecimal.valueOf(promo.getDescuento())))
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP))
                 .orElse(localidad.getPrecio());
     }
 
@@ -156,6 +150,7 @@ public class ServiceCompra {
         return item;
     }
 
+    // ServiceCompra.java — guardarCompra
     private Compra guardarCompra(Usuario usuario, List<ItemCompra> items, BigDecimal total) {
         Compra compra = new Compra();
         compra.setFechaCompra(LocalDateTime.now());
@@ -167,30 +162,25 @@ public class ServiceCompra {
         return compraRepository.save(compra);
     }
 
+    // Un solo saveAll en lugar de N inserts individuales
     private void generarTiquetes(List<ItemCompra> items, Compra compra) {
-        items.forEach(item -> {
+        List<Tiquete> tiquetes = new ArrayList<>();
+
+        for (ItemCompra item : items) {
             for (int i = 0; i < item.getCantidad(); i++) {
                 Tiquete t = new Tiquete();
                 t.setCodigoQR(UUID.randomUUID().toString());
                 t.setLocalidad(item.getLocalidad());
                 t.setEvento(item.getEvento());
                 t.setCompra(compra);
-                tiqueteRepository.save(t);
+                tiquetes.add(t);
             }
-        });
-    }
-
-    private void actualizarFidelizacion(Usuario usuario) {
-        try {
-            usuario.setCantidadCompras(usuario.getCantidadCompras() + 1);
-            boolean subioNivel = serviceUsuario.actualizarNivelSiCambia(usuario);
-            if (subioNivel) serviceNotification.notificarNuevoNivel(usuario);
-        } catch (Exception ex) {
-            log.warn("Fallo en fidelización para usuario {}: {}", usuario.getId(), ex.getMessage());
         }
+
+        tiqueteRepository.saveAll(tiquetes);
     }
 
-    // HELPERS — MAPEO Entidad → DTO
+    // --- HELPERS MAPEO ---
     private CompraResponseDTO compraToDTO(Compra compra) {
         return CompraResponseDTO.builder()
                 .id(compra.getId())
@@ -202,10 +192,10 @@ public class ServiceCompra {
     }
 
     private List<ItemCompraDTO> itemsToDTO(List<ItemCompra> items) {
-        if (items == null) return List.of();
-        return items.stream()
-                .map(this::itemToDTO)
-                .toList();
+        if (items == null) {
+            return List.of();
+        }
+        return items.stream().map(this::itemToDTO).toList();
     }
 
     private ItemCompraDTO itemToDTO(ItemCompra item) {

@@ -1,6 +1,5 @@
 package com.eventhive.app.repository;
 
-import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -14,49 +13,42 @@ import com.eventhive.app.model.SolicitudVerificacion;
 
 public interface SolicitudVerificacionRepository extends JpaRepository<SolicitudVerificacion, Long> {
 
-    // Busca la solicitud más reciente de un organizador con sus relaciones cargadas (evita N+1)
+    // Obtiene la última solicitud de verificación de un organizador
     @Query("""
         SELECT s FROM SolicitudVerificacion s
         JOIN FETCH s.organizador
         WHERE s.organizador.id = :organizadorId
         ORDER BY s.fechaSolicitud DESC
         """)
-    Optional<SolicitudVerificacion> findFirstByOrganizadorId(@Param("organizadorId") Long organizadorId);
+    Optional<SolicitudVerificacion> findFirstByOrganizadorId(
+            @Param("organizadorId") Long organizadorId);
 
-    // Lista solicitudes por estado con el organizador ya cargado (evita N+1 en paginación)
+    // Lista solicitudes de verificación por estado
     @Query("""
         SELECT s FROM SolicitudVerificacion s
         JOIN FETCH s.organizador
         WHERE s.estado = :estado
         ORDER BY s.fechaSolicitud ASC
         """)
-    Page<SolicitudVerificacion> findByEstado(@Param("estado") EstadoSolicitud estado, Pageable pageable);
+    Page<SolicitudVerificacion> findByEstado(
+            @Param("estado") EstadoSolicitud estado,
+            Pageable pageable);
 
-    // Verifica si el organizador ya tiene una solicitud en estado PENDIENTE
+    // Comprueba si existe una solicitud activa para un organizador
     @Query("""
         SELECT COUNT(s) > 0 FROM SolicitudVerificacion s
         WHERE s.organizador.id = :organizadorId
-        AND s.estado = :estado
+          AND s.estado = :estado
         """)
-        boolean existsByOrganizadorIdAndEstado(
+    boolean existsByOrganizadorIdAndEstado(
             @Param("organizadorId") Long organizadorId,
             @Param("estado") EstadoSolicitud estado);
 
-    // Verifica si el correo empresarial ya está en una solicitud pendiente o aprobada
+    // Comprueba si ya existe una solicitud con el mismo correo empresarial
     @Query("""
-    SELECT COUNT(s) > 0 FROM SolicitudVerificacion s
-    WHERE s.correoEmpresarial = :correo
-    AND s.estado IN :estados
-    """)
-    boolean existsByCorreoEmpresarialAndEstadoIn(
-            @Param("correo") String correo,
-            @Param("estados") List<EstadoSolicitud> estados);
-
-    // Verifica si el correo empresarial ya existe en cualquier solicitud (evita duplicados)
-    @Query("""
-    SELECT COUNT(s) > 0 FROM SolicitudVerificacion s
-    WHERE s.correoEmpresarial = :correo
-    AND s.estado IN ('PENDIENTE', 'APROBADA')
-    """)
+        SELECT COUNT(s) > 0 FROM SolicitudVerificacion s
+        WHERE s.correoEmpresarial = :correo
+          AND s.estado IN ('PENDIENTE', 'APROBADA')
+        """)
     boolean existsByCorreoEmpresarial(@Param("correo") String correo);
 }

@@ -14,7 +14,7 @@ import com.eventhive.app.model.Promocion;
 
 public interface PromocionRepository extends JpaRepository<Promocion, Long> {
 
-    // Busca promoción vigente para un evento en una fecha dada
+    // Busca una promoción vigente para un evento en una fecha dada
     @Query("""
         SELECT p FROM Promocion p
         JOIN FETCH p.eventos e
@@ -25,13 +25,15 @@ public interface PromocionRepository extends JpaRepository<Promocion, Long> {
     Optional<Promocion> findVigenteByEventoId(@Param("eventoId") Long eventoId,
                                                @Param("hoy")      LocalDate hoy);
 
+    // Obtiene las promociones asociadas a un evento
     @Query("SELECT p FROM Promocion p JOIN p.eventos e WHERE e.id = :eventoId")
     List<Promocion> findByEventoId(@Param("eventoId") Long eventoId);
 
+    // Verifica si existen promociones para un evento
     @Query("SELECT COUNT(p) > 0 FROM Promocion p JOIN p.eventos e WHERE e.id = :eventoId")
     boolean existsByEventoId(@Param("eventoId") Long eventoId);
 
-    // Comprueba si existe otra promoción para el mismo evento que choque con el rango
+    // Comprueba si existe conflicto de fechas con otra promoción
     @Query("""
         SELECT COUNT(p) > 0 FROM Promocion p JOIN p.eventos e
         WHERE e.id = :eventoId
@@ -44,7 +46,7 @@ public interface PromocionRepository extends JpaRepository<Promocion, Long> {
                                    @Param("fin") LocalDate fin,
                                    @Param("excludeId") Long excludeId);
 
-    // Para el panel de organizador
+    // Obtiene promociones de un organizador para el panel
     @Query("""
         SELECT DISTINCT p FROM Promocion p
         JOIN FETCH p.eventos e

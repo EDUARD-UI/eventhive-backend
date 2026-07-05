@@ -10,6 +10,7 @@ import com.eventhive.app.model.Tiquete;
 
 public interface TiqueteRepository extends JpaRepository<Tiquete, Long> {
 
+    // Devuelve los tiquetes de una compra con detalles del evento y la localidad
     @Query("""
         SELECT t FROM Tiquete t
         JOIN FETCH t.evento e
@@ -17,6 +18,5 @@ public interface TiqueteRepository extends JpaRepository<Tiquete, Long> {
         JOIN FETCH e.categoria
         WHERE t.compra.id = :compraId
         """)
-    // Devuelve tiquetes de una compra con detalles (evento, localidad, categoria)
     List<Tiquete> findByCompraIdConDetalles(@Param("compraId") Long compraId);
 }

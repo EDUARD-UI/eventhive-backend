@@ -4,5 +4,8 @@ public enum EstadoEvento {
     BORRADOR,
     PUBLICADO,
     CANCELADO,
-    FINALIZADO
+    FINALIZADO,
+    PENDIENTE_REVISION,
+    EN_CORRECION,
+    RECHAZADO
 }

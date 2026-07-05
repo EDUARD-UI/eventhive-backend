@@ -11,18 +11,20 @@ import com.eventhive.app.model.Localidad;
 
 public interface LocalidadRepository extends JpaRepository<Localidad, Long> {
 
+    // Busca todas las localidades asociadas a un evento
     List<Localidad> findByEventoId(Long eventoId);
 
-    // Decremento atómico para evitar race conditions en compras concurrentes
+    // Decrementa las localidades disponibles de forma atómica
     @Modifying
     @Query("UPDATE Localidad l SET l.disponibles = l.disponibles - :cantidad WHERE l.id = :id AND l.disponibles >= :cantidad")
     int decrementarDisponibles(@Param("id") Long id, @Param("cantidad") int cantidad);
 
+    // Incrementa las localidades disponibles de forma atómica
     @Modifying
     @Query("UPDATE Localidad l SET l.disponibles = l.disponibles + :cantidad WHERE l.id = :id")
     void incrementarDisponibles(@Param("id") Long id, @Param("cantidad") int cantidad);
 
-    // Busca una localidad y trae su evento asociado
+    // Busca una localidad con su evento asociado cargado
     @Query("SELECT l FROM Localidad l JOIN FETCH l.evento WHERE l.id = :id")
     java.util.Optional<com.eventhive.app.model.Localidad> findByIdConEvento(@Param("id") Long id);
 }

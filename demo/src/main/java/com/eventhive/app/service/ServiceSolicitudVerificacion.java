@@ -105,7 +105,6 @@ public class ServiceSolicitudVerificacion {
         nuevoOrganizador.setCorreo(solicitud.getCorreoEmpresarial());
         nuevoOrganizador.setClave(passwordEncoder.encode(claveGenerada));
         nuevoOrganizador.setRol(rolOrganizador);
-        nuevoOrganizador.setInsigniaVerificacion(false);
         usuarioRepository.save(nuevoOrganizador);
 
         solicitud.setEstado(EstadoSolicitud.APROBADA);

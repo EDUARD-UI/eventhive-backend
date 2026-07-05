@@ -8,10 +8,9 @@ import org.springframework.data.repository.query.Param;
 
 import com.eventhive.app.model.Compra;
 
-
 public interface CompraRepository extends JpaRepository<Compra, Long> {
 
-    // Devuelve compras de un cliente con items y detalles (evento, localidad)
+    // Obtiene compras de un cliente con sus ítems y detalles cargados
     @Query("""
         SELECT DISTINCT c FROM Compra c
         JOIN FETCH c.cliente
