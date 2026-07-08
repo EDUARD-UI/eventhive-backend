@@ -1,5 +1,6 @@
 package com.eventhive.app.controllers;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -7,9 +8,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -19,9 +22,12 @@ import org.springframework.web.multipart.MultipartFile;
 import com.eventhive.app.dto.ApiResponse;
 import com.eventhive.app.dto.EventoBusquedaDTO;
 import com.eventhive.app.dto.EventoDTO;
+import com.eventhive.app.dto.ModeracionEventoDTO;
 import com.eventhive.app.dto.PagedResponse;
 import com.eventhive.app.dto.request.EventoRequest;
+import com.eventhive.app.dto.request.ModeracionEventoRequest;
 import com.eventhive.app.service.ServiceEvento;
+import com.eventhive.app.service.ServiceModeracion;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
 
 import lombok.RequiredArgsConstructor;
@@ -32,6 +38,7 @@ import lombok.RequiredArgsConstructor;
 public class EventosApiController {
 
     private final ServiceEvento serviceEvento;
+    private final ServiceModeracion serviceModeracion;
     private final AuthenticatedUserHelper authHelper;
 
     @GetMapping
@@ -68,7 +75,7 @@ public class EventosApiController {
     }
 
     @GetMapping("/organizador")
-    @PreAuthorize("hasRole('ORGANIZADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION')")
     public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> eventosPorOrganzador(Pageable pageable) {
         Long id = authHelper.usuarioAutenticado().getId();
         return ResponseEntity.ok(ApiResponse.ok("Eventos obtenidos",
@@ -76,7 +83,7 @@ public class EventosApiController {
     }
 
     @GetMapping("/organizador/buscar")
-    @PreAuthorize("hasRole('ORGANIZADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION')")
     public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> buscarMisEventos(
             @RequestParam String titulo,
             Pageable pageable) {
@@ -106,7 +113,7 @@ public class EventosApiController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<EventoDTO>> crear(
             @RequestPart("datos") EventoRequest request,
             @RequestPart(value = "foto", required = false) MultipartFile foto) {
@@ -117,7 +124,7 @@ public class EventosApiController {
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<EventoDTO>> actualizar(
             @PathVariable Long id,
             @RequestPart("datos") EventoRequest request,
@@ -128,9 +135,49 @@ public class EventosApiController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long id) {
         serviceEvento.eliminarEvento(id);
         return ResponseEntity.ok(ApiResponse.ok("Evento eliminado"));
+    }
+
+    // Moderación
+    @GetMapping("/moderacion/pendientes")
+    @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
+    public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> pendientesRevision(Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.ok("Eventos pendientes de revisión",
+                serviceEvento.toPagedDTO(serviceModeracion.listarPendientesRevision(pageable))));
+    }
+
+    @GetMapping("/{id}/moderaciones")
+    public ResponseEntity<ApiResponse<Page<ModeracionEventoDTO>>> historialModeracion(
+            @PathVariable Long id, Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.ok("Historial de moderación",
+                serviceModeracion.listarModeraciones(id, pageable)));
+    }
+
+    @PatchMapping("/{id}/aprobar")
+    @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
+    public ResponseEntity<ApiResponse<EventoDTO>> aprobar(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok("Evento aprobado y publicado",
+                serviceEvento.toDTO(serviceModeracion.aprobarEvento(id))));
+    }
+
+    @PatchMapping("/{id}/solicitar-correccion")
+    @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
+    public ResponseEntity<ApiResponse<EventoDTO>> solicitarCorreccion(
+            @PathVariable Long id,
+            @RequestBody ModeracionEventoRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok("Se solicitaron correcciones al organizador",
+                serviceEvento.toDTO(serviceModeracion.solicitarCorreccion(id, request.getMotivo(), request.getObservacion()))));
+    }
+
+    @PatchMapping("/{id}/rechazar")
+    @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
+    public ResponseEntity<ApiResponse<EventoDTO>> rechazar(
+            @PathVariable Long id,
+            @RequestBody ModeracionEventoRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok("Evento rechazado",
+                serviceEvento.toDTO(serviceModeracion.rechazarEvento(id, request.getMotivo(), request.getObservacion()))));
     }
 }

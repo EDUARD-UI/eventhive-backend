@@ -51,8 +51,6 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
             @Param("titulo") String titulo,
             Pageable pageable);
 
-    // --- Consultas de organizador y admin (sin filtro de visibilidad) ---
-
     // Obtiene todos los eventos con sus referencias cargadas
     @Query("""
         SELECT e FROM Evento e
@@ -142,4 +140,26 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
 
     // Cuenta eventos por organizador para el panel de administración
     long countByOrganizadorId(Long organizadorId);
+
+    // Cuenta eventos activos (pendientes, en corrección o publicados) para validar el límite del nivel
+    @Query("""
+        SELECT COUNT(e) FROM Evento e
+        WHERE e.organizador.id = :organizadorId
+          AND e.estado IN (
+              com.eventhive.app.enums.EstadoEvento.PENDIENTE_REVISION,
+              com.eventhive.app.enums.EstadoEvento.EN_CORRECCION,
+              com.eventhive.app.enums.EstadoEvento.PUBLICADO)
+        """)
+    long countActivosByOrganizadorId(@Param("organizadorId") Long organizadorId);
+
+    // Eventos publicados cuya fecha ya pasó: candidatos a auto-finalizar
+    @Query("""
+        SELECT e FROM Evento e
+        JOIN FETCH e.organizador
+        WHERE e.fecha < :fecha
+          AND e.estado = :estado
+        """)
+    List<Evento> findByFechaAnteriorYEstado(
+            @Param("fecha") LocalDate fecha,
+            @Param("estado") EstadoEvento estado);
 }

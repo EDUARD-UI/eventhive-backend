@@ -1,5 +1,6 @@
 package com.eventhive.app.service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -41,10 +42,12 @@ public class ServiceEvento {
     private final SupabaseStorageService     storageService;
     private final SupabaseStorageConfig      storageConfig;
     private final ServiceMetricasOrganizador serviceMetricasOrganizador;
+    private final ServiceNivelOrganizacion   serviceNivelOrganizacion;
 
     private static final DateTimeFormatter FMT = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     // Consultas
+
     @Transactional(readOnly = true)
     public Page<Evento> listarTodos(Pageable pageable) {
         return eventoRepository.findPublicadosVisibles(pageable);
@@ -76,7 +79,7 @@ public class ServiceEvento {
     }
 
     @Transactional(readOnly = true)
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
     public Page<Evento> buscarAdmin(String titulo, Long categoriaId, String estado, Pageable pageable) {
         if (titulo != null && !titulo.isBlank())
             return eventoRepository.findByTituloConReferencias(titulo.trim(), pageable);
@@ -108,14 +111,18 @@ public class ServiceEvento {
     // Creación, actualización y eliminación
 
     @Transactional
-    @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
     public Evento crearEvento(EventoRequest request, MultipartFile foto) {
         Usuario organizador = authHelper.usuarioAutenticado();
         Categoria categoria = resolverCategoria(request.getCategoriaId());
 
+        if (!esAdministrador(organizador))
+            verificarLimiteDeNivel(organizador);
+
         Evento evento = new Evento();
         mapearCampos(evento, request, categoria);
         evento.setOrganizador(organizador);
+        evento.setEstado(estadoInicial(organizador));
 
         if (foto != null && !foto.isEmpty())
             evento.setFoto(storageService.subirImagenEvento(foto));
@@ -131,7 +138,7 @@ public class ServiceEvento {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
     public Evento actualizarEvento(Long id, EventoRequest request, MultipartFile foto) {
         Evento evento = obtenerPorId(id);
         verificarPermiso(evento);
@@ -139,6 +146,9 @@ public class ServiceEvento {
         EstadoEvento estadoAnterior = evento.getEstado();
         Categoria categoria = resolverCategoria(request.getCategoriaId());
         mapearCampos(evento, request, categoria);
+
+        if (estadoAnterior == EstadoEvento.EN_CORRECCION && !esAdministrador(authHelper.usuarioAutenticado()))
+            evento.setEstado(EstadoEvento.PENDIENTE_REVISION); // la corrección vuelve a entrar a la cola
 
         if (foto != null && !foto.isEmpty()) {
             eliminarFotoAnterior(evento.getFoto());
@@ -152,7 +162,7 @@ public class ServiceEvento {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
     public void eliminarEvento(Long id) {
         Evento evento = obtenerPorId(id);
         verificarPermiso(evento);
@@ -165,15 +175,47 @@ public class ServiceEvento {
         serviceMetricasOrganizador.actualizarTotalEventos(organizadorId);
     }
 
+    // Marca como FINALIZADO cualquier evento publicado cuya fecha ya pasó, y evalúa el ascenso del organizador
+    @Transactional
+    public void finalizarEventosVencidos(LocalDate hoy) {
+        eventoRepository.findByFechaAnteriorYEstado(hoy, EstadoEvento.PUBLICADO).forEach(evento -> {
+            evento.setEstado(EstadoEvento.FINALIZADO);
+            Usuario organizador = evento.getOrganizador();
+            organizador.setEventosFinalizados(organizador.getEventosFinalizados() + 1);
+            serviceNivelOrganizacion.evaluarAscenso(organizador);
+        });
+    }
+
+    // Nivel de confianza de la organización
+
+    // Bloquea la creación si la organización ya alcanzó el máximo de eventos activos de su nivel
+    private void verificarLimiteDeNivel(Usuario organizador) {
+        int maximo = organizador.getNivel().maxEventosActivos();
+        long activos = eventoRepository.countActivosByOrganizadorId(organizador.getId());
+        if (activos >= maximo)
+            throw new BusinessException(
+                    "Alcanzaste el límite de " + maximo + " eventos activos para tu nivel " + organizador.getNivel());
+    }
+
+    // Admin publica directo; una organización de nivel máximo también; el resto entra a PENDIENTE_REVISION
+    private EstadoEvento estadoInicial(Usuario organizador) {
+        if (esAdministrador(organizador) || organizador.getNivel().permitePublicacionAutomatica())
+            return EstadoEvento.PUBLICADO;
+        return EstadoEvento.PENDIENTE_REVISION;
+    }
+
     // Permisos
 
     public void verificarPermiso(Evento evento) {
         Usuario u       = authHelper.usuarioAutenticado();
-        boolean esAdmin = u.getRol() != null && "ADMINISTRADOR".equals(u.getRol().getNombre());
         boolean esOwner = evento.getOrganizador() != null
                 && u.getId().equals(evento.getOrganizador().getId());
-        if (!esAdmin && !esOwner)
+        if (!esAdministrador(u) && !esOwner)
             throw new BusinessException("No autorizado para modificar este evento");
+    }
+
+    private boolean esAdministrador(Usuario u) {
+        return u.getRol() != null && "ADMINISTRADOR".equals(u.getRol().getNombre());
     }
 
     // Mapeo DTO
@@ -223,9 +265,6 @@ public class ServiceEvento {
         evento.setLatitud(req.getLatitud());
         evento.setLongitud(req.getLongitud());
         evento.setCategoria(categoria);
-
-        if (req.getEstado() != null)
-            evento.setEstado(req.getEstado());
 
         if (req.getFechaPublicacion() != null && !req.getFechaPublicacion().isBlank())
             evento.setFechaPublicacion(LocalDateTime.parse(req.getFechaPublicacion(), FMT));

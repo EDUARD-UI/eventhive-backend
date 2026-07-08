@@ -60,9 +60,9 @@ public class AuthApiController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Registro exitoso"));
     }
 
-    @PostMapping("/registrar-organizador")
-    public ResponseEntity<ApiResponse<Void>> registrarOrganizador(@RequestBody RegistroRequest request) {
-        serviceAutenticacion.registrarOrganizador(
+    @PostMapping("/registrar-organizacion")
+    public ResponseEntity<ApiResponse<Void>> registrarOrganizacion(@RequestBody RegistroRequest request) {
+        serviceAutenticacion.registrarOrganizacion(
                 request.getNombre(), request.getCorreo(),
                 request.getTelefono(), request.getClave());
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Registro exitoso"));

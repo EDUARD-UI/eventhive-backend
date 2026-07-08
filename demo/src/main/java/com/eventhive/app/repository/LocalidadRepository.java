@@ -14,12 +14,12 @@ public interface LocalidadRepository extends JpaRepository<Localidad, Long> {
     // Busca todas las localidades asociadas a un evento
     List<Localidad> findByEventoId(Long eventoId);
 
-    // Decrementa las localidades disponibles de forma atómica
+    // Decrementa las localidades disponibles
     @Modifying
     @Query("UPDATE Localidad l SET l.disponibles = l.disponibles - :cantidad WHERE l.id = :id AND l.disponibles >= :cantidad")
     int decrementarDisponibles(@Param("id") Long id, @Param("cantidad") int cantidad);
 
-    // Incrementa las localidades disponibles de forma atómica
+    // Incrementa las localidades disponibles
     @Modifying
     @Query("UPDATE Localidad l SET l.disponibles = l.disponibles + :cantidad WHERE l.id = :id")
     void incrementarDisponibles(@Param("id") Long id, @Param("cantidad") int cantidad);

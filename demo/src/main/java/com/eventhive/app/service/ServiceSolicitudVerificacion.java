@@ -68,7 +68,7 @@ public class ServiceSolicitudVerificacion {
     }
 
     @Transactional(readOnly = true)
-    @PreAuthorize("hasRole('ORGANIZADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION')")
     public SolicitudVerificacionDTO miSolicitud() {
         Usuario organizador = authHelper.usuarioAutenticado();
         return solicitudRepository.findFirstByOrganizadorId(organizador.getId())
@@ -95,8 +95,8 @@ public class ServiceSolicitudVerificacion {
     public String aprobarSolicitud(Long solicitudId) {
         SolicitudVerificacion solicitud = obtenerPendiente(solicitudId);
 
-        Rol rolOrganizador = rolesRepository.findByNombre("ORGANIZADOR")
-                .orElseThrow(() -> new BusinessException("Rol ORGANIZADOR no encontrado"));
+        Rol rolOrganizador = rolesRepository.findByNombre("ORGANIZACION")
+                .orElseThrow(() -> new BusinessException("Rol ORGANIZACION no encontrado"));
 
         String claveGenerada = PasswordGeneratorUtil.generar(12);
 

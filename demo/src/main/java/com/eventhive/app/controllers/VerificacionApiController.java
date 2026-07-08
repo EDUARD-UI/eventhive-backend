@@ -31,7 +31,7 @@ public class VerificacionApiController {
     private final ServiceSolicitudVerificacion serviceSolicitud;
 
     @PostMapping(value = "/solicitar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('ORGANIZADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION')")
     public ResponseEntity<ApiResponse<Void>> crearSolicitud(
             @RequestPart("datos") SolicitudVerificacionRequest request,
             @RequestPart(value = "rut", required = false) MultipartFile archivoRut) {
@@ -42,7 +42,7 @@ public class VerificacionApiController {
     }
 
     @GetMapping("/mis-solicitudes")
-    @PreAuthorize("hasRole('ORGANIZADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION')")
     public ResponseEntity<ApiResponse<SolicitudVerificacionDTO>> miSolicitud() {
         return ResponseEntity.ok(ApiResponse.ok("Solicitud obtenida", serviceSolicitud.miSolicitud()));
     }

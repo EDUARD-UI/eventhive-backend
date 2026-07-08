@@ -57,10 +57,10 @@ public class ServiceAutenticacion {
     }
 
     @Transactional
-    public void registrarOrganizador(String nombre, String correo, String telefono, String clave) {
+    public void registrarOrganizacion(String nombre, String correo, String telefono, String clave) {
         validarRegistro(correo);
-        Rol rol = rolesRepository.findByNombre("ORGANIZADOR")
-                .orElseThrow(() -> new BusinessException("Rol ORGANIZADOR no existe"));
+        Rol rol = rolesRepository.findByNombre("ORGANIZACION")
+                .orElseThrow(() -> new BusinessException("Rol ORGANIZACION no existe"));
         usuarioRepository.save(crearUsuario(nombre, correo, telefono, clave, rol));
     }
 

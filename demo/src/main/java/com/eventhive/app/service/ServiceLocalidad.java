@@ -34,7 +34,7 @@ public class ServiceLocalidad {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
     public Localidad agregar(Long eventoId, Localidad localidad) {
         Evento evento = serviceEvento.obtenerPorId(eventoId);
         serviceEvento.verificarPermiso(evento);
@@ -50,7 +50,7 @@ public class ServiceLocalidad {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
     public Localidad actualizar(Long eventoId, Long localidadId, Localidad datos) {
         Evento evento = serviceEvento.obtenerPorId(eventoId);
         serviceEvento.verificarPermiso(evento);
@@ -71,7 +71,7 @@ public class ServiceLocalidad {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
     public void eliminar(Long eventoId, Long localidadId) {
         Evento evento = serviceEvento.obtenerPorId(eventoId);
         serviceEvento.verificarPermiso(evento);

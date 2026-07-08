@@ -48,7 +48,7 @@ public class ServicePromocion {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
     public void crearPromocion(Long eventoId, String descripcion, BigDecimal descuento,
                                String fechaInicio, String fechaFin, Usuario organizador) {
         validarDescuento(descuento);
@@ -77,7 +77,7 @@ public class ServicePromocion {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
     public void actualizarPromocion(Long id, Long eventoId, String descripcion,
                                     BigDecimal descuento, String fechaInicio,
                                     String fechaFin, Usuario organizador) {
@@ -111,7 +111,7 @@ public class ServicePromocion {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
     public void eliminarPromocion(Long id, Usuario organizador) {
         Promocion p = obtenerPromocionPorId(id);
         validarPermiso(p, organizador);

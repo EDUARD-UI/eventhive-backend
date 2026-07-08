@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import com.eventhive.app.enums.EstadoEvento;
 import com.eventhive.app.model.Evento;
 import com.eventhive.app.repository.EventoRepository;
+import com.eventhive.app.service.ServiceEvento;
 import com.eventhive.app.service.ServiceNotification;
 
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ public class RecordatorioDeEvento {
 
     private final EventoRepository     eventoRepository;
     private final ServiceNotification  serviceNotification;
+    private final ServiceEvento        serviceEvento;
 
     // Se ejecuta todos los días a las 9:00 AM
     @Scheduled(cron = "0 0 9 * * *")
@@ -41,5 +43,11 @@ public class RecordatorioDeEvento {
                         evento.getId(), ex.getMessage());
             }
         });
+    }
+
+    // Se ejecuta todos los días a la 1:00 AM: cierra eventos publicados cuya fecha ya pasó
+    @Scheduled(cron = "0 0 1 * * *")
+    public void finalizarEventosVencidos() {
+        serviceEvento.finalizarEventosVencidos(LocalDate.now());
     }
 }

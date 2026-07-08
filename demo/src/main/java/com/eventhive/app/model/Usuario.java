@@ -2,8 +2,12 @@ package com.eventhive.app.model;
 
 import java.time.LocalDateTime;
 
+import com.eventhive.app.enums.NivelOrganizador;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -59,4 +63,15 @@ public class Usuario {
 
     @Column(name = "total_eventos_creados", nullable = false)
     private Integer totalEventosCreados = 0;
+
+    // Solo aplica a la organización; en CLIENTE queda sin usar
+    @Enumerated(EnumType.STRING)
+    @Column(name = "nivel", length = 20)
+    private NivelOrganizador nivel = NivelOrganizador.NIVEL_1;
+
+    @Column(name = "eventos_finalizados", nullable = false)
+    private Integer eventosFinalizados = 0;
+
+    @Column(name = "eventos_rechazados", nullable = false)
+    private Integer eventosRechazados = 0;
 }

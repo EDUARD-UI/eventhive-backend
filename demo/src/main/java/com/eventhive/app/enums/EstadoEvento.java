@@ -6,6 +6,6 @@ public enum EstadoEvento {
     CANCELADO,
     FINALIZADO,
     PENDIENTE_REVISION,
-    EN_CORRECION,
+    EN_CORRECCION,
     RECHAZADO
 }

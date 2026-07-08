@@ -36,8 +36,6 @@ public class PromocionApiController {
     private final ServicePromocion servicePromocion;
     private final AuthenticatedUserHelper authHelper;
 
-    // ── Endpoint público: promoción vigente de un evento ──────────────────────
-    // No requiere autenticación — lo consulta InfoEvento y PaymentFlow
     @GetMapping("/evento/{eventoId}")
     public ResponseEntity<ApiResponse<PromocionDTO>> porEvento(@PathVariable Long eventoId) {
         try {
@@ -88,7 +86,7 @@ public class PromocionApiController {
     }
 
     @GetMapping("/organizador")
-    @PreAuthorize("hasRole('ORGANIZADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION')")
     public ResponseEntity<ApiResponse<PagedResponse<PromocionDTO>>> porOrganizador(Pageable pageable) {
         Usuario usuario = authHelper.usuarioAutenticado();
         Page<PromocionDTO> page = servicePromocion.obtenerDTOPorOrganizador(usuario.getId(), pageable);
@@ -103,7 +101,7 @@ public class PromocionApiController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> crear(
             @RequestParam Long eventoId,
             @RequestParam String descripcion,
@@ -116,7 +114,7 @@ public class PromocionApiController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> actualizar(
             @PathVariable Long id,
             @RequestParam Long eventoId,
@@ -130,7 +128,7 @@ public class PromocionApiController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ORGANIZADOR') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long id) {
         Usuario usuario = authHelper.usuarioAutenticado();
         servicePromocion.eliminarPromocion(id, usuario);
