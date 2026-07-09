@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.eventhive.app.dto.BoletosCompraDTO;
 import com.eventhive.app.dto.CompraResponseDTO;
 import com.eventhive.app.model.Evento;
+import com.eventhive.app.model.Localidad;
 import com.eventhive.app.model.Tiquete;
 import com.eventhive.app.repository.TiqueteRepository;
 
@@ -46,30 +47,24 @@ public class ServiceBoletos {
         tiqueteDTO.setId(tiquete.getId());
         tiqueteDTO.setCodigoQR(tiquete.getCodigoQR());
 
-        Evento evento = tiquete.getEvento();
-        if (evento != null) {
+        Localidad localidad = tiquete.getLocalidad();
+        if (localidad != null) {
             BoletosCompraDTO.LocalidadDTO localidadDTO = new BoletosCompraDTO.LocalidadDTO();
-            Long localidadId = tiquete.getLocalidad() != null ? tiquete.getLocalidad().getId() : null;
-            localidadDTO.setId(localidadId);
+            localidadDTO.setId(localidad.getId());
+            localidadDTO.setNombre(localidad.getNombre());
+            localidadDTO.setPrecio(localidad.getPrecio());
 
-            if (evento.getLocalidades() != null && localidadId != null) {
-                evento.getLocalidades().stream()
-                        .filter(l -> localidadId.equals(l.getId()))
-                        .findFirst()
-                        .ifPresent(l -> {
-                            localidadDTO.setNombre(l.getNombre());
-                            localidadDTO.setPrecio(l.getPrecio());
-                        });
+            Evento evento = tiquete.getEvento();
+            if (evento != null) {
+                BoletosCompraDTO.EventoDTO eventoDTO = new BoletosCompraDTO.EventoDTO();
+                eventoDTO.setId(evento.getId());
+                eventoDTO.setTitulo(evento.getTitulo());
+                eventoDTO.setFecha(evento.getFecha());
+                eventoDTO.setHora(evento.getHora());
+                eventoDTO.setLugar(evento.getLugar());
+                localidadDTO.setEvento(eventoDTO);
             }
 
-            BoletosCompraDTO.EventoDTO eventoDTO = new BoletosCompraDTO.EventoDTO();
-            eventoDTO.setId(evento.getId());
-            eventoDTO.setTitulo(evento.getTitulo());
-            eventoDTO.setFecha(evento.getFecha());
-            eventoDTO.setHora(evento.getHora());
-            eventoDTO.setLugar(evento.getLugar());
-
-            localidadDTO.setEvento(eventoDTO);
             tiqueteDTO.setLocalidad(localidadDTO);
         }
 

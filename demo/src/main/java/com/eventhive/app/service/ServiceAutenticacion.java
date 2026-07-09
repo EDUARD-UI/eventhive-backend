@@ -56,6 +56,10 @@ public class ServiceAutenticacion {
         usuarioRepository.save(crearUsuario(nombre, correo, telefono, clave, rol));
     }
 
+    // Crea la cuenta con rol ORGANIZACION pero SIN perfil de Organizacion asociado.
+    // El usuario solo obtiene su Organizacion (nit/razón social/estadísticas) cuando
+    // un ADMINISTRADOR aprueba su SolicitudVerificacion (ver ServiceSolicitudVerificacion).
+    // Mientras tanto no puede crear eventos (ServiceEvento lo valida).
     @Transactional
     public void registrarOrganizacion(String nombre, String correo, String telefono, String clave) {
         validarRegistro(correo);

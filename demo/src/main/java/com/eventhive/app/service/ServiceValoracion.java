@@ -22,7 +22,7 @@ public class ServiceValoracion {
 
     private final ValoracionRepository valoracionRepository;
     private final UsuarioRepository usuarioRepository;
-    private final ServiceMetricasOrganizador serviceMetricasOrganizador;   // ← inyección nueva
+    private final ServiceMetricasOrganizacion serviceMetricasOrganizacion;   // ← inyección nueva
 
     @Transactional(readOnly = true)
     public Page<ValoracionDTO> obtenerValoracionesDTOPorUsuario(Long usuarioId, Pageable pageable) {
@@ -54,7 +54,7 @@ public class ServiceValoracion {
         v.setCalificacion((int) calificacion);
         valoracionRepository.save(v);
 
-        serviceMetricasOrganizador.actualizarMetricasValoracion(organizadorId);
+        serviceMetricasOrganizacion.actualizarMetricasValoracion(organizadorId);
     }
 
     @Transactional
@@ -68,7 +68,7 @@ public class ServiceValoracion {
         v.setCalificacion((int) calificacion);
         valoracionRepository.save(v);
 
-        serviceMetricasOrganizador.actualizarMetricasValoracion(organizadorId);
+        serviceMetricasOrganizacion.actualizarMetricasValoracion(organizadorId);
     }
 
     @Transactional
@@ -79,7 +79,7 @@ public class ServiceValoracion {
 
         valoracionRepository.deleteById(id);
 
-        serviceMetricasOrganizador.actualizarMetricasValoracion(organizadorId);
+        serviceMetricasOrganizacion.actualizarMetricasValoracion(organizadorId);
     }
 
     // --- helpers ---

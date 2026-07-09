@@ -84,7 +84,7 @@ public class EventosApiController {
 
     @GetMapping("/organizador/buscar")
     @PreAuthorize("hasRole('ORGANIZACION')")
-    public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> buscarMisEventos(
+    public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> filtrarMisEventos(
             @RequestParam String titulo,
             Pageable pageable) {
 
@@ -113,7 +113,7 @@ public class EventosApiController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION')")
     public ResponseEntity<ApiResponse<EventoDTO>> crear(
             @RequestPart("datos") EventoRequest request,
             @RequestPart(value = "foto", required = false) MultipartFile foto) {
@@ -124,7 +124,7 @@ public class EventosApiController {
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION')")
     public ResponseEntity<ApiResponse<EventoDTO>> actualizar(
             @PathVariable Long id,
             @RequestPart("datos") EventoRequest request,

@@ -35,19 +35,18 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ServiceEvento {
 
+    private final ServiceMetricasOrganizacion serviceMetricasOrganizacion;
     private final EventoRepository           eventoRepository;
     private final CategoriaRepository        categoriaRepository;
     private final AuthenticatedUserHelper    authHelper;
     private final ServiceNotification        serviceNotification;
     private final SupabaseStorageService     storageService;
     private final SupabaseStorageConfig      storageConfig;
-    private final ServiceMetricasOrganizador serviceMetricasOrganizador;
     private final ServiceNivelOrganizacion   serviceNivelOrganizacion;
 
     private static final DateTimeFormatter FMT = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     // Consultas
-
     @Transactional(readOnly = true)
     public Page<Evento> listarTodos(Pageable pageable) {
         return eventoRepository.findPublicadosVisibles(pageable);
@@ -109,15 +108,17 @@ public class ServiceEvento {
     }
 
     // Creación, actualización y eliminación
-
     @Transactional
-    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION')")
     public Evento crearEvento(EventoRequest request, MultipartFile foto) {
         Usuario organizador = authHelper.usuarioAutenticado();
         Categoria categoria = resolverCategoria(request.getCategoriaId());
 
-        if (!esAdministrador(organizador))
-            verificarLimiteDeNivel(organizador);
+        // Solo un organizador con SolicitudVerificacion aprobada tiene perfil de Organizacion
+        if (organizador.getOrganizacion() == null)
+            throw new BusinessException("Debe completar la verificación como organización antes de crear eventos");
+
+        verificarLimiteDeNivel(organizador);
 
         Evento evento = new Evento();
         mapearCampos(evento, request, categoria);
@@ -132,22 +133,25 @@ public class ServiceEvento {
         if (guardado.getEstado() == EstadoEvento.PUBLICADO)
             serviceNotification.notificarNuevoEvento(guardado);
 
-        serviceMetricasOrganizador.actualizarTotalEventos(organizador.getId());
+        serviceMetricasOrganizacion.actualizarTotalEventos(organizador.getId());
 
         return guardado;
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION')")
     public Evento actualizarEvento(Long id, EventoRequest request, MultipartFile foto) {
         Evento evento = obtenerPorId(id);
         verificarPermiso(evento);
+
+        if (evento.getEstado() == EstadoEvento.SUSPENDIDO)
+            throw new BusinessException("El evento está suspendido por un administrador y no puede modificarse");
 
         EstadoEvento estadoAnterior = evento.getEstado();
         Categoria categoria = resolverCategoria(request.getCategoriaId());
         mapearCampos(evento, request, categoria);
 
-        if (estadoAnterior == EstadoEvento.EN_CORRECCION && !esAdministrador(authHelper.usuarioAutenticado()))
+        if (estadoAnterior == EstadoEvento.EN_CORRECCION)
             evento.setEstado(EstadoEvento.PENDIENTE_REVISION); // la corrección vuelve a entrar a la cola
 
         if (foto != null && !foto.isEmpty()) {
@@ -162,17 +166,20 @@ public class ServiceEvento {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION')")
     public void eliminarEvento(Long id) {
         Evento evento = obtenerPorId(id);
         verificarPermiso(evento);
+
+        if (evento.getEstado() == EstadoEvento.SUSPENDIDO)
+            throw new BusinessException("El evento está suspendido por un administrador y no puede eliminarse");
 
         Long organizadorId = evento.getOrganizador().getId();
 
         eliminarFotoAnterior(evento.getFoto());
         eventoRepository.deleteById(id);
 
-        serviceMetricasOrganizador.actualizarTotalEventos(organizadorId);
+        serviceMetricasOrganizacion.actualizarTotalEventos(organizadorId);
     }
 
     // Marca como FINALIZADO cualquier evento publicado cuya fecha ya pasó, y evalúa el ascenso del organizador
@@ -180,9 +187,9 @@ public class ServiceEvento {
     public void finalizarEventosVencidos(LocalDate hoy) {
         eventoRepository.findByFechaAnteriorYEstado(hoy, EstadoEvento.PUBLICADO).forEach(evento -> {
             evento.setEstado(EstadoEvento.FINALIZADO);
-            Usuario organizador = evento.getOrganizador();
-            organizador.setEventosFinalizados(organizador.getEventosFinalizados() + 1);
-            serviceNivelOrganizacion.evaluarAscenso(organizador);
+            var organizacion = evento.getOrganizador().getOrganizacion();
+            organizacion.setEventosFinalizados(organizacion.getEventosFinalizados() + 1);
+            serviceNivelOrganizacion.evaluarAscenso(organizacion);
         });
     }
 
@@ -190,36 +197,33 @@ public class ServiceEvento {
 
     // Bloquea la creación si la organización ya alcanzó el máximo de eventos activos de su nivel
     private void verificarLimiteDeNivel(Usuario organizador) {
-        int maximo = organizador.getNivel().maxEventosActivos();
+        int maximo = organizador.getOrganizacion().getNivel().maxEventosActivos();
         long activos = eventoRepository.countActivosByOrganizadorId(organizador.getId());
         if (activos >= maximo)
             throw new BusinessException(
-                    "Alcanzaste el límite de " + maximo + " eventos activos para tu nivel " + organizador.getNivel());
+                    "Alcanzaste el límite de " + maximo + " eventos activos para tu nivel " + organizador.getOrganizacion().getNivel());
     }
 
-    // Admin publica directo; una organización de nivel máximo también; el resto entra a PENDIENTE_REVISION
+    //una organización de nivel máximo publica directo; el resto entra a PENDIENTE_REVISION
     private EstadoEvento estadoInicial(Usuario organizador) {
-        if (esAdministrador(organizador) || organizador.getNivel().permitePublicacionAutomatica())
+        if (organizador.getOrganizacion().getNivel().permitePublicacionAutomatica())
             return EstadoEvento.PUBLICADO;
         return EstadoEvento.PENDIENTE_REVISION;
     }
 
-    // Permisos
-
+    // Permisos: crear/editar/eliminar un evento (y su contenido, ej. localidades) es
+    // exclusivo del organizador dueño. El ADMINISTRADOR no gestiona el contenido del
+    // evento; su única facultad sobre eventos ya publicados es suspenderlo/reactivarlo
+    // (ver ServiceModeracion.suspenderEvento/reactivarEvento).
     public void verificarPermiso(Evento evento) {
-        Usuario u       = authHelper.usuarioAutenticado();
-        boolean esOwner = evento.getOrganizador() != null
+        Usuario u = authHelper.usuarioAutenticado();
+        boolean esOrganizador = evento.getOrganizador() != null
                 && u.getId().equals(evento.getOrganizador().getId());
-        if (!esAdministrador(u) && !esOwner)
+        if (!esOrganizador)
             throw new BusinessException("No autorizado para modificar este evento");
     }
 
-    private boolean esAdministrador(Usuario u) {
-        return u.getRol() != null && "ADMINISTRADOR".equals(u.getRol().getNombre());
-    }
-
     // Mapeo DTO
-
     public EventoDTO toDTO(Evento e) {
         EventoDTO dto = new EventoDTO();
         dto.setId(e.getId());

@@ -1,6 +1,5 @@
 package com.eventhive.app.dto;
 
-import com.eventhive.app.enums.EstadoCompra;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -12,10 +11,9 @@ import java.util.List;
 @Builder
 public class CompraResponseDTO {
 
-    private Long id;
-    private LocalDateTime fechaCompra;
-    private BigDecimal total;
-    private String metodoPago;
-    private EstadoCompra estado;
-    private List<ItemCompraDTO> items;
+    private final Long id;
+    private final LocalDateTime fechaCompra;
+    private final BigDecimal total;
+    private final String metodoPago;
+    private final List<ItemCompraDTO> items;
 }

@@ -46,12 +46,10 @@ public class ValoracionesApiController {
     @PostMapping
     @PreAuthorize("hasRole('CLIENTE')")
     public ResponseEntity<ApiResponse<Void>> crearValoracion(
-            @RequestParam Long eventoId,
+            @RequestParam Long organizacionId,
             @RequestParam String comentario,
             @RequestParam long calificacion) {
-        // Nota: el parámetro se mantiene como "eventoId" por compatibilidad del cliente,
-        // pero ahora se interpreta como el id del organizador.
-        serviceValoracion.crearValoracion(authHelper.usuarioAutenticado(), eventoId, comentario, calificacion);
+        serviceValoracion.crearValoracion(authHelper.usuarioAutenticado(), organizacionId, comentario, calificacion);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Valoración creada exitosamente"));
     }
 

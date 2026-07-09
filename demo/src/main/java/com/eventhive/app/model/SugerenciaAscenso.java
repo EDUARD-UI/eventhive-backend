@@ -37,7 +37,7 @@ public class SugerenciaAscenso {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organizacion_id", nullable = false)
-    private Usuario organizacion;
+    private Organizacion organizacion;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "nivel_actual", nullable = false, length = 20)

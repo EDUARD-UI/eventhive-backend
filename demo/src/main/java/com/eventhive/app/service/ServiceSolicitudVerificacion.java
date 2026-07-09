@@ -14,10 +14,10 @@ import com.eventhive.app.dto.SolicitudVerificacionDTO;
 import com.eventhive.app.dto.request.SolicitudVerificacionRequest;
 import com.eventhive.app.enums.EstadoSolicitud;
 import com.eventhive.app.exception.BusinessException;
-import com.eventhive.app.model.Rol;
+import com.eventhive.app.model.Organizacion;
 import com.eventhive.app.model.SolicitudVerificacion;
 import com.eventhive.app.model.Usuario;
-import com.eventhive.app.repository.RolesRepository;
+import com.eventhive.app.repository.OrganizacionRepository;
 import com.eventhive.app.repository.SolicitudVerificacionRepository;
 import com.eventhive.app.repository.UsuarioRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
@@ -31,7 +31,7 @@ public class ServiceSolicitudVerificacion {
 
     private final SolicitudVerificacionRepository solicitudRepository;
     private final UsuarioRepository               usuarioRepository;
-    private final RolesRepository                 rolesRepository;
+    private final OrganizacionRepository          organizacionRepository;
     private final PasswordEncoder                 passwordEncoder;
     private final AuthenticatedUserHelper         authHelper;
     private final SupabaseStorageService          storageService;
@@ -39,6 +39,9 @@ public class ServiceSolicitudVerificacion {
     @Transactional
     public void crearSolicitud(SolicitudVerificacionRequest request, MultipartFile archivoRut) {
         Usuario organizador = authHelper.usuarioAutenticado();
+
+        if (organizador.getOrganizacion() != null)
+            throw new BusinessException("Esta cuenta ya fue verificada como organización");
 
         if (solicitudRepository.existsByOrganizadorIdAndEstado(organizador.getId(), EstadoSolicitud.PENDIENTE))
             throw new BusinessException("Ya tiene una solicitud pendiente de revisión");
@@ -94,19 +97,32 @@ public class ServiceSolicitudVerificacion {
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public String aprobarSolicitud(Long solicitudId) {
         SolicitudVerificacion solicitud = obtenerPendiente(solicitudId);
+        Usuario organizador = solicitud.getOrganizador();
 
-        Rol rolOrganizador = rolesRepository.findByNombre("ORGANIZACION")
-                .orElseThrow(() -> new BusinessException("Rol ORGANIZACION no encontrado"));
+        if (organizador.getOrganizacion() != null)
+            throw new BusinessException("El organizador ya cuenta con un perfil de organización");
 
+        // El correo empresarial pasa a ser el correo de inicio de sesión; debe seguir libre
+        if (!organizador.getCorreo().equalsIgnoreCase(solicitud.getCorreoEmpresarial())
+                && usuarioRepository.existsByCorreo(solicitud.getCorreoEmpresarial()))
+            throw new BusinessException("El correo empresarial ya está registrado en el sistema");
+
+        // 1. Crear el perfil de Organizacion con los datos legales de la solicitud
+        Organizacion organizacion = new Organizacion();
+        organizacion.setRazonSocial(solicitud.getRazonSocial());
+        organizacion.setNit(solicitud.getNit());
+        organizacion.setRepresentanteLegal(solicitud.getRepresentanteLegal());
+        organizacion.setUrlRut(solicitud.getUrlRut());
+        organizacionRepository.save(organizacion);
+
+        // 2. Completar la cuenta del organizador ya existente (no se crea un usuario nuevo)
         String claveGenerada = PasswordGeneratorUtil.generar(12);
+        organizador.setOrganizacion(organizacion);
+        organizador.setCorreo(solicitud.getCorreoEmpresarial());
+        organizador.setClave(passwordEncoder.encode(claveGenerada));
+        usuarioRepository.save(organizador);
 
-        Usuario nuevoOrganizador = new Usuario();
-        nuevoOrganizador.setNombreCompleto(solicitud.getRazonSocial());
-        nuevoOrganizador.setCorreo(solicitud.getCorreoEmpresarial());
-        nuevoOrganizador.setClave(passwordEncoder.encode(claveGenerada));
-        nuevoOrganizador.setRol(rolOrganizador);
-        usuarioRepository.save(nuevoOrganizador);
-
+        // 3. Cerrar la solicitud
         solicitud.setEstado(EstadoSolicitud.APROBADA);
         solicitud.setFechaResolucion(LocalDateTime.now());
         solicitud.setAdministradorQueResolvi(authHelper.usuarioAutenticado());

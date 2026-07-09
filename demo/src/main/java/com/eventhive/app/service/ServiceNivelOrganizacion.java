@@ -12,10 +12,10 @@ import org.springframework.transaction.annotation.Transactional;
 import com.eventhive.app.dto.SugerenciaAscensoDTO;
 import com.eventhive.app.enums.EstadoSolicitud;
 import com.eventhive.app.exception.BusinessException;
+import com.eventhive.app.model.Organizacion;
 import com.eventhive.app.model.SugerenciaAscenso;
-import com.eventhive.app.model.Usuario;
+import com.eventhive.app.repository.OrganizacionRepository;
 import com.eventhive.app.repository.SugerenciaAscensoRepository;
-import com.eventhive.app.repository.UsuarioRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
 
 import lombok.RequiredArgsConstructor;
@@ -26,7 +26,7 @@ import lombok.RequiredArgsConstructor;
 public class ServiceNivelOrganizacion {
 
     private final SugerenciaAscensoRepository sugerenciaRepository;
-    private final UsuarioRepository           usuarioRepository;
+    private final OrganizacionRepository      organizacionRepository;
     private final AuthenticatedUserHelper     authHelper;
 
     // Requisitos mínimos por nivel para avanzar al siguiente: eventos finalizados y antigüedad en días
@@ -35,7 +35,7 @@ public class ServiceNivelOrganizacion {
 
     // Se llama cada vez que un evento del organizador se finaliza o se rechaza
     @Transactional
-    public void evaluarAscenso(Usuario organizacion) {
+    public void evaluarAscenso(Organizacion organizacion) {
         if (organizacion.getNivel() == null || organizacion.getNivel().esMaximo()) return;
         if (organizacion.getEventosRechazados() > 0) return;
         if (sugerenciaRepository.existsByOrganizacionIdAndEstado(organizacion.getId(), EstadoSolicitud.PENDIENTE)) return;
@@ -66,9 +66,9 @@ public class ServiceNivelOrganizacion {
     public void aprobarAscenso(Long id) {
         SugerenciaAscenso sugerencia = obtenerPendiente(id);
 
-        Usuario organizacion = sugerencia.getOrganizacion();
+        Organizacion organizacion = sugerencia.getOrganizacion();
         organizacion.setNivel(sugerencia.getNivelSugerido());
-        usuarioRepository.save(organizacion);
+        organizacionRepository.save(organizacion);
 
         resolver(sugerencia, EstadoSolicitud.APROBADA);
     }
@@ -104,7 +104,7 @@ public class ServiceNivelOrganizacion {
         dto.setFechaResolucion(s.getFechaResolucion());
         if (s.getOrganizacion() != null) {
             dto.setOrganizacionId(s.getOrganizacion().getId());
-            dto.setOrganizacionNombre(s.getOrganizacion().getNombreCompleto());
+            dto.setOrganizacionNombre(s.getOrganizacion().getRazonSocial());
         }
         return dto;
     }

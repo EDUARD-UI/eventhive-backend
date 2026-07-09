@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.eventhive.app.dto.ModeracionEventoDTO;
 import com.eventhive.app.enums.EstadoEvento;
 import com.eventhive.app.enums.MotivosRechazos;
+import com.eventhive.app.enums.TipoNotification;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Evento;
@@ -82,8 +83,42 @@ public class ServiceModeracion {
         registrarModeracion(evento, EstadoEvento.RECHAZADO, motivo, observacion);
 
         Usuario organizador = evento.getOrganizador();
-        organizador.setEventosRechazados(organizador.getEventosRechazados() + 1);
+        organizador.getOrganizacion().setEventosRechazados(organizador.getOrganizacion().getEventosRechazados() + 1);
         return eventoRepository.save(evento);
+    }
+
+    // Única acción del ADMINISTRADOR sobre un evento ya publicado: suspenderlo.
+    // No puede crearlo, editarlo ni eliminarlo (eso es exclusivo del organizador dueño).
+    @Transactional
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    public Evento suspenderEvento(Long id, MotivosRechazos motivo, String observacion) {
+        validarMotivo(motivo, observacion);
+        Evento evento = obtenerPorId(id);
+        if (evento.getEstado() != EstadoEvento.PUBLICADO)
+            throw new BusinessException("Solo se pueden suspender eventos en estado PUBLICADO");
+
+        evento.setEstado(EstadoEvento.SUSPENDIDO);
+        registrarModeracion(evento, EstadoEvento.SUSPENDIDO, motivo, observacion);
+
+        Evento guardado = eventoRepository.save(evento);
+        serviceNotification.notificarCambioEvento(guardado, TipoNotification.EVENTO_CANCELADO);
+        return guardado;
+    }
+
+    // Revierte una suspensión: el evento vuelve a estar visible/PUBLICADO
+    @Transactional
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    public Evento reactivarEvento(Long id) {
+        Evento evento = obtenerPorId(id);
+        if (evento.getEstado() != EstadoEvento.SUSPENDIDO)
+            throw new BusinessException("Solo se pueden reactivar eventos en estado SUSPENDIDO");
+
+        evento.setEstado(EstadoEvento.PUBLICADO);
+        registrarModeracion(evento, EstadoEvento.PUBLICADO, null, null);
+
+        Evento guardado = eventoRepository.save(evento);
+        serviceNotification.notificarCambioEvento(guardado, TipoNotification.EVENTO_MODIFICADO);
+        return guardado;
     }
 
     private void validarMotivo(MotivosRechazos motivo, String observacion) {
