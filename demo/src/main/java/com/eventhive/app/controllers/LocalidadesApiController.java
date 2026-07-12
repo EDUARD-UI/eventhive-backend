@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.eventhive.app.dto.ApiResponse;
 import com.eventhive.app.model.Localidad;
 import com.eventhive.app.service.ServiceLocalidad;
+import com.eventhive.app.dto.request.LocalidadRequest;
+import jakarta.validation.Valid;
 
 import lombok.RequiredArgsConstructor;
 
@@ -35,26 +37,26 @@ public class LocalidadesApiController {
 
     @PostMapping
     @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
-        public ResponseEntity<ApiResponse<Localidad>> agregar(@PathVariable Long eventoId,
-                                                           @RequestBody Localidad localidad) {
+    public ResponseEntity<ApiResponse<Localidad>> agregar(@PathVariable Long eventoId,
+            @Valid @RequestBody LocalidadRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("Localidad agregada",
-                serviceLocalidad.agregar(eventoId, localidad)));
+                        serviceLocalidad.agregar(eventoId, request)));
     }
 
     @PutMapping("/{localidadId}")
     @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Localidad>> actualizar(@PathVariable Long eventoId,
-                                                              @PathVariable Long localidadId,
-                                                              @RequestBody Localidad localidad) {
+            @PathVariable Long localidadId,
+            @Valid @RequestBody LocalidadRequest request) {
         return ResponseEntity.ok(ApiResponse.ok("Localidad actualizada",
-                serviceLocalidad.actualizar(eventoId, localidadId, localidad)));
+                serviceLocalidad.actualizar(eventoId, localidadId, request)));
     }
 
     @DeleteMapping("/{localidadId}")
     @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long eventoId,
-                                                       @PathVariable Long localidadId) {
+            @PathVariable Long localidadId) {
         serviceLocalidad.eliminar(eventoId, localidadId);
         return ResponseEntity.ok(ApiResponse.ok("Localidad eliminada"));
     }

@@ -15,11 +15,12 @@ import lombok.Setter;
 
 @Entity
 @Table(name = "tiquetes", indexes = {
-    @Index(name = "idx_tiquete_qr",     columnList = "codigo_qr",   unique = true),
+    @Index(name = "idx_tiquete_qr", columnList = "codigo_qr", unique = true),
     @Index(name = "idx_tiquete_compra", columnList = "compra_id"),
     @Index(name = "idx_tiquete_evento", columnList = "evento_id")
 })
-@Getter @Setter
+@Getter
+@Setter
 public class Tiquete {
 
     @Id
@@ -40,4 +41,7 @@ public class Tiquete {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "compra_id", nullable = false)
     private Compra compra;
+
+    @Column(nullable = false)
+    private boolean usado = false;
 }

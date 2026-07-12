@@ -17,6 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.eventhive.app.dto.CompraResponseDTO;
 import com.eventhive.app.dto.ItemCompraDTO;
 import com.eventhive.app.dto.request.CompraRequestDTO;
+import com.eventhive.app.enums.EstadoCompra;
+import com.eventhive.app.enums.EstadoEvento;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Compra;
@@ -71,6 +73,7 @@ public class ServiceCompra {
 
         for (CompraRequestDTO.ItemRequest itemReq : request.getItems()) {
             Localidad localidad = buscarLocalidad(itemReq.getLocalidadId());
+            validarEventoPublicado(localidad);
             descontarDisponibles(localidad, itemReq.getCantidad());
 
             BigDecimal precio = calcularPrecioConPromocion(localidad);
@@ -90,15 +93,30 @@ public class ServiceCompra {
         Usuario usuario = authHelper.usuarioAutenticado();
         Compra compra = buscarCompra(id);
         validarOwnership(compra, usuario);
-
+        validarCancelable(compra);
+        compra.setEstado(EstadoCompra.CANCELADA);
         compra.getItems().forEach(item
                 -> localidadRepository.incrementarDisponibles(
                         item.getLocalidad().getId(), item.getCantidad()));
 
         compraRepository.deleteById(id);
+        tiqueteRepository.deleteByCompraId(id);
     }
 
-    // --- HELPERS NEGOCIO ---
+    // validaciones de negocios
+    private void validarEventoPublicado(Localidad localidad) {
+        if (localidad.getEvento().getEstado() != EstadoEvento.PUBLICADO) {
+            throw new BusinessException(
+                    "No se pueden vender boletos para un evento que no está publicado");
+        }
+    }
+
+    private void validarCancelable(Compra compra) {
+        if (compra.getEstado() == EstadoCompra.CANCELADA) {
+            throw new BusinessException("La compra ya se encuentra cancelada");
+        }
+    }
+
     private void validarRequest(CompraRequestDTO request) {
         if (request.getItems() == null || request.getItems().isEmpty()) {
             throw new BusinessException("Debe incluir al menos un ítem en la compra");
@@ -157,6 +175,7 @@ public class ServiceCompra {
         compra.setTotal(total);
         compra.setMetodoPago("TARJETA");
         compra.setCliente(usuario);
+        compra.setEstado(EstadoCompra.CONFIRMADA);
         items.forEach(i -> i.setCompra(compra));
         compra.setItems(items);
         return compraRepository.save(compra);
@@ -180,7 +199,7 @@ public class ServiceCompra {
         tiqueteRepository.saveAll(tiquetes);
     }
 
-    // --- HELPERS MAPEO ---
+    // MAPEO
     private CompraResponseDTO compraToDTO(Compra compra) {
         return CompraResponseDTO.builder()
                 .id(compra.getId())

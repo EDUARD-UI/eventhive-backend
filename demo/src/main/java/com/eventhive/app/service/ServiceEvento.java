@@ -194,7 +194,6 @@ public class ServiceEvento {
     }
 
     // Nivel de confianza de la organización
-
     // Bloquea la creación si la organización ya alcanzó el máximo de eventos activos de su nivel
     private void verificarLimiteDeNivel(Usuario organizador) {
         int maximo = organizador.getOrganizacion().getNivel().maxEventosActivos();
@@ -211,10 +210,6 @@ public class ServiceEvento {
         return EstadoEvento.PENDIENTE_REVISION;
     }
 
-    // Permisos: crear/editar/eliminar un evento (y su contenido, ej. localidades) es
-    // exclusivo del organizador dueño. El ADMINISTRADOR no gestiona el contenido del
-    // evento; su única facultad sobre eventos ya publicados es suspenderlo/reactivarlo
-    // (ver ServiceModeracion.suspenderEvento/reactivarEvento).
     public void verificarPermiso(Evento evento) {
         Usuario u = authHelper.usuarioAutenticado();
         boolean esOrganizador = evento.getOrganizador() != null

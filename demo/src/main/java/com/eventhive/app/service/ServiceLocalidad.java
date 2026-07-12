@@ -6,6 +6,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.eventhive.app.dto.request.LocalidadRequest;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Evento;
@@ -19,7 +20,7 @@ import lombok.RequiredArgsConstructor;
 public class ServiceLocalidad {
 
     private final LocalidadRepository localidadRepository;
-    private final ServiceEvento       serviceEvento;
+    private final ServiceEvento serviceEvento;
 
     @Transactional(readOnly = true)
     public List<Localidad> listarPorEvento(Long eventoId) {
@@ -35,38 +36,46 @@ public class ServiceLocalidad {
 
     @Transactional
     @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
-    public Localidad agregar(Long eventoId, Localidad localidad) {
+    public Localidad agregar(Long eventoId, LocalidadRequest request) {
         Evento evento = serviceEvento.obtenerPorId(eventoId);
         serviceEvento.verificarPermiso(evento);
 
-        if (localidad.getCapacidad() <= 0)
-            throw new BusinessException("La capacidad debe ser mayor a 0");
-
-        if (localidad.getDisponibles() <= 0)
-            localidad.setDisponibles(localidad.getCapacidad());
-
+        Localidad localidad = new Localidad();
+        localidad.setNombre(request.getNombre());
+        localidad.setPrecio(request.getPrecio());
+        localidad.setCapacidad(request.getCapacidad());
+        localidad.setDisponibles(request.getCapacidad());
         localidad.setEvento(evento);
+
         return localidadRepository.save(localidad);
     }
 
     @Transactional
     @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
-    public Localidad actualizar(Long eventoId, Long localidadId, Localidad datos) {
+    public Localidad actualizar(Long eventoId, Long localidadId, LocalidadRequest datos) {
         Evento evento = serviceEvento.obtenerPorId(eventoId);
         serviceEvento.verificarPermiso(evento);
 
         Localidad localidad = obtenerPorId(localidadId);
 
-        if (!localidad.getEvento().getId().equals(eventoId))
+        if (!localidad.getEvento().getId().equals(eventoId)) {
             throw new BusinessException("La localidad no pertenece al evento indicado");
+        }
 
-        if (datos.getCapacidad() <= 0)
-            throw new BusinessException("La capacidad debe ser mayor a 0");
+        // disponibles se setea segun la direferencia de la capacidad antigua y la nueva
+        //para evitar errores con los ya vendidos
+        int deltaCapacidad = datos.getCapacidad() - localidad.getCapacidad();
+        int nuevosDisponibles = localidad.getDisponibles() + deltaCapacidad;
+
+        if (nuevosDisponibles < 0) {
+            throw new BusinessException(
+                    "No es posible reducir la capacidad por debajo de los boletos ya vendidos");
+        }
 
         localidad.setNombre(datos.getNombre());
         localidad.setPrecio(datos.getPrecio());
         localidad.setCapacidad(datos.getCapacidad());
-        localidad.setDisponibles(datos.getDisponibles());
+        localidad.setDisponibles(nuevosDisponibles);
         return localidadRepository.save(localidad);
     }
 
@@ -78,8 +87,9 @@ public class ServiceLocalidad {
 
         Localidad localidad = obtenerPorId(localidadId);
 
-        if (!localidad.getEvento().getId().equals(eventoId))
+        if (!localidad.getEvento().getId().equals(eventoId)) {
             throw new BusinessException("La localidad no pertenece al evento indicado");
+        }
 
         localidadRepository.deleteById(localidadId);
     }

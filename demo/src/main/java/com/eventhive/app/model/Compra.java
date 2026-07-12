@@ -4,9 +4,13 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.eventhive.app.enums.EstadoCompra;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -21,11 +25,12 @@ import lombok.Setter;
 
 @Entity
 @Table(name = "compras", indexes = {
-    @Index(name = "idx_compra_cliente",      columnList = "cliente_id"),
-    @Index(name = "idx_compra_fecha",        columnList = "fecha_compra"),
-    @Index(name = "idx_compra_cliente_fecha",columnList = "cliente_id, fecha_compra")
+    @Index(name = "idx_compra_cliente", columnList = "cliente_id"),
+    @Index(name = "idx_compra_fecha", columnList = "fecha_compra"),
+    @Index(name = "idx_compra_cliente_fecha", columnList = "cliente_id, fecha_compra")
 })
-@Getter @Setter
+@Getter
+@Setter
 public class Compra {
 
     @Id
@@ -40,6 +45,10 @@ public class Compra {
 
     @Column(name = "metodo_pago", length = 50)
     private String metodoPago;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private EstadoCompra estado = EstadoCompra.PENDIENTE;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cliente_id", nullable = false)
