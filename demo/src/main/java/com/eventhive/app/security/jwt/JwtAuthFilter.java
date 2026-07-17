@@ -32,7 +32,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String token = extraerToken(request);
 
-        if (token != null && jwtUtils.validarToken(token)) {
+        // un refresh token ya NO sirve como Bearer: solo type=access autentica
+        if (token != null && jwtUtils.validarAccessToken(token)) {
             String correo = jwtUtils.getCorreoDesdeToken(token);
             UserDetails userDetails = userDetailsService.loadUserByUsername(correo);
 

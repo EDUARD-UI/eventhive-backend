@@ -1,4 +1,4 @@
-package com.eventhive.app.dto;
+package com.eventhive.app.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

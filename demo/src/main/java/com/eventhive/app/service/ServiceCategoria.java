@@ -1,32 +1,30 @@
 package com.eventhive.app.service;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
+import com.eventhive.app.config.SupabaseStorageConfig;
+import com.eventhive.app.dto.response.CategoriaDTO;
+import com.eventhive.app.dto.response.CategoriaEventosDTO;
+import com.eventhive.app.exception.BusinessException;
+import com.eventhive.app.model.Categoria;
+import com.eventhive.app.repository.CategoriaRepository;
+import com.eventhive.app.repository.EventoRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.eventhive.app.config.SupabaseStorageConfig;
-import com.eventhive.app.dto.CategoriaDTO;
-import com.eventhive.app.dto.CategoriaEventosDTO;
-import com.eventhive.app.exception.BusinessException;
-import com.eventhive.app.model.Categoria;
-import com.eventhive.app.repository.CategoriaRepository;
-import com.eventhive.app.repository.EventoRepository;
-
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class ServiceCategoria {
 
-    private final CategoriaRepository    categoriaRepository;
-    private final EventoRepository       eventoRepository;
+    private final CategoriaRepository categoriaRepository;
+    private final EventoRepository eventoRepository;
     private final SupabaseStorageService storageService;
-    private final SupabaseStorageConfig  storageConfig;
+    private final SupabaseStorageConfig storageConfig;
 
     @Transactional(readOnly = true)
     public Page<Categoria> obtenerTodasCategorias(Pageable pageable) {
@@ -98,11 +96,11 @@ public class ServiceCategoria {
     @Transactional
     public void eliminarCategoria(Long id) {
         Categoria cat = obtenerCategoriaPorId(id);
-        long eventos  = eventoRepository.countByCategoriaId(id);
+        long eventos = eventoRepository.countByCategoriaId(id);
 
         if (eventos > 0)
             throw new BusinessException(
-                "No se puede eliminar '" + cat.getNombre() + "' porque tiene " + eventos + " evento(s)");
+                    "No se puede eliminar '" + cat.getNombre() + "' porque tiene " + eventos + " evento(s)");
 
         eliminarFotoAnterior(cat.getFoto());
         categoriaRepository.deleteById(id);

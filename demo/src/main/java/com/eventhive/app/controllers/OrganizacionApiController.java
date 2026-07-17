@@ -1,17 +1,15 @@
 package com.eventhive.app.controllers;
 
+import com.eventhive.app.dto.ApiResponse;
+import com.eventhive.app.dto.response.OrganizacionDTO;
+import com.eventhive.app.dto.request.CambiarNivelRequest;
+import com.eventhive.app.service.ServiceNivelOrganizacion;
+import com.eventhive.app.service.ServiceOrganizacion;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import com.eventhive.app.dto.ApiResponse;
-import com.eventhive.app.dto.OrganizacionDTO;
-import com.eventhive.app.service.ServiceOrganizacion;
-
-import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -19,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 public class OrganizacionApiController {
 
     private final ServiceOrganizacion serviceOrganizacion;
+    private final ServiceNivelOrganizacion serviceNivelOrganizacion;
 
     // Perfil + estadísticas de la organización autenticada
     @GetMapping("/mi-organizacion")
@@ -32,5 +31,13 @@ public class OrganizacionApiController {
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<OrganizacionDTO>> obtener(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok("Organización obtenida", serviceOrganizacion.obtenerPorId(id)));
+    }
+
+    @PatchMapping("/{id}/nivel")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    public ResponseEntity<ApiResponse<Void>> cambiarNivel(@PathVariable Long id,
+                                                          @Valid @RequestBody CambiarNivelRequest request) {
+        serviceNivelOrganizacion.aprobarAscenso(id);
+        return ResponseEntity.ok(ApiResponse.ok("Nivel actualizado"));
     }
 }

@@ -1,16 +1,6 @@
 package com.eventhive.app.service;
 
-import java.time.LocalDateTime;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
-
-import com.eventhive.app.dto.SolicitudVerificacionDTO;
+import com.eventhive.app.dto.response.SolicitudVerificacionDTO;
 import com.eventhive.app.dto.request.SolicitudVerificacionRequest;
 import com.eventhive.app.enums.EstadoSolicitud;
 import com.eventhive.app.exception.BusinessException;
@@ -22,19 +12,27 @@ import com.eventhive.app.repository.SolicitudVerificacionRepository;
 import com.eventhive.app.repository.UsuarioRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
 import com.eventhive.app.utils.PasswordGeneratorUtil;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
 public class ServiceSolicitudVerificacion {
 
     private final SolicitudVerificacionRepository solicitudRepository;
-    private final UsuarioRepository               usuarioRepository;
-    private final OrganizacionRepository          organizacionRepository;
-    private final PasswordEncoder                 passwordEncoder;
-    private final AuthenticatedUserHelper         authHelper;
-    private final SupabaseStorageService          storageService;
+    private final UsuarioRepository usuarioRepository;
+    private final OrganizacionRepository organizacionRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final AuthenticatedUserHelper authHelper;
+    private final SupabaseStorageService storageService;
 
     @Transactional
     public void crearSolicitud(SolicitudVerificacionRequest request, MultipartFile archivoRut) {

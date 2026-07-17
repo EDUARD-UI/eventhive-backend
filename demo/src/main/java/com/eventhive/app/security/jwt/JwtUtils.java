@@ -1,24 +1,26 @@
 package com.eventhive.app.security.jwt;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Date;
-import java.util.stream.Collectors;
-
-import javax.crypto.SecretKey;
-
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
-import lombok.extern.slf4j.Slf4j;
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
 public class JwtUtils {
+
+    private static final String CLAIM_TIPO  = "type";
+    private static final String TIPO_ACCESS  = "access";
+    private static final String TIPO_REFRESH = "refresh";
 
     @Value("${jwt.secret}")
     private String jwtSecret;
@@ -41,6 +43,7 @@ public class JwtUtils {
         return Jwts.builder()
                 .subject(userDetails.getUsername())
                 .claim("roles", roles)
+                .claim(CLAIM_TIPO, TIPO_ACCESS)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
                 .signWith(key())
@@ -50,6 +53,7 @@ public class JwtUtils {
     public String generarRefreshToken(UserDetails userDetails) {
         return Jwts.builder()
                 .subject(userDetails.getUsername())
+                .claim(CLAIM_TIPO, TIPO_REFRESH)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + refreshExpirationMs))
                 .signWith(key())
@@ -63,7 +67,14 @@ public class JwtUtils {
                 .getSubject();
     }
 
-    public boolean validarToken(String token) {
+    private String getTipoDesdeToken(String token) {
+        return Jwts.parser().verifyWith(key()).build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .get(CLAIM_TIPO, String.class);
+    }
+
+    private boolean firmaValida(String token) {
         try {
             Jwts.parser().verifyWith(key()).build().parseSignedClaims(token);
             return true;
@@ -71,5 +82,15 @@ public class JwtUtils {
             log.warn("Token JWT inválido: {}", ex.getMessage());
             return false;
         }
+    }
+
+    // Bearer de rutas protegidas: exige claim type=access
+    public boolean validarAccessToken(String token) {
+        return firmaValida(token) && TIPO_ACCESS.equals(getTipoDesdeToken(token));
+    }
+
+    // Solo para /api/auth/refresh: exige claim type=refresh
+    public boolean validarRefreshToken(String token) {
+        return firmaValida(token) && TIPO_REFRESH.equals(getTipoDesdeToken(token));
     }
 }

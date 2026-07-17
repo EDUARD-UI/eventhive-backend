@@ -1,14 +1,13 @@
 package com.eventhive.app.repository;
 
-import java.util.Optional;
-
+import com.eventhive.app.model.Usuario;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import com.eventhive.app.model.Usuario;
+import java.util.Optional;
 
 public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
@@ -25,6 +24,9 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     // Busca usuarios por rol
     @Query("SELECT u FROM Usuario u JOIN FETCH u.rol r WHERE r.id = :rolId")
     Page<Usuario> findByRolId(@Param("rolId") Long rolId, Pageable pageable);
+
+    // Busca usuarios por nombre de rol
+    Page<Usuario> findByRolNombre(String nombre, Pageable pageable);
 
     // Busca usuarios por nombre y rol
     @Query("""

@@ -1,14 +1,6 @@
 package com.eventhive.app.service;
 
-import java.time.LocalDateTime;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.eventhive.app.dto.ModeracionEventoDTO;
+import com.eventhive.app.dto.response.ModeracionEventoDTO;
 import com.eventhive.app.enums.EstadoEvento;
 import com.eventhive.app.enums.MotivosRechazos;
 import com.eventhive.app.enums.TipoNotification;
@@ -20,8 +12,14 @@ import com.eventhive.app.model.Usuario;
 import com.eventhive.app.repository.EventoRepository;
 import com.eventhive.app.repository.ModeracionEventoRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -158,7 +156,7 @@ public class ServiceModeracion {
         return usuario != null
                 && usuario.getRol() != null
                 && ("ADMINISTRADOR".equals(usuario.getRol().getNombre())
-                    || "MODERADOR".equals(usuario.getRol().getNombre()));
+                || "MODERADOR".equals(usuario.getRol().getNombre()));
     }
 
     private ModeracionEventoDTO toModeracionDTO(ModeracionEvento moderacion) {

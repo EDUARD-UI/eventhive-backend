@@ -1,14 +1,13 @@
-package com.eventhive.app.dto;
+package com.eventhive.app.dto.response;
+
+import com.eventhive.app.enums.EstadoEvento;
+import com.eventhive.app.model.Localidad;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
-
-import com.eventhive.app.enums.EstadoEvento;
-import com.eventhive.app.model.Localidad;
-
-import lombok.Getter;
-import lombok.Setter;
 
 @Getter
 @Setter

@@ -1,13 +1,7 @@
 package com.eventhive.app.service;
 
-import java.util.List;
-
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.eventhive.app.dto.BoletosCompraDTO;
-import com.eventhive.app.dto.CompraResponseDTO;
+import com.eventhive.app.dto.response.BoletosCompraDTO;
+import com.eventhive.app.dto.response.CompraResponseDTO;
 import com.eventhive.app.enums.EstadoCompra;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
@@ -15,8 +9,12 @@ import com.eventhive.app.model.Evento;
 import com.eventhive.app.model.Localidad;
 import com.eventhive.app.model.Tiquete;
 import com.eventhive.app.repository.TiqueteRepository;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor

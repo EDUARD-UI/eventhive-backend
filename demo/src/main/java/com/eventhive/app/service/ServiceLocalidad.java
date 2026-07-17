@@ -1,19 +1,17 @@
 package com.eventhive.app.service;
 
-import java.util.List;
-
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import com.eventhive.app.dto.request.LocalidadRequest;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Evento;
 import com.eventhive.app.model.Localidad;
 import com.eventhive.app.repository.LocalidadRepository;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -28,14 +26,13 @@ public class ServiceLocalidad {
         return localidadRepository.findByEventoId(eventoId);
     }
 
-    @Transactional(readOnly = true)
     public Localidad obtenerPorId(Long id) {
         return localidadRepository.findByIdConEvento(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Localidad no encontrada con id: " + id));
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION')")
     public Localidad agregar(Long eventoId, LocalidadRequest request) {
         Evento evento = serviceEvento.obtenerPorId(eventoId);
         serviceEvento.verificarPermiso(evento);
@@ -51,7 +48,7 @@ public class ServiceLocalidad {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION')")
     public Localidad actualizar(Long eventoId, Long localidadId, LocalidadRequest datos) {
         Evento evento = serviceEvento.obtenerPorId(eventoId);
         serviceEvento.verificarPermiso(evento);
@@ -80,7 +77,7 @@ public class ServiceLocalidad {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION')")
     public void eliminar(Long eventoId, Long localidadId) {
         Evento evento = serviceEvento.obtenerPorId(eventoId);
         serviceEvento.verificarPermiso(evento);

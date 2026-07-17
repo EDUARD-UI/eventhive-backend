@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.eventhive.app.dto.ApiResponse;
-import com.eventhive.app.dto.SolicitudVerificacionDTO;
+import com.eventhive.app.dto.response.SolicitudVerificacionDTO;
 import com.eventhive.app.dto.request.SolicitudVerificacionRequest;
 import com.eventhive.app.service.ServiceSolicitudVerificacion;
 

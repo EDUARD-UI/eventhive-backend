@@ -1,12 +1,6 @@
 package com.eventhive.app.service;
 
-import java.time.LocalDateTime;
-import java.util.List;
-
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.stereotype.Service;
-
-import com.eventhive.app.dto.NotificationDTO;
+import com.eventhive.app.dto.response.NotificationDTO;
 import com.eventhive.app.enums.TipoNotification;
 import com.eventhive.app.model.Evento;
 import com.eventhive.app.model.Notification;
@@ -14,15 +8,19 @@ import com.eventhive.app.model.Usuario;
 import com.eventhive.app.repository.NotificationRepository;
 import com.eventhive.app.repository.SeguidorRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class ServiceNotification {
 
-    private final NotificationRepository  notificationRepository;
-    private final SeguidorRepository      seguidorRepository;
+    private final NotificationRepository notificationRepository;
+    private final SeguidorRepository seguidorRepository;
     private final AuthenticatedUserHelper authHelper;
 
     public void notificarNuevoEvento(Evento evento) {
@@ -44,12 +42,27 @@ public class ServiceNotification {
     }
 
     public void notificarCambioEvento(Evento evento, TipoNotification tipo) {
-        String titulo  = tipo == TipoNotification.EVENTO_CANCELADO ? "Evento cancelado"    : "Evento actualizado";
+        String titulo = tipo == TipoNotification.EVENTO_CANCELADO ? "Evento cancelado" : "Evento actualizado";
         String mensaje = tipo == TipoNotification.EVENTO_CANCELADO
                 ? "El evento \"" + evento.getTitulo() + "\" ha sido cancelado."
                 : "El evento \"" + evento.getTitulo() + "\" fue actualizado.";
 
         notificarASeguidores(evento, tipo, titulo, mensaje);
+    }
+
+    public void notificarRevocacionRol(Usuario usuario) {
+        if (usuario == null || usuario.getId() == null) {
+            return;
+        }
+
+        Notification n = new Notification();
+        n.setUsuarioId(usuario.getId());
+        n.setTipoNotificacion(TipoNotification.ROL_REVOCADO);
+        n.setTitulo("Rol revocado");
+        n.setMensaje("Tu rol de moderador ha sido revocado. Ahora vuelves a tu rol de cliente.");
+        n.setLeida(false);
+        n.setFechaCreacion(LocalDateTime.now());
+        notificationRepository.save(n);
     }
 
     @PreAuthorize("isAuthenticated()")

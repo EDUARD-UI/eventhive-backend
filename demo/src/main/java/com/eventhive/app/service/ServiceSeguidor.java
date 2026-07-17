@@ -1,11 +1,5 @@
 package com.eventhive.app.service;
 
-import java.util.List;
-
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Seguidor;
@@ -13,22 +7,26 @@ import com.eventhive.app.model.Usuario;
 import com.eventhive.app.repository.SeguidorRepository;
 import com.eventhive.app.repository.UsuarioRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class ServiceSeguidor {
 
     private final ServiceMetricasOrganizacion serviceMetricasOrganizacion;
-    private final SeguidorRepository     seguidorRepository;
-    private final UsuarioRepository      usuarioRepository;
+    private final SeguidorRepository seguidorRepository;
+    private final UsuarioRepository usuarioRepository;
     private final AuthenticatedUserHelper authHelper;
 
     @Transactional
     @PreAuthorize("isAuthenticated()")
     public void seguir(Long organizadorId) {
-        Usuario seguidor    = authHelper.usuarioAutenticado();
+        Usuario seguidor = authHelper.usuarioAutenticado();
         Usuario organizador = buscarOrganizador(organizadorId);
 
         if (seguidor.getId().equals(organizadorId))

@@ -1,9 +1,9 @@
-package com.eventhive.app.dto;
-
-import java.util.List;
+package com.eventhive.app.dto.response;
 
 import lombok.Getter;
 import lombok.Setter;
+
+import java.util.List;
 
 @Getter
 @Setter

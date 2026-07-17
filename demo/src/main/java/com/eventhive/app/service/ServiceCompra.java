@@ -1,5 +1,25 @@
 package com.eventhive.app.service;
 
+import com.eventhive.app.dto.response.CompraResponseDTO;
+import com.eventhive.app.dto.response.ItemCompraDTO;
+import com.eventhive.app.dto.request.CompraRequestDTO;
+import com.eventhive.app.enums.EstadoCompra;
+import com.eventhive.app.enums.EstadoEvento;
+import com.eventhive.app.exception.BusinessException;
+import com.eventhive.app.exception.ResourceNotFoundException;
+import com.eventhive.app.model.*;
+import com.eventhive.app.repository.CompraRepository;
+import com.eventhive.app.repository.LocalidadRepository;
+import com.eventhive.app.repository.PromocionRepository;
+import com.eventhive.app.repository.TiqueteRepository;
+import com.eventhive.app.utils.AuthenticatedUserHelper;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -7,32 +27,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.eventhive.app.dto.CompraResponseDTO;
-import com.eventhive.app.dto.ItemCompraDTO;
-import com.eventhive.app.dto.request.CompraRequestDTO;
-import com.eventhive.app.enums.EstadoCompra;
-import com.eventhive.app.enums.EstadoEvento;
-import com.eventhive.app.exception.BusinessException;
-import com.eventhive.app.exception.ResourceNotFoundException;
-import com.eventhive.app.model.Compra;
-import com.eventhive.app.model.ItemCompra;
-import com.eventhive.app.model.Localidad;
-import com.eventhive.app.model.Tiquete;
-import com.eventhive.app.model.Usuario;
-import com.eventhive.app.repository.CompraRepository;
-import com.eventhive.app.repository.LocalidadRepository;
-import com.eventhive.app.repository.PromocionRepository;
-import com.eventhive.app.repository.TiqueteRepository;
-import com.eventhive.app.utils.AuthenticatedUserHelper;
-
-import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -97,7 +91,7 @@ public class ServiceCompra {
         compra.setEstado(EstadoCompra.CANCELADA);
         compra.getItems().forEach(item
                 -> localidadRepository.incrementarDisponibles(
-                        item.getLocalidad().getId(), item.getCantidad()));
+                item.getLocalidad().getId(), item.getCantidad()));
 
         compraRepository.deleteById(id);
         tiqueteRepository.deleteByCompraId(id);
@@ -123,9 +117,10 @@ public class ServiceCompra {
         }
     }
 
+    //se deja en error 404 para no dar pista de que existen
     private void validarOwnership(Compra compra, Usuario usuario) {
         if (!compra.getCliente().getId().equals(usuario.getId())) {
-            throw new BusinessException("No autorizado para operar sobre esta compra");
+            throw new ResourceNotFoundException("Compra no encontrada con id: ");
         }
     }
 
@@ -144,8 +139,8 @@ public class ServiceCompra {
         if (filasAfectadas == 0) {
             throw new BusinessException(
                     "No hay suficientes entradas en '" + localidad.getNombre()
-                    + "'. Disponibles: " + localidad.getDisponibles()
-                    + ", solicitados: " + cantidad);
+                            + "'. Disponibles: " + localidad.getDisponibles()
+                            + ", solicitados: " + cantidad);
         }
     }
 
@@ -153,9 +148,9 @@ public class ServiceCompra {
         return promocionRepository
                 .findVigenteByEventoId(localidad.getEvento().getId(), LocalDate.now())
                 .map(promo -> localidad.getPrecio()
-                .multiply(BigDecimal.valueOf(100)
-                        .subtract(BigDecimal.valueOf(promo.getDescuento())))
-                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP))
+                        .multiply(BigDecimal.valueOf(100)
+                                .subtract(BigDecimal.valueOf(promo.getDescuento())))
+                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP))
                 .orElse(localidad.getPrecio());
     }
 

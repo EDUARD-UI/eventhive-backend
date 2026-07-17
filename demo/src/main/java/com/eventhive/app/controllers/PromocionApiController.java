@@ -1,32 +1,25 @@
 package com.eventhive.app.controllers;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.List;
-
+import com.eventhive.app.dto.ApiResponse;
+import com.eventhive.app.dto.PagedResponse;
+import com.eventhive.app.dto.response.PromocionDTO;
+import com.eventhive.app.dto.request.PromocionRequest;
+import com.eventhive.app.model.Promocion;
+import com.eventhive.app.model.Usuario;
+import com.eventhive.app.service.ServicePromocion;
+import com.eventhive.app.utils.AuthenticatedUserHelper;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import com.eventhive.app.dto.ApiResponse;
-import com.eventhive.app.dto.PagedResponse;
-import com.eventhive.app.dto.PromocionDTO;
-import com.eventhive.app.model.Promocion;
-import com.eventhive.app.model.Usuario;
-import com.eventhive.app.service.ServicePromocion;
-import com.eventhive.app.utils.AuthenticatedUserHelper;
-
-import lombok.RequiredArgsConstructor;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -100,16 +93,12 @@ public class PromocionApiController {
         return ResponseEntity.ok(ApiResponse.ok("Promociones obtenidas", response));
     }
 
+    // PromocionApiController.java
     @PostMapping
-    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<Void>> crear(
-            @RequestParam Long eventoId,
-            @RequestParam String descripcion,
-            @RequestParam BigDecimal descuento,
-            @RequestParam String fechaInicio,
-            @RequestParam String fechaFin) {
-        Usuario usuario = authHelper.usuarioAutenticado();
-        servicePromocion.crearPromocion(eventoId, descripcion, descuento, fechaInicio, fechaFin, usuario);
+    public ResponseEntity<ApiResponse<Void>> crear(@Valid @RequestBody PromocionRequest request) {
+        servicePromocion.crearPromocion(request.getEventoId(), request.getDescripcion(),
+                request.getDescuento(), request.getFechaInicio().toString(),
+                request.getFechaFin().toString(), authHelper.usuarioAutenticado());
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Promoción creada"));
     }
 

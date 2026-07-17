@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.eventhive.app.dto.ApiResponse;
-import com.eventhive.app.dto.NotificationDTO;
+import com.eventhive.app.dto.response.NotificationDTO;
 import com.eventhive.app.service.ServiceNotification;
 
 import lombok.RequiredArgsConstructor;

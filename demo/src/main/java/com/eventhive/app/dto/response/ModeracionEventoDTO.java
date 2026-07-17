@@ -1,12 +1,11 @@
-package com.eventhive.app.dto;
-
-import java.time.LocalDateTime;
+package com.eventhive.app.dto.response;
 
 import com.eventhive.app.enums.EstadoEvento;
 import com.eventhive.app.enums.MotivosRechazos;
-
 import lombok.Getter;
 import lombok.Setter;
+
+import java.time.LocalDateTime;
 
 @Getter
 @Setter

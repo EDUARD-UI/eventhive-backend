@@ -1,7 +1,6 @@
 package com.eventhive.app.dto.request;
 
 import com.eventhive.app.enums.MotivosRechazos;
-
 import lombok.Getter;
 import lombok.Setter;
 

@@ -1,19 +1,7 @@
 package com.eventhive.app.service;
 
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.eventhive.app.dto.PromocionDTO;
+import com.eventhive.app.dto.response.PromocionDTO;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Evento;
@@ -21,15 +9,25 @@ import com.eventhive.app.model.Promocion;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.repository.EventoRepository;
 import com.eventhive.app.repository.PromocionRepository;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class ServicePromocion {
 
     private final PromocionRepository promocionRepository;
-    private final EventoRepository    eventoRepository;
+    private final EventoRepository eventoRepository;
     private static final DateTimeFormatter FMT = DateTimeFormatter.ISO_LOCAL_DATE;
 
     @Transactional(readOnly = true)
@@ -53,7 +51,7 @@ public class ServicePromocion {
                                String fechaInicio, String fechaFin, Usuario organizador) {
         validarDescuento(descuento);
         LocalDate inicio = LocalDate.parse(fechaInicio, FMT);
-        LocalDate fin    = LocalDate.parse(fechaFin, FMT);
+        LocalDate fin = LocalDate.parse(fechaFin, FMT);
         validarFechas(inicio, fin);
 
         Evento evento = eventoRepository.findById(eventoId)
@@ -85,7 +83,7 @@ public class ServicePromocion {
         validarPermiso(p, organizador);
         validarDescuento(descuento);
         LocalDate inicio = LocalDate.parse(fechaInicio, FMT);
-        LocalDate fin    = LocalDate.parse(fechaFin, FMT);
+        LocalDate fin = LocalDate.parse(fechaFin, FMT);
         validarFechas(inicio, fin);
 
         if (eventoId != null) {

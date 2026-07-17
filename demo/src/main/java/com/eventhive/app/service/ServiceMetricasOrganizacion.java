@@ -1,19 +1,13 @@
 package com.eventhive.app.service;
 
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Organizacion;
 import com.eventhive.app.model.Usuario;
-import com.eventhive.app.repository.EventoRepository;
-import com.eventhive.app.repository.OrganizacionRepository;
-import com.eventhive.app.repository.SeguidorRepository;
-import com.eventhive.app.repository.UsuarioRepository;
-import com.eventhive.app.repository.ValoracionRepository;
-
+import com.eventhive.app.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 //service creado para evitar hacer querys cada q se consulte el perifl de un organizador
 //se actualizan los datos cada q haya un cambio en las valoraciones, seguidores o eventos creados por el organizador
@@ -22,11 +16,11 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ServiceMetricasOrganizacion {
 
-    private final UsuarioRepository      usuarioRepository;
+    private final UsuarioRepository usuarioRepository;
     private final OrganizacionRepository organizacionRepository;
-    private final ValoracionRepository   valoracionRepository;
-    private final SeguidorRepository     seguidorRepository;
-    private final EventoRepository       eventoRepository;
+    private final ValoracionRepository valoracionRepository;
+    private final SeguidorRepository seguidorRepository;
+    private final EventoRepository eventoRepository;
 
     @Transactional
     public void actualizarMetricasValoracion(Long organizadorId) {

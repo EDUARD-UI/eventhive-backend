@@ -1,36 +1,25 @@
 package com.eventhive.app.controllers;
 
+import com.eventhive.app.dto.ApiResponse;
+import com.eventhive.app.dto.PagedResponse;
+import com.eventhive.app.dto.request.EventoRequest;
+import com.eventhive.app.dto.request.ModeracionEventoRequest;
+import com.eventhive.app.dto.response.EventoBusquedaDTO;
+import com.eventhive.app.dto.response.EventoDTO;
+import com.eventhive.app.dto.response.ModeracionEventoDTO;
+import com.eventhive.app.service.ServiceEvento;
+import com.eventhive.app.service.ServiceModeracion;
+import com.eventhive.app.utils.AuthenticatedUserHelper;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
-import com.eventhive.app.dto.ApiResponse;
-import com.eventhive.app.dto.EventoBusquedaDTO;
-import com.eventhive.app.dto.EventoDTO;
-import com.eventhive.app.dto.ModeracionEventoDTO;
-import com.eventhive.app.dto.PagedResponse;
-import com.eventhive.app.dto.request.EventoRequest;
-import com.eventhive.app.dto.request.ModeracionEventoRequest;
-import com.eventhive.app.service.ServiceEvento;
-import com.eventhive.app.service.ServiceModeracion;
-import com.eventhive.app.utils.AuthenticatedUserHelper;
-
-import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/eventos")
@@ -41,6 +30,7 @@ public class EventosApiController {
     private final ServiceModeracion serviceModeracion;
     private final AuthenticatedUserHelper authHelper;
 
+    //consultas
     @GetMapping
     public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> listar(
             @RequestParam(required = false) Long categoriaId,
@@ -112,11 +102,12 @@ public class EventosApiController {
                         serviceEvento.buscarAdmin(titulo, categoriaId, estado, pageable))));
     }
 
+    //crud
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ORGANIZACION')")
     public ResponseEntity<ApiResponse<EventoDTO>> crear(
-            @RequestPart("datos") EventoRequest request,
-            @RequestPart(value = "foto", required = false) MultipartFile foto) {
+            @RequestPart("datos") @Valid EventoRequest request,
+            @RequestPart(value = "foto", required = false) MultipartFile foto){
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("Evento creado",
@@ -135,10 +126,25 @@ public class EventosApiController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION')")
     public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long id) {
         serviceEvento.eliminarEvento(id);
         return ResponseEntity.ok(ApiResponse.ok("Evento eliminado"));
+    }
+
+    @PatchMapping("/{id}/suspender")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    public ResponseEntity<ApiResponse<EventoDTO>> suspender(@PathVariable Long id,
+            @RequestBody ModeracionEventoRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok("Evento suspendido",
+                serviceEvento.toDTO(serviceEvento.suspenderEvento(id, request.getMotivo(), request.getObservacion()))));
+    }
+
+    @PatchMapping("/{id}/reactivar")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    public ResponseEntity<ApiResponse<EventoDTO>> reactivar(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok("Evento reactivado",
+                serviceEvento.toDTO(serviceEvento.reactivarEvento(id))));
     }
 
     // Moderación

@@ -1,27 +1,19 @@
 package com.eventhive.app.controllers;
 
+import com.eventhive.app.dto.ApiResponse;
+import com.eventhive.app.dto.PagedResponse;
+import com.eventhive.app.dto.response.UsuarioDTO;
+import com.eventhive.app.dto.request.PerfilUpdateRequest;
+import com.eventhive.app.model.Usuario;
+import com.eventhive.app.service.ServiceUsuario;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-
-import com.eventhive.app.dto.ApiResponse;
-import com.eventhive.app.dto.PagedResponse;
-import com.eventhive.app.dto.UsuarioDTO;
-import com.eventhive.app.model.Usuario;
-import com.eventhive.app.service.ServiceUsuario;
-
-import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/usuarios")
@@ -118,12 +110,10 @@ public class UsuariosApiController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<Void>> actualizar(
-            @PathVariable Long id,
-            @RequestParam String nombre,
-            @RequestParam String telefono) {
+    public ResponseEntity<ApiResponse<UsuarioDTO>> actualizarPerfil(
+            @Valid @RequestBody PerfilUpdateRequest datos)  {
 
-        usuarioService.actualizarUsuario(id, nombre, telefono);
+        usuarioService.actualizarUsuario(datos.getNombre(), datos.getTelefono());
         return ResponseEntity.ok(ApiResponse.ok("Usuario actualizado exitosamente"));
     }
 

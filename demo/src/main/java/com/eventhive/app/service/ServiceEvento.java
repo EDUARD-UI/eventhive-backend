@@ -1,24 +1,14 @@
 package com.eventhive.app.service;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
-
 import com.eventhive.app.config.SupabaseStorageConfig;
-import com.eventhive.app.dto.EventoBusquedaDTO;
-import com.eventhive.app.dto.EventoCategoriaDTO;
-import com.eventhive.app.dto.EventoDTO;
-import com.eventhive.app.dto.EventoOrganizadorDTO;
 import com.eventhive.app.dto.PagedResponse;
 import com.eventhive.app.dto.request.EventoRequest;
+import com.eventhive.app.dto.response.EventoBusquedaDTO;
+import com.eventhive.app.dto.response.EventoCategoriaDTO;
+import com.eventhive.app.dto.response.EventoDTO;
+import com.eventhive.app.dto.response.EventoOrganizadorDTO;
 import com.eventhive.app.enums.EstadoEvento;
+import com.eventhive.app.enums.MotivosRechazos;
 import com.eventhive.app.enums.TipoNotification;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
@@ -28,21 +18,30 @@ import com.eventhive.app.model.Usuario;
 import com.eventhive.app.repository.CategoriaRepository;
 import com.eventhive.app.repository.EventoRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 @Service
 @RequiredArgsConstructor
 public class ServiceEvento {
 
     private final ServiceMetricasOrganizacion serviceMetricasOrganizacion;
-    private final EventoRepository           eventoRepository;
-    private final CategoriaRepository        categoriaRepository;
-    private final AuthenticatedUserHelper    authHelper;
-    private final ServiceNotification        serviceNotification;
-    private final SupabaseStorageService     storageService;
-    private final SupabaseStorageConfig      storageConfig;
-    private final ServiceNivelOrganizacion   serviceNivelOrganizacion;
+    private final EventoRepository eventoRepository;
+    private final CategoriaRepository categoriaRepository;
+    private final AuthenticatedUserHelper authHelper;
+    private final ServiceNotification serviceNotification;
+    private final SupabaseStorageService storageService;
+    private final SupabaseStorageConfig storageConfig;
+    private final ServiceNivelOrganizacion serviceNivelOrganizacion;
 
     private static final DateTimeFormatter FMT = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
@@ -80,10 +79,13 @@ public class ServiceEvento {
     @Transactional(readOnly = true)
     @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
     public Page<Evento> buscarAdmin(String titulo, Long categoriaId, String estado, Pageable pageable) {
-        if (titulo != null && !titulo.isBlank())
+        if (titulo != null && !titulo.isBlank()) {
             return eventoRepository.findByTituloConReferencias(titulo.trim(), pageable);
-        if (categoriaId != null)
+        }
+        if (categoriaId != null) {
             return eventoRepository.findByEstadoConReferencias(EstadoEvento.PUBLICADO, pageable); // fallback seguro
+
+        }
         if (estado != null && !estado.isBlank()) {
             try {
                 return eventoRepository.findByEstadoConReferencias(
@@ -115,8 +117,9 @@ public class ServiceEvento {
         Categoria categoria = resolverCategoria(request.getCategoriaId());
 
         // Solo un organizador con SolicitudVerificacion aprobada tiene perfil de Organizacion
-        if (organizador.getOrganizacion() == null)
+        if (organizador.getOrganizacion() == null) {
             throw new BusinessException("Debe completar la verificación como organización antes de crear eventos");
+        }
 
         verificarLimiteDeNivel(organizador);
 
@@ -125,13 +128,15 @@ public class ServiceEvento {
         evento.setOrganizador(organizador);
         evento.setEstado(estadoInicial(organizador));
 
-        if (foto != null && !foto.isEmpty())
+        if (foto != null && !foto.isEmpty()) {
             evento.setFoto(storageService.subirImagenEvento(foto));
+        }
 
         Evento guardado = eventoRepository.save(evento);
 
-        if (guardado.getEstado() == EstadoEvento.PUBLICADO)
+        if (guardado.getEstado() == EstadoEvento.PUBLICADO) {
             serviceNotification.notificarNuevoEvento(guardado);
+        }
 
         serviceMetricasOrganizacion.actualizarTotalEventos(organizador.getId());
 
@@ -144,16 +149,17 @@ public class ServiceEvento {
         Evento evento = obtenerPorId(id);
         verificarPermiso(evento);
 
-        if (evento.getEstado() == EstadoEvento.SUSPENDIDO)
+        if (evento.getEstado() == EstadoEvento.SUSPENDIDO) {
             throw new BusinessException("El evento está suspendido por un administrador y no puede modificarse");
+        }
 
         EstadoEvento estadoAnterior = evento.getEstado();
         Categoria categoria = resolverCategoria(request.getCategoriaId());
         mapearCampos(evento, request, categoria);
 
-        if (estadoAnterior == EstadoEvento.EN_CORRECCION)
+        if (estadoAnterior == EstadoEvento.EN_CORRECCION) {
             evento.setEstado(EstadoEvento.PENDIENTE_REVISION); // la corrección vuelve a entrar a la cola
-
+        }
         if (foto != null && !foto.isEmpty()) {
             eliminarFotoAnterior(evento.getFoto());
             evento.setFoto(storageService.subirImagenEvento(foto));
@@ -171,8 +177,9 @@ public class ServiceEvento {
         Evento evento = obtenerPorId(id);
         verificarPermiso(evento);
 
-        if (evento.getEstado() == EstadoEvento.SUSPENDIDO)
+        if (evento.getEstado() == EstadoEvento.SUSPENDIDO) {
             throw new BusinessException("El evento está suspendido por un administrador y no puede eliminarse");
+        }
 
         Long organizadorId = evento.getOrganizador().getId();
 
@@ -180,6 +187,32 @@ public class ServiceEvento {
         eventoRepository.deleteById(id);
 
         serviceMetricasOrganizacion.actualizarTotalEventos(organizadorId);
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    public Evento suspenderEvento(Long id, MotivosRechazos motivo, String observacion) {
+        Evento evento = obtenerPorId(id);
+        if (evento.getEstado() == EstadoEvento.SUSPENDIDO) {
+            throw new BusinessException("El evento ya se encuentra suspendido");
+        }
+        evento.setEstado(EstadoEvento.SUSPENDIDO);
+        Evento guardado = eventoRepository.save(evento);
+        serviceNotification.notificarCambioEvento(guardado, TipoNotification.EVENTO_CANCELADO);
+        return guardado;
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    public Evento reactivarEvento(Long id) {
+        Evento evento = obtenerPorId(id);
+        if (evento.getEstado() != EstadoEvento.SUSPENDIDO) {
+            throw new BusinessException("El evento no está suspendido y no puede reactivarse");
+        }
+        evento.setEstado(EstadoEvento.PUBLICADO);
+        Evento guardado = eventoRepository.save(evento);
+        serviceNotification.notificarCambioEvento(guardado, TipoNotification.EVENTO_MODIFICADO);
+        return guardado;
     }
 
     // Marca como FINALIZADO cualquier evento publicado cuya fecha ya pasó, y evalúa el ascenso del organizador
@@ -198,15 +231,17 @@ public class ServiceEvento {
     private void verificarLimiteDeNivel(Usuario organizador) {
         int maximo = organizador.getOrganizacion().getNivel().maxEventosActivos();
         long activos = eventoRepository.countActivosByOrganizadorId(organizador.getId());
-        if (activos >= maximo)
+        if (activos >= maximo) {
             throw new BusinessException(
                     "Alcanzaste el límite de " + maximo + " eventos activos para tu nivel " + organizador.getOrganizacion().getNivel());
+        }
     }
 
     //una organización de nivel máximo publica directo; el resto entra a PENDIENTE_REVISION
     private EstadoEvento estadoInicial(Usuario organizador) {
-        if (organizador.getOrganizacion().getNivel().permitePublicacionAutomatica())
+        if (organizador.getOrganizacion().getNivel().permitePublicacionAutomatica()) {
             return EstadoEvento.PUBLICADO;
+        }
         return EstadoEvento.PENDIENTE_REVISION;
     }
 
@@ -214,8 +249,9 @@ public class ServiceEvento {
         Usuario u = authHelper.usuarioAutenticado();
         boolean esOrganizador = evento.getOrganizador() != null
                 && u.getId().equals(evento.getOrganizador().getId());
-        if (!esOrganizador)
+        if (!esOrganizador) {
             throw new BusinessException("No autorizado para modificar este evento");
+        }
     }
 
     // Mapeo DTO
@@ -231,15 +267,17 @@ public class ServiceEvento {
         dto.setLocalidades(e.getLocalidades());
         dto.setEstado(e.getEstado());
 
-        if (e.getCategoria() != null)
+        if (e.getCategoria() != null) {
             dto.setCategoria(new EventoCategoriaDTO(
                     e.getCategoria().getId(),
                     e.getCategoria().getNombre()));
+        }
 
-        if (e.getOrganizador() != null)
+        if (e.getOrganizador() != null) {
             dto.setOrganizador(new EventoOrganizadorDTO(
                     e.getOrganizador().getId(),
                     e.getOrganizador().getNombreCompleto()));
+        }
 
         return dto;
     }
@@ -254,7 +292,6 @@ public class ServiceEvento {
     }
 
     // Métodos auxiliares
-
     private void mapearCampos(Evento evento, EventoRequest req, Categoria categoria) {
         evento.setTitulo(req.getTitulo());
         evento.setDescripcion(req.getDescripcion());
@@ -265,21 +302,25 @@ public class ServiceEvento {
         evento.setLongitud(req.getLongitud());
         evento.setCategoria(categoria);
 
-        if (req.getFechaPublicacion() != null && !req.getFechaPublicacion().isBlank())
+        if (req.getFechaPublicacion() != null && !req.getFechaPublicacion().isBlank()) {
             evento.setFechaPublicacion(LocalDateTime.parse(req.getFechaPublicacion(), FMT));
-        else if (evento.getFechaPublicacion() == null)
+        } else if (evento.getFechaPublicacion() == null) {
             evento.setFechaPublicacion(LocalDateTime.now());
+        }
     }
 
     private Categoria resolverCategoria(Long categoriaId) {
-        if (categoriaId == null)
+        if (categoriaId == null) {
             throw new BusinessException("El categoriaId es requerido");
+        }
         return categoriaRepository.findById(categoriaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Categoría no encontrada: " + categoriaId));
     }
 
     private void eliminarFotoAnterior(String urlFoto) {
-        if (urlFoto == null || urlFoto.isBlank()) return;
+        if (urlFoto == null || urlFoto.isBlank()) {
+            return;
+        }
         String nombre = storageService.extraerNombreArchivo(urlFoto);
         storageService.eliminarArchivo(storageConfig.getBucketEventos(), nombre);
     }
@@ -293,9 +334,10 @@ public class ServiceEvento {
         }
 
         boolean estabaPublicado = estadoAnterior == EstadoEvento.PUBLICADO;
-        boolean siguePublicado  = estadoActual   == EstadoEvento.PUBLICADO;
+        boolean siguePublicado = estadoActual == EstadoEvento.PUBLICADO;
 
-        if (estabaPublicado && siguePublicado)
+        if (estabaPublicado && siguePublicado) {
             serviceNotification.notificarCambioEvento(guardado, TipoNotification.EVENTO_MODIFICADO);
+        }
     }
 }

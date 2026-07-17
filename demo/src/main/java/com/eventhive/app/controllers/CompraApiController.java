@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.eventhive.app.dto.ApiResponse;
-import com.eventhive.app.dto.CompraResponseDTO;
+import com.eventhive.app.dto.response.CompraResponseDTO;
 import com.eventhive.app.dto.PagedResponse;
 import com.eventhive.app.dto.request.CompraRequestDTO;
 import com.eventhive.app.service.ServiceCompra;

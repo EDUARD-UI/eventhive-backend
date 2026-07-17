@@ -1,4 +1,4 @@
-package com.eventhive.app.dto;
+package com.eventhive.app.dto.response;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -7,7 +7,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-public class UsuarioDTO {
+public class UsuarioSesionDTO {
     private Long   id;
     private String nombre;
     private String correo;

@@ -1,23 +1,21 @@
 package com.eventhive.app.service;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Rol;
 import com.eventhive.app.repository.RolesRepository;
 import com.eventhive.app.repository.UsuarioRepository;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 public class ServiceRoles {
 
-    private final RolesRepository  rolesRepository;
+    private final RolesRepository rolesRepository;
     private final UsuarioRepository usuarioRepository;
 
     @Transactional(readOnly = true)
@@ -65,8 +63,8 @@ public class ServiceRoles {
         long usuarios = usuarioRepository.countByRolId(id);
         if (usuarios > 0)
             throw new BusinessException(
-                "No se puede eliminar el rol '" + rol.getNombre() + "' porque tiene "
-                + usuarios + " usuario(s) asociado(s)");
+                    "No se puede eliminar el rol '" + rol.getNombre() + "' porque tiene "
+                            + usuarios + " usuario(s) asociado(s)");
 
         rolesRepository.deleteById(id);
     }

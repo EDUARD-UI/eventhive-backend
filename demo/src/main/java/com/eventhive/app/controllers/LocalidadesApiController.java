@@ -1,26 +1,17 @@
 package com.eventhive.app.controllers;
 
-import java.util.List;
-
+import com.eventhive.app.dto.ApiResponse;
+import com.eventhive.app.dto.request.LocalidadRequest;
+import com.eventhive.app.model.Localidad;
+import com.eventhive.app.service.ServiceLocalidad;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import com.eventhive.app.dto.ApiResponse;
-import com.eventhive.app.model.Localidad;
-import com.eventhive.app.service.ServiceLocalidad;
-import com.eventhive.app.dto.request.LocalidadRequest;
-import jakarta.validation.Valid;
-
-import lombok.RequiredArgsConstructor;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/eventos/{eventoId}/localidades")
@@ -30,13 +21,14 @@ public class LocalidadesApiController {
     private final ServiceLocalidad serviceLocalidad;
 
     @GetMapping
+    @PreAuthorize("hasRole('ORGANIZACION')")
     public ResponseEntity<ApiResponse<List<Localidad>>> listar(@PathVariable Long eventoId) {
         return ResponseEntity.ok(ApiResponse.ok("Localidades obtenidas",
                 serviceLocalidad.listarPorEvento(eventoId)));
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION')")
     public ResponseEntity<ApiResponse<Localidad>> agregar(@PathVariable Long eventoId,
             @Valid @RequestBody LocalidadRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -45,7 +37,7 @@ public class LocalidadesApiController {
     }
 
     @PutMapping("/{localidadId}")
-    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION')")
     public ResponseEntity<ApiResponse<Localidad>> actualizar(@PathVariable Long eventoId,
             @PathVariable Long localidadId,
             @Valid @RequestBody LocalidadRequest request) {
@@ -54,7 +46,7 @@ public class LocalidadesApiController {
     }
 
     @DeleteMapping("/{localidadId}")
-    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION')")
     public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long eventoId,
             @PathVariable Long localidadId) {
         serviceLocalidad.eliminar(eventoId, localidadId);

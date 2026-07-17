@@ -1,21 +1,18 @@
 package com.eventhive.app.service;
 
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.eventhive.app.dto.OrganizacionDTO;
+import com.eventhive.app.dto.response.OrganizacionDTO;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Organizacion;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.repository.OrganizacionRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-// Solo expone datos de organizaciones ya APROBADAS (perfil creado en
-// ServiceSolicitudVerificacion.aprobarSolicitud)
+// Solo expone datos de organizaciones ya APROBADAS
 @Service
 @RequiredArgsConstructor
 public class ServiceOrganizacion {

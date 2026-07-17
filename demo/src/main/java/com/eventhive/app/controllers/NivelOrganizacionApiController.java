@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.eventhive.app.dto.ApiResponse;
-import com.eventhive.app.dto.SugerenciaAscensoDTO;
+import com.eventhive.app.dto.response.SugerenciaAscensoDTO;
 import com.eventhive.app.service.ServiceNivelOrganizacion;
 
 import lombok.RequiredArgsConstructor;

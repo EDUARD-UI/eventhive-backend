@@ -1,13 +1,13 @@
 package com.eventhive.app.security.users;
 
-import java.util.ArrayList;
-import java.util.Collection;
-
+import com.eventhive.app.model.Usuario;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import com.eventhive.app.model.Usuario;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collection;
 
 public class UsuarioPrincipal implements UserDetails {
     
@@ -47,11 +47,6 @@ public class UsuarioPrincipal implements UserDetails {
     }
 
     @Override
-    public boolean isAccountNonLocked() {
-        return true;
-    }
-
-    @Override
     public boolean isCredentialsNonExpired() {
         return true;
     }
@@ -59,6 +54,12 @@ public class UsuarioPrincipal implements UserDetails {
     @Override
     public boolean isEnabled() {
         return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return usuario.getBloqueadoHasta() == null
+                || usuario.getBloqueadoHasta().isBefore(LocalDateTime.now());
     }
 
     public Usuario getUsuario() {

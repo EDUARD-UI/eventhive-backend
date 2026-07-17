@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.eventhive.app.dto.ApiResponse;
-import com.eventhive.app.dto.ValoracionDTO;
+import com.eventhive.app.dto.response.ValoracionDTO;
 import com.eventhive.app.service.ServiceValoracion;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
 

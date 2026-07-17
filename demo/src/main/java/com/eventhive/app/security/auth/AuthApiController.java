@@ -1,25 +1,21 @@
 package com.eventhive.app.security.auth;
 
+import com.eventhive.app.dto.ApiResponse;
+import com.eventhive.app.dto.response.LoginResponseDTO;
+import com.eventhive.app.dto.response.UsuarioSesionDTO;
+import com.eventhive.app.dto.request.LoginRequest;
+import com.eventhive.app.dto.request.RefreshRequest;
+import com.eventhive.app.dto.request.RegistroRequest;
+import com.eventhive.app.service.ServiceAutenticacion;
+import com.eventhive.app.service.ServiceUsuario;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import com.eventhive.app.dto.ApiResponse;
-import com.eventhive.app.dto.LoginResponseDTO;
-import com.eventhive.app.dto.UsuarioSesionDTO;
-import com.eventhive.app.dto.request.LoginRequest;
-import com.eventhive.app.dto.request.RegistroRequest;
-import com.eventhive.app.service.ServiceAutenticacion;
-import com.eventhive.app.service.ServiceUsuario;
-
-import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -45,6 +41,12 @@ public class AuthApiController {
     public ResponseEntity<ApiResponse<LoginResponseDTO>> login(@RequestBody LoginRequest request) {
         LoginResponseDTO response = serviceAutenticacion.autenticar(request.getCorreo(), request.getClave());
         return ResponseEntity.ok(ApiResponse.ok("Login exitoso", response));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<ApiResponse<LoginResponseDTO>> refresh(@Valid @RequestBody RefreshRequest request) {
+        LoginResponseDTO response = serviceAutenticacion.refrescarToken(request.getRefreshToken());
+        return ResponseEntity.ok(ApiResponse.ok("Token renovado", response));
     }
 
     @PostMapping("/logout")

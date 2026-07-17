@@ -1,7 +1,6 @@
 package com.eventhive.app.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
