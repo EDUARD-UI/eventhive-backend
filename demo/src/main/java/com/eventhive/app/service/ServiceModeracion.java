@@ -41,9 +41,8 @@ public class ServiceModeracion {
         Evento evento = obtenerPorId(eventoId);
         Usuario usuario = authHelper.usuarioAutenticado();
         boolean esOwner = evento.getOrganizador() != null && usuario.getId().equals(evento.getOrganizador().getId());
-        boolean esStaff = esStaff(usuario);
 
-        if (!esOwner && !esStaff) {
+        if (!esOwner) {
             throw new BusinessException("No autorizado para ver el historial de este evento");
         }
 

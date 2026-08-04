@@ -8,6 +8,8 @@ import org.springframework.data.repository.query.Param;
 
 import com.eventhive.app.model.Compra;
 
+import java.util.Optional;
+
 public interface CompraRepository extends JpaRepository<Compra, Long> {
 
     // Obtiene compras de un cliente con sus ítems y detalles cargados
@@ -21,4 +23,6 @@ public interface CompraRepository extends JpaRepository<Compra, Long> {
         ORDER BY c.fechaCompra DESC
         """)
     Page<Compra> findByClienteIdConItems(@Param("clienteId") Long clienteId, Pageable pageable);
+
+    Optional<Compra> findByClienteIdAndIdempotencyKey(Long clienteId, String idempotencyKey);
 }

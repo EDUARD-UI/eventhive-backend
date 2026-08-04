@@ -1,9 +1,7 @@
 package com.eventhive.app.dto.request;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.*;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -12,6 +10,10 @@ import java.util.List;
 @Getter
 @Setter
 public class CompraRequestDTO {
+
+    @NotBlank(message = "La clave de idempotencia es requerida")
+    @Size(max = 100)
+    private String idempotencyKey;
 
     @NotEmpty(message = "La lista de ítems no puede estar vacía")
     @Valid

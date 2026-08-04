@@ -1,6 +1,7 @@
 package com.eventhive.app.controllers;
 
 import com.eventhive.app.dto.ApiResponse;
+import com.eventhive.app.dto.request.CategoriaRequest;
 import com.eventhive.app.dto.response.CategoriaDTO;
 import com.eventhive.app.dto.response.CategoriaEventosDTO;
 import com.eventhive.app.dto.PagedResponse;
@@ -78,10 +79,10 @@ public class CategoriasApiController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> crear(
-            @RequestParam String nombre,
+            @RequestBody CategoriaRequest request,
             @RequestParam(required = false) MultipartFile foto) {
         try {
-            serviceCategoria.crearCategoria(nombre, foto);
+            serviceCategoria.crearCategoria(request.getNombre(), foto);
             return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Categoría creada exitosamente"));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)

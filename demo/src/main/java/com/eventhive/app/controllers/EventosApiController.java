@@ -91,7 +91,7 @@ public class EventosApiController {
 
     @GetMapping("/admin/buscar")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> filtrarEventosAdmin(
+    public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> filtrarEventosCRUD(
             @RequestParam(required = false) String titulo,
             @RequestParam(required = false) Long categoriaId,
             @RequestParam(required = false) String estado,
@@ -156,6 +156,7 @@ public class EventosApiController {
     }
 
     @GetMapping("/{id}/moderaciones")
+
     public ResponseEntity<ApiResponse<Page<ModeracionEventoDTO>>> historialModeracion(
             @PathVariable Long id, Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.ok("Historial de moderación",

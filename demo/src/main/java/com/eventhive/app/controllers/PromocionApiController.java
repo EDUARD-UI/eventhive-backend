@@ -95,7 +95,9 @@ public class PromocionApiController {
 
     // PromocionApiController.java
     @PostMapping
+    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> crear(@Valid @RequestBody PromocionRequest request) {
+
         servicePromocion.crearPromocion(request.getEventoId(), request.getDescripcion(),
                 request.getDescuento(), request.getFechaInicio().toString(),
                 request.getFechaFin().toString(), authHelper.usuarioAutenticado());
@@ -105,14 +107,11 @@ public class PromocionApiController {
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> actualizar(
-            @PathVariable Long id,
-            @RequestParam Long eventoId,
-            @RequestParam String descripcion,
-            @RequestParam BigDecimal descuento,
-            @RequestParam String fechaInicio,
-            @RequestParam String fechaFin) {
+            @PathVariable Long id, @Valid @RequestBody PromocionRequest request) {
+
         Usuario usuario = authHelper.usuarioAutenticado();
-        servicePromocion.actualizarPromocion(id, eventoId, descripcion, descuento, fechaInicio, fechaFin, usuario);
+        servicePromocion.actualizarPromocion(id, request.getEventoId(), request.getDescripcion(),
+                request.getDescuento(), request.getFechaInicio().toString(), request.getFechaFin().toString(), usuario);
         return ResponseEntity.ok(ApiResponse.ok("Promoción actualizada"));
     }
 

@@ -22,7 +22,7 @@ public class ServiceLocalidad {
 
     @Transactional(readOnly = true)
     public List<Localidad> listarPorEvento(Long eventoId) {
-        serviceEvento.obtenerPorId(eventoId); // valida que el evento exista
+        serviceEvento.obtenerPorId(eventoId); // validar que el evento exista
         return localidadRepository.findByEventoId(eventoId);
     }
 

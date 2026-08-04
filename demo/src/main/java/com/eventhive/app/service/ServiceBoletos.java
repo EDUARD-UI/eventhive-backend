@@ -8,7 +8,9 @@ import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Evento;
 import com.eventhive.app.model.Localidad;
 import com.eventhive.app.model.Tiquete;
+import com.eventhive.app.model.Usuario;
 import com.eventhive.app.repository.TiqueteRepository;
+import com.eventhive.app.utils.AuthenticatedUserHelper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -22,13 +24,16 @@ public class ServiceBoletos {
 
     private final ServiceCompra serviceCompra;
     private final TiqueteRepository tiqueteRepository;
+    private final AuthenticatedUserHelper authHelper;
 
     //validar el ingreso de un tiquete por codigo qr
     @Transactional
-    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION')")
     public void realizarCheckIn(String codigoQR) {
         Tiquete tiquete = tiqueteRepository.findByCodigoQR(codigoQR)
                 .orElseThrow(() -> new ResourceNotFoundException("Tiquete no encontrado o inválido"));
+
+        validarPermisoCheckIn(tiquete);
 
         if (tiquete.getCompra().getEstado() == EstadoCompra.CANCELADA) {
             throw new BusinessException("El tiquete pertenece a una compra cancelada");
@@ -56,6 +61,16 @@ public class ServiceBoletos {
                 .toList());
 
         return dto;
+    }
+
+    //validar IDOR
+    private void validarPermisoCheckIn(Tiquete tiquete) {
+        Usuario staff = authHelper.usuarioAutenticado();
+
+        Long organizadorEventoId = tiquete.getEvento().getOrganizador().getId();
+        if (!organizadorEventoId.equals(staff.getId())) {
+            throw new ResourceNotFoundException("Ups, No esta autorizado para operar este tiquete");
+        }
     }
 
     private BoletosCompraDTO.BoletoDTO toBoletoDTO(Tiquete tiquete) {

@@ -37,6 +37,10 @@ public class Compra {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    //idempotencia: evitar q se haga la misma compra dos veces
+    @Column(name = "idempotency_key", length = 100, unique = true)
+    private String idempotencyKey;
+
     @Column(name = "fecha_compra", nullable = false)
     private LocalDateTime fechaCompra;
 

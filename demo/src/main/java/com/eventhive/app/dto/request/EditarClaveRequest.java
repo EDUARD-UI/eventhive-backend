@@ -1,13 +1,15 @@
 package com.eventhive.app.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
-@Getter
-@Setter
-public class RolUpdateRequest {
+@Getter @Setter
+public class EditarClaveRequest {
+
     @NotBlank
-    @Size(max = 50) private String nombre;
+    private String claveActual;
+
+    @NotBlank
+    private String claveNueva;
 }

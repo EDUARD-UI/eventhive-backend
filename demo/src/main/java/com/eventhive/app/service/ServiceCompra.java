@@ -14,6 +14,7 @@ import com.eventhive.app.repository.PromocionRepository;
 import com.eventhive.app.repository.TiqueteRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,6 +27,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -62,6 +64,13 @@ public class ServiceCompra {
         validarRequest(request);
 
         Usuario usuario = authHelper.usuarioAutenticado();
+
+        Optional<Compra> existente = compraRepository
+                .findByClienteIdAndIdempotencyKey(usuario.getId(), request.getIdempotencyKey());
+        if (existente.isPresent()) {
+            return compraToDTO(existente.get());
+        }
+
         List<ItemCompra> items = new ArrayList<>();
         BigDecimal total = BigDecimal.ZERO;
 
@@ -75,10 +84,15 @@ public class ServiceCompra {
             total = total.add(precio.multiply(BigDecimal.valueOf(itemReq.getCantidad())));
         }
 
-        Compra guardada = guardarCompra(usuario, items, total);
-        generarTiquetes(items, guardada);
-
-        return compraToDTO(guardada);
+        try {
+            Compra guardada = guardarCompra(usuario, items, total, request.getIdempotencyKey());
+            generarTiquetes(items, guardada);
+            return compraToDTO(guardada);
+        } catch (DataIntegrityViolationException e) {
+            return compraRepository.findByClienteIdAndIdempotencyKey(usuario.getId(), request.getIdempotencyKey())
+                    .map(this::compraToDTO)
+                    .orElseThrow(() -> e);
+        }
     }
 
     @Transactional
@@ -163,9 +177,9 @@ public class ServiceCompra {
         return item;
     }
 
-    // ServiceCompra.java — guardarCompra
-    private Compra guardarCompra(Usuario usuario, List<ItemCompra> items, BigDecimal total) {
+    private Compra guardarCompra(Usuario usuario, List<ItemCompra> items, BigDecimal total, String idempotencyKey) {
         Compra compra = new Compra();
+        compra.setIdempotencyKey(idempotencyKey);
         compra.setFechaCompra(LocalDateTime.now());
         compra.setTotal(total);
         compra.setMetodoPago("TARJETA");
@@ -176,7 +190,6 @@ public class ServiceCompra {
         return compraRepository.save(compra);
     }
 
-    // Un solo saveAll en lugar de N inserts individuales
     private void generarTiquetes(List<ItemCompra> items, Compra compra) {
         List<Tiquete> tiquetes = new ArrayList<>();
 

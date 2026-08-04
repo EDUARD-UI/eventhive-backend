@@ -2,11 +2,10 @@ package com.eventhive.app.controllers;
 
 import com.eventhive.app.dto.ApiResponse;
 import com.eventhive.app.dto.PagedResponse;
+import com.eventhive.app.dto.request.EditarClaveRequest;
 import com.eventhive.app.dto.response.UsuarioDTO;
-import com.eventhive.app.dto.request.PerfilUpdateRequest;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.service.ServiceUsuario;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -108,15 +107,6 @@ public class UsuariosApiController {
                 .body(ApiResponse.ok("Usuario creado exitosamente"));
     }
 
-    @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<UsuarioDTO>> actualizarPerfil(
-            @Valid @RequestBody PerfilUpdateRequest datos)  {
-
-        usuarioService.actualizarUsuario(datos.getNombre(), datos.getTelefono());
-        return ResponseEntity.ok(ApiResponse.ok("Usuario actualizado exitosamente"));
-    }
-
     @PutMapping("/{id}/asignar-rol")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> asignarRol(
@@ -128,7 +118,7 @@ public class UsuariosApiController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMINISTRADOR') or isAuthenticated()")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long id) {
         usuarioService.eliminarUsuario(id);
         return ResponseEntity.ok(ApiResponse.ok("Usuario eliminado exitosamente"));
@@ -151,9 +141,8 @@ public class UsuariosApiController {
     @PutMapping("/perfil/cambiar-clave")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Void>> cambiarClave(
-            @RequestParam String claveActual,
-            @RequestParam String claveNueva) {
-        usuarioService.cambiarClave(claveActual, claveNueva);
+            @RequestBody EditarClaveRequest datos) {
+        usuarioService.cambiarClave(datos.getClaveActual(), datos.getClaveNueva());
         return ResponseEntity.ok(ApiResponse.ok("Contraseña actualizada correctamente"));
     }
 }

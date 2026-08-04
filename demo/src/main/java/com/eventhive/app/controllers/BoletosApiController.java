@@ -28,9 +28,9 @@ public class BoletosApiController {
     }
 
     @PostMapping("/checkin/{codigoQR}")
-    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ORGANIZACION')")
     public ResponseEntity<ApiResponse<Void>> checkIn(@PathVariable String codigoQR) {
         serviceBoletos.realizarCheckIn(codigoQR);
-        return ResponseEntity.ok(ApiResponse.ok("Check-in realizado correctamente"));
+        return ResponseEntity.ok(ApiResponse.ok("¡¡Tiquete valido!! check-in realizado"));
     }
 }

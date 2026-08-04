@@ -116,8 +116,7 @@ public class ServicePromocion {
         promocionRepository.deleteById(id);
     }
 
-    // --- helpers privados ---
-
+    //metodos auxiliares
     private Promocion obtenerPromocionPorId(Long id) {
         return promocionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Promoción no encontrada: " + id));

@@ -6,7 +6,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class ValoracionUpdateRequest {
+public class ValoracionRequest {
     @NotNull
     private Long organizacionId;
 

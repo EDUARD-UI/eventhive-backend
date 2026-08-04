@@ -154,15 +154,6 @@ public class ServiceUsuario {
 
     @Transactional
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public void actualizarUsuario(String nombre, String telefono) {
-        Usuario u = authHelper.usuarioAutenticado();
-        u.setNombreCompleto(nombre);
-        u.setTelefono(telefono);
-        usuarioRepository.save(u);
-    }
-
-    @Transactional
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public void eliminarUsuario(Long id) {
         if (!usuarioRepository.existsById(id)) {
             throw new ResourceNotFoundException("Usuario no encontrado");

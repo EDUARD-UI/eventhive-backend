@@ -7,8 +7,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class CategoriaUpdateRequest {
+public class RolRequest {
     @NotBlank
-    @Size(max = 100)
-    private String nombre;
+    @Size(max = 50) private String nombre;
 }
