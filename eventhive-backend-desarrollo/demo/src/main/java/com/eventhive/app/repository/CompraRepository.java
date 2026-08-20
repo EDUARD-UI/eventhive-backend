@@ -1,0 +1,28 @@
+package com.eventhive.app.repository;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import com.eventhive.app.model.Compra;
+
+import java.util.Optional;
+
+public interface CompraRepository extends JpaRepository<Compra, Long> {
+
+    // Obtiene compras de un cliente con sus ítems y detalles cargados
+    @Query("""
+        SELECT DISTINCT c FROM Compra c
+        JOIN FETCH c.cliente
+        LEFT JOIN FETCH c.items i
+        LEFT JOIN FETCH i.evento
+        LEFT JOIN FETCH i.localidad
+        WHERE c.cliente.id = :clienteId
+        ORDER BY c.fechaCompra DESC
+        """)
+    Page<Compra> findByClienteIdConItems(@Param("clienteId") Long clienteId, Pageable pageable);
+
+    Optional<Compra> findByClienteIdAndIdempotencyKey(Long clienteId, String idempotencyKey);
+}
