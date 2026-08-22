@@ -13,22 +13,27 @@
 * **Implementación:** Se utilizará una relación muchos a muchos mediante una tabla intermedia que almacenará únicamente los identificadores de usuario y organizador. Esta estructura garantiza integridad referencial, consultas eficientes y un consumo mínimo de recursos incluso cuando la cantidad de seguidores crezca significativamente.
 
 <!--
+## 3. Integracion de paserela de pago
 
-## 3. Mapa de Eventos
+* **Tecnología:** Backend (Java).
+* **Implementación:** Se hara la implementacion de una pasarela de pagos para mas fiabilidad y uso de los estados del enum al proceso de los pagos con la app.
+-->
+
+## 4. Mapa de Eventos
 
 * **Tecnología:** PostgreSQL + PostGIS.
 * **Implementación:** Las ubicaciones de los eventos se almacenarán utilizando tipos geográficos nativos de PostGIS. Esto permitirá realizar búsquedas por proximidad, calcular distancias y mostrar eventos cercanos al usuario mediante consultas optimizadas directamente desde la base de datos sin necesidad de servicios externos adicionales.
 
--->
 
-## 4. Integración con Calendario
+
+## 5. Integración con Calendario
 
 * **Tecnología:** Backend (Java).
 * **Implementación:** El backend generará dinámicamente archivos `.ics` utilizando la información existente de cada evento. El usuario podrá importar estos archivos en Google Calendar, Outlook u otras aplicaciones compatibles sin requerir integraciones complejas ni almacenamiento adicional.
 
 ---
 
-## 5. Reputación de Organizadores
+## 6. Reputación de Organizadores
 
 * **Tecnología:** PostgreSQL.
 * **Implementación:** Las valoraciones continuarán almacenándose en la base de datos relacional. Para optimizar el rendimiento, cada organizador mantendrá métricas agregadas como calificación promedio y cantidad total de reseñas, actualizadas al registrarse una nueva valoración. Esto evitará cálculos repetitivos en cada consulta.
@@ -36,7 +41,7 @@
 ---
 
 <!--
-## 6. Lista de Espera para Eventos Agotados
+## 7. Lista de Espera para Eventos Agotados
 
 * Posible implementación:
 Se estudia manejar una lista de espera ordenada por fecha de registro para permitir que usuarios ocupen automáticamente cupos liberados por cancelaciones o vencimientos de reservas.
@@ -49,7 +54,7 @@ Se estudia manejar una lista de espera ordenada por fecha de registro para permi
 
 <!--
 
-## 7. Recomendación de Eventos (IA)
+## .8 Recomendación de Eventos (IA)
 
 * Posible implementación:
 Se analiza generar recomendaciones mediante procesos programados (cron jobs) que calculen afinidades según categorías visitadas, eventos asistidos y organizadores seguidos.

@@ -6,6 +6,7 @@ import com.eventhive.app.dto.request.EventoRequest;
 import com.eventhive.app.dto.request.ModeracionEventoRequest;
 import com.eventhive.app.dto.response.EventoBusquedaDTO;
 import com.eventhive.app.dto.response.EventoDTO;
+import com.eventhive.app.dto.response.EventoMapaDTO;
 import com.eventhive.app.dto.response.ModeracionEventoDTO;
 import com.eventhive.app.service.ServiceEvento;
 import com.eventhive.app.service.ServiceModeracion;
@@ -14,12 +15,16 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/eventos")
@@ -50,15 +55,16 @@ public class EventosApiController {
 
     @GetMapping("/buscar")
     public ResponseEntity<ApiResponse<PagedResponse<EventoBusquedaDTO>>> buscar(
-            @RequestParam String titulo,
+            @RequestParam(required = false) String titulo,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
             Pageable pageable) {
 
-        if (titulo == null || titulo.isBlank()) {
+        if ((titulo == null || titulo.isBlank()) && fecha == null) {
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("El parámetro 'titulo' es requerido"));
+                    .body(ApiResponse.error("Debe indicar al menos 'titulo' o 'fecha'"));
         }
 
-        var page = serviceEvento.buscarPorTitulo(titulo, pageable);
+        var page = serviceEvento.buscarEventos(titulo, fecha, pageable);
         return ResponseEntity.ok(ApiResponse.ok("Resultados de búsqueda",
                 new PagedResponse<>(page.getContent(), page.getNumber(),
                         page.getSize(), page.getTotalElements(), page.getTotalPages())));
@@ -70,6 +76,17 @@ public class EventosApiController {
         Long id = authHelper.usuarioAutenticado().getId();
         return ResponseEntity.ok(ApiResponse.ok("Eventos obtenidos",
                 serviceEvento.toPagedDTO(serviceEvento.listarPorOrganizador(id, pageable))));
+    }
+
+    @GetMapping("/mapa")
+    public ResponseEntity<ApiResponse<List<EventoMapaDTO>>> eventosParaMapa(
+            @RequestParam(required = false) Long categoriaId,
+            @RequestParam(required = false) Double lat,
+            @RequestParam(required = false) Double lng,
+            @RequestParam(required = false) Double radioKm) {
+
+        return ResponseEntity.ok(ApiResponse.ok("Eventos para el mapa",
+                serviceEvento.buscarParaMapa(categoriaId, lat, lng, radioKm)));
     }
 
     @GetMapping("/organizador/buscar")
@@ -118,7 +135,7 @@ public class EventosApiController {
     @PreAuthorize("hasRole('ORGANIZACION')")
     public ResponseEntity<ApiResponse<EventoDTO>> actualizar(
             @PathVariable Long id,
-            @RequestPart("datos") EventoRequest request,
+            @RequestPart("datos") @Valid EventoRequest request,
             @RequestPart(value = "foto", required = false) MultipartFile foto) {
 
         return ResponseEntity.ok(ApiResponse.ok("Evento actualizado",
@@ -145,46 +162,5 @@ public class EventosApiController {
     public ResponseEntity<ApiResponse<EventoDTO>> reactivar(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok("Evento reactivado",
                 serviceEvento.toDTO(serviceEvento.reactivarEvento(id))));
-    }
-
-    // Moderación
-    @GetMapping("/moderacion/pendientes")
-    @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> pendientesRevision(Pageable pageable) {
-        return ResponseEntity.ok(ApiResponse.ok("Eventos pendientes de revisión",
-                serviceEvento.toPagedDTO(serviceModeracion.listarPendientesRevision(pageable))));
-    }
-
-    @GetMapping("/{id}/moderaciones")
-
-    public ResponseEntity<ApiResponse<Page<ModeracionEventoDTO>>> historialModeracion(
-            @PathVariable Long id, Pageable pageable) {
-        return ResponseEntity.ok(ApiResponse.ok("Historial de moderación",
-                serviceModeracion.listarModeraciones(id, pageable)));
-    }
-
-    @PatchMapping("/{id}/aprobar")
-    @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<EventoDTO>> aprobar(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok("Evento aprobado y publicado",
-                serviceEvento.toDTO(serviceModeracion.aprobarEvento(id))));
-    }
-
-    @PatchMapping("/{id}/solicitar-correccion")
-    @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<EventoDTO>> solicitarCorreccion(
-            @PathVariable Long id,
-            @RequestBody ModeracionEventoRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok("Se solicitaron correcciones al organizador",
-                serviceEvento.toDTO(serviceModeracion.solicitarCorreccion(id, request.getMotivo(), request.getObservacion()))));
-    }
-
-    @PatchMapping("/{id}/rechazar")
-    @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<EventoDTO>> rechazar(
-            @PathVariable Long id,
-            @RequestBody ModeracionEventoRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok("Evento rechazado",
-                serviceEvento.toDTO(serviceModeracion.rechazarEvento(id, request.getMotivo(), request.getObservacion()))));
     }
 }

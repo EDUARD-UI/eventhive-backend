@@ -25,14 +25,16 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
+import org.locationtech.jts.geom.Point;
+
 @Entity
-@Table(name = "eventos", indexes = {
-    @Index(name = "idx_evento_organizador", columnList = "organizador_id"),
-    @Index(name = "idx_evento_categoria", columnList = "categoria_id"),
-    @Index(name = "idx_evento_estado", columnList = "estado"),
-    @Index(name = "idx_evento_fecha", columnList = "fecha"),
-    @Index(name = "idx_evento_fecha_creacion", columnList = "fecha_creacion"),
-    @Index(name = "idx_evento_fecha_publicacion", columnList = "fecha_publicacion")
+@Table(
+        name = "eventos", indexes = {
+        @Index(name = "idx_evento_organizador", columnList = "organizador_id"),
+        @Index(name = "idx_evento_categoria", columnList = "categoria_id"),
+        @Index(name = "idx_evento_estado", columnList = "estado"),
+        @Index(name = "idx_evento_fecha", columnList = "fecha"),
+        @Index(name = "idx_evento_fecha_creacion", columnList = "fecha_creacion")
 })
 @Getter
 @Setter
@@ -60,15 +62,15 @@ public class Evento {
     @Column(name = "fecha_creacion", nullable = false, updatable = false)
     private LocalDateTime fechaCreacion;
 
-    @Column(name = "fecha_publicacion", nullable = false)
-    private LocalDateTime fechaPublicacion;
-
     @Column(length = 200)
     private String lugar;
 
-    private Double latitud;
+    @Column(name = "ubicacion", columnDefinition = "geography(Point,4326)")
+    private Point ubicacion;
 
-    private Double longitud;
+    // URL del Codigo PULEP
+    @Column(name = "url_pulep", length = 500)
+    private String urlPulep;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -82,12 +84,8 @@ public class Evento {
     @JoinColumn(name = "organizador_id", nullable = false)
     private Usuario organizador;
 
-    @OneToMany(
-        mappedBy = "evento",
-        cascade = CascadeType.ALL,
-        orphanRemoval = true,
-        fetch = FetchType.LAZY
-    )
+    @OneToMany(mappedBy = "evento", cascade = CascadeType.ALL,
+            orphanRemoval = true, fetch = FetchType.LAZY)
     private List<Localidad> localidades;
 
     @PrePersist

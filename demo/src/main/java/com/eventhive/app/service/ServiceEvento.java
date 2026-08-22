@@ -6,6 +6,7 @@ import com.eventhive.app.dto.request.EventoRequest;
 import com.eventhive.app.dto.response.EventoBusquedaDTO;
 import com.eventhive.app.dto.response.EventoCategoriaDTO;
 import com.eventhive.app.dto.response.EventoDTO;
+import com.eventhive.app.dto.response.EventoMapaDTO;
 import com.eventhive.app.dto.response.EventoOrganizadorDTO;
 import com.eventhive.app.enums.EstadoEvento;
 import com.eventhive.app.enums.MotivosRechazos;
@@ -19,6 +20,10 @@ import com.eventhive.app.repository.CategoriaRepository;
 import com.eventhive.app.repository.EventoRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
 import lombok.RequiredArgsConstructor;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.PrecisionModel;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -27,8 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -43,7 +47,7 @@ public class ServiceEvento {
     private final SupabaseStorageConfig storageConfig;
     private final ServiceNivelOrganizacion serviceNivelOrganizacion;
 
-    private static final DateTimeFormatter FMT = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+    private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory(new PrecisionModel(), 4326);
 
     // Consultas
     @Transactional(readOnly = true)
@@ -66,14 +70,36 @@ public class ServiceEvento {
         return eventoRepository.findByOrganizadorIdAndTituloConReferencias(organizadorId, titulo, pageable);
     }
 
+    // Búsqueda pública por título y/o fecha
     @Transactional(readOnly = true)
-    public Page<EventoBusquedaDTO> buscarPorTitulo(String titulo, Pageable pageable) {
+    public Page<EventoBusquedaDTO> buscarEventos(String titulo, LocalDate fecha, Pageable pageable) {
+        String tituloNormalizado = (titulo != null && !titulo.isBlank()) ? titulo.trim() : null;
+
         return eventoRepository
-                .findByTituloVisibles(titulo, pageable)
+                .findByTituloOrFechaVisibles(tituloNormalizado, fecha, pageable)
                 .map(e -> new EventoBusquedaDTO(
                         e.getId(),
                         e.getTitulo(),
                         e.getCategoria() != null ? e.getCategoria().getNombre() : null));
+    }
+
+    // Eventos para el mapa: filtra por categoría y/o radio de distancia
+    @Transactional(readOnly = true)
+    public List<EventoMapaDTO> buscarParaMapa(Long categoriaId, Double lat, Double lng, Double radioKm) {
+
+        boolean algunoInformado = lat != null || lng != null || radioKm != null;
+        boolean todosInformados = lat != null && lng != null && radioKm != null;
+        if (algunoInformado && !todosInformados) {
+            throw new BusinessException("Para filtrar por distancia debe enviar 'lat', 'lng' y 'radioKm' juntos");
+        }
+
+        Double radioMetros = radioKm != null ? radioKm * 1000 : null;
+
+        return eventoRepository.findParaMapa(categoriaId, lat, lng, radioMetros).stream()
+                .map(p -> new EventoMapaDTO(
+                        p.getId(), p.getTitulo(), p.getDescripcion(),
+                        p.getCategoriaNombre(), p.getLatitud(), p.getLongitud()))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -84,7 +110,6 @@ public class ServiceEvento {
         }
         if (categoriaId != null) {
             return eventoRepository.findByEstadoConReferencias(EstadoEvento.PUBLICADO, pageable); // fallback seguro
-
         }
         if (estado != null && !estado.isBlank()) {
             try {
@@ -116,7 +141,6 @@ public class ServiceEvento {
         Usuario organizador = authHelper.usuarioAutenticado();
         Categoria categoria = resolverCategoria(request.getCategoriaId());
 
-        // Solo un organizador con SolicitudVerificacion aprobada tiene perfil de Organizacion
         if (organizador.getOrganizacion() == null) {
             throw new BusinessException("Debe completar la verificación como organización antes de crear eventos");
         }
@@ -158,7 +182,7 @@ public class ServiceEvento {
         mapearCampos(evento, request, categoria);
 
         if (estadoAnterior == EstadoEvento.EN_CORRECCION) {
-            evento.setEstado(EstadoEvento.PENDIENTE_REVISION); // la corrección vuelve a entrar a la cola
+            evento.setEstado(EstadoEvento.PENDIENTE_REVISION);
         }
         if (foto != null && !foto.isEmpty()) {
             eliminarFotoAnterior(evento.getFoto());
@@ -215,7 +239,6 @@ public class ServiceEvento {
         return guardado;
     }
 
-    // Marca como FINALIZADO cualquier evento publicado cuya fecha ya pasó, y evalúa el ascenso del organizador
     @Transactional
     public void finalizarEventosVencidos(LocalDate hoy) {
         eventoRepository.findByFechaAnteriorYEstado(hoy, EstadoEvento.PUBLICADO).forEach(evento -> {
@@ -226,8 +249,6 @@ public class ServiceEvento {
         });
     }
 
-    // Nivel de confianza de la organización
-    // Bloquea la creación si la organización ya alcanzó el máximo de eventos activos de su nivel
     private void verificarLimiteDeNivel(Usuario organizador) {
         int maximo = organizador.getOrganizacion().getNivel().maxEventosActivos();
         long activos = eventoRepository.countActivosByOrganizadorId(organizador.getId());
@@ -237,7 +258,6 @@ public class ServiceEvento {
         }
     }
 
-    //una organización de nivel máximo publica directo; el resto entra a PENDIENTE_REVISION
     private EstadoEvento estadoInicial(Usuario organizador) {
         if (organizador.getOrganizacion().getNivel().permitePublicacionAutomatica()) {
             return EstadoEvento.PUBLICADO;
@@ -266,6 +286,11 @@ public class ServiceEvento {
         dto.setHora(e.getHora());
         dto.setLocalidades(e.getLocalidades());
         dto.setEstado(e.getEstado());
+
+        if (e.getUbicacion() != null) {
+            dto.setLatitud(e.getUbicacion().getY());
+            dto.setLongitud(e.getUbicacion().getX());
+        }
 
         if (e.getCategoria() != null) {
             dto.setCategoria(new EventoCategoriaDTO(
@@ -298,15 +323,11 @@ public class ServiceEvento {
         evento.setFecha(req.getFecha());
         evento.setHora(req.getHora());
         evento.setLugar(req.getLugar());
-        evento.setLatitud(req.getLatitud());
-        evento.setLongitud(req.getLongitud());
         evento.setCategoria(categoria);
 
-        if (req.getFechaPublicacion() != null && !req.getFechaPublicacion().isBlank()) {
-            evento.setFechaPublicacion(LocalDateTime.parse(req.getFechaPublicacion(), FMT));
-        } else if (evento.getFechaPublicacion() == null) {
-            evento.setFechaPublicacion(LocalDateTime.now());
-        }
+        // JTS usa orden (x=longitud, y=latitud)
+        Point punto = GEOMETRY_FACTORY.createPoint(new Coordinate(req.getLongitud(), req.getLatitud()));
+        evento.setUbicacion(punto);
     }
 
     private Categoria resolverCategoria(Long categoriaId) {

@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/Eventhive_Backend.iml" filepath="$PROJECT_DIR$/.idea/Eventhive_Backend.iml" />
+      <module fileurl="file://$PROJECT_DIR$/demo/app.iml" filepath="$PROJECT_DIR$/demo/app.iml" />
     </modules>
   </component>
 </project>

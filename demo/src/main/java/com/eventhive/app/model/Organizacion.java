@@ -30,7 +30,7 @@ public class Organizacion {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Datos legales de la organización (copiados de la SolicitudVerificacion aprobada)
+    // Datos legales de la organización
     @Column(name = "razon_social", nullable = false, length = 200)
     private String razonSocial;
 

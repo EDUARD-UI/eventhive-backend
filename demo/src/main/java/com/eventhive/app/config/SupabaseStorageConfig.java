@@ -26,4 +26,7 @@ public class SupabaseStorageConfig {
 
     @Value("${supabase.bucket.categorias}")
     private String bucketCategorias;
+
+    @Value("${supabase.bucket.permisos}")
+    private String bucketPermisos;
 }

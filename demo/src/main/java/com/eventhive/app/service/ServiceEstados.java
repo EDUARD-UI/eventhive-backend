@@ -8,7 +8,7 @@ import java.util.List;
 @Service
 public class ServiceEstados {
 
-    public List<MotivosRechazos> findMotivosRechazos(){
+    public List<MotivosRechazos> findMotivosRechazos() {
         return List.of(MotivosRechazos.values());
     }
 }

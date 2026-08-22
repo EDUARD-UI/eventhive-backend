@@ -6,14 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.eventhive.app.dto.ApiResponse;
@@ -47,15 +40,15 @@ public class VerificacionApiController {
         return ResponseEntity.ok(ApiResponse.ok("Solicitud obtenida", serviceSolicitud.miSolicitud()));
     }
 
-    @GetMapping("/panel")
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @GetMapping("/pendientes")
+    @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('MODERADOR')")
     public ResponseEntity<ApiResponse<Page<SolicitudVerificacionDTO>>> obtenerSolicitudes(Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.ok("Solicitudes obtenidas",
                 serviceSolicitud.obtenerSolicitudesPendientes(pageable)));
     }
 
     @GetMapping("/{solicitudId}")
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('MODERADOR')")
     public ResponseEntity<ApiResponse<SolicitudVerificacionDTO>> obtenerDetalles(
             @PathVariable Long solicitudId) {
         return ResponseEntity.ok(ApiResponse.ok("Solicitud obtenida",
@@ -63,15 +56,23 @@ public class VerificacionApiController {
     }
 
     @PutMapping("/{solicitudId}/aprobar")
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('MODERADOR')")
     public ResponseEntity<ApiResponse<String>> aprobarSolicitud(@PathVariable Long solicitudId) {
         String claveGenerada = serviceSolicitud.aprobarSolicitud(solicitudId);
         return ResponseEntity.ok(ApiResponse.ok(
                 "Solicitud aprobada. Comparte esta contraseña con el organizador", claveGenerada));
     }
 
+    @PatchMapping("/{solicitudId}/solicitar-correccion")
+    @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('MODERADOR')")
+    public ResponseEntity<ApiResponse<SolicitudVerificacionDTO>> solicitarCorreccion(
+            @PathVariable Long solicitudId, @RequestParam String motivo){
+        serviceSolicitud.solicitarCorreccion(solicitudId, motivo);
+        return ResponseEntity.ok(ApiResponse.ok("Solicitud marcada para correccion"));
+    }
+
     @PutMapping("/{solicitudId}/rechazar")
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('MODERADOR')")
     public ResponseEntity<ApiResponse<Void>> rechazarSolicitud(
             @PathVariable Long solicitudId,
             @RequestParam String motivo) {

@@ -20,6 +20,8 @@ public class EventoDTO {
     private LocalDate fecha;
     private LocalTime hora;
     private EstadoEvento estado;
+    private Double latitud;
+    private Double longitud;
     private EventoCategoriaDTO categoria;
     private EventoOrganizadorDTO organizador;
     private List<Localidad> localidades;

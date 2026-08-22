@@ -19,9 +19,9 @@ public class EstadosApiController {
 
     private final ServiceEstados serviceEstados;
 
-    @GetMapping("/Motivos-rechazos")
+    @GetMapping("/motivos-rechazos")
     @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('MODERADOR')")
-    public ResponseEntity<ApiResponse<List<MotivosRechazos>>> listarMotivosRechazos(){
+    public ResponseEntity<ApiResponse<List<MotivosRechazos>>> listarMotivosRechazos() {
         return ResponseEntity.ok(ApiResponse.ok("Motivos de rechazos obtenidos", serviceEstados.findMotivosRechazos()));
     }
 }

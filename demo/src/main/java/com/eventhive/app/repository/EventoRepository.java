@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.eventhive.app.repository.projection.EventoMapaProjection;
 import com.eventhive.app.enums.EstadoEvento;
 import com.eventhive.app.model.Evento;
 
@@ -38,18 +39,48 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
             @Param("categoriaId") Long categoriaId,
             Pageable pageable);
 
-    // Busca eventos publicados cuyo título coincide con el texto indicado
+    // Busca eventos publicados por título y/o fecha (al menos uno debe venir informado)
     @Query("""
-        SELECT e FROM Evento e
-        JOIN FETCH e.categoria
-        JOIN FETCH e.organizador o
-        JOIN FETCH o.rol
-        WHERE LOWER(e.titulo) LIKE LOWER(CONCAT('%', :titulo, '%'))
-          AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
-        """)
-    Page<Evento> findByTituloVisibles(
+    SELECT e FROM Evento e
+    JOIN FETCH e.categoria
+    JOIN FETCH e.organizador o
+    JOIN FETCH o.rol
+    WHERE e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
+      AND (:titulo IS NULL OR LOWER(e.titulo) LIKE LOWER(CONCAT('%', :titulo, '%')))
+      AND (:fecha IS NULL OR e.fecha = :fecha)
+    """)
+    Page<Evento> findByTituloOrFechaVisibles(
             @Param("titulo") String titulo,
+            @Param("fecha") LocalDate fecha,
             Pageable pageable);
+
+    @Query(value = """
+    SELECT e.id AS id,
+           e.titulo AS titulo,
+           e.descripcion AS descripcion,
+           c.nombre AS categoriaNombre,
+           ST_Y(e.ubicacion::geometry) AS latitud,
+           ST_X(e.ubicacion::geometry) AS longitud
+    FROM eventos e
+    JOIN categorias c ON c.id = e.categoria_id
+    WHERE e.estado = 'PUBLICADO'
+      AND (:categoriaId IS NULL OR e.categoria_id = :categoriaId)
+      AND (
+            CAST(:lat AS double precision) IS NULL
+            OR CAST(:lng AS double precision) IS NULL
+            OR CAST(:radioMetros AS double precision) IS NULL
+            OR ST_DWithin(
+                 e.ubicacion,
+                 ST_SetSRID(ST_MakePoint(CAST(:lng AS double precision), CAST(:lat AS double precision)), 4326)::geography,
+                 CAST(:radioMetros AS double precision)
+               )
+          )
+    """, nativeQuery = true)
+    List<EventoMapaProjection> findParaMapa(
+            @Param("categoriaId") Long categoriaId,
+            @Param("lat") Double lat,
+            @Param("lng") Double lng,
+            @Param("radioMetros") Double radioMetros);
 
     // Obtiene todos los eventos con sus referencias cargadas
     @Query("""

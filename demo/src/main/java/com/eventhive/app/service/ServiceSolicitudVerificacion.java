@@ -169,4 +169,13 @@ public class ServiceSolicitudVerificacion {
             dto.setAdministradorNombre(s.getAdministradorQueResolvi().getNombreCompleto());
         return dto;
     }
+
+    public void solicitarCorreccion(Long solicitudId, String motivo) {
+        SolicitudVerificacion solicitud = obtenerPendiente(solicitudId);
+        solicitud.setEstado(EstadoSolicitud.CORRECCION_SOLICITADA);
+        solicitud.setMotivoRechazo(motivo);
+        solicitud.setFechaResolucion(LocalDateTime.now());
+        solicitud.setAdministradorQueResolvi(authHelper.usuarioAutenticado());
+        solicitudRepository.save(solicitud);
+    }
 }

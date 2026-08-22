@@ -1,11 +1,15 @@
 package com.eventhive.app.service;
 
+import com.eventhive.app.dto.PagedResponse;
+import com.eventhive.app.dto.response.OrganizacionDTO;
 import com.eventhive.app.dto.response.UsuarioDTO;
 import com.eventhive.app.dto.response.UsuarioSesionDTO;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
+import com.eventhive.app.model.Organizacion;
 import com.eventhive.app.model.Rol;
 import com.eventhive.app.model.Usuario;
+import com.eventhive.app.repository.OrganizacionRepository;
 import com.eventhive.app.repository.RolesRepository;
 import com.eventhive.app.repository.UsuarioRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
@@ -17,12 +21,15 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class ServiceUsuario {
 
     private final UsuarioRepository usuarioRepository;
     private final RolesRepository rolesRepository;
+    private final OrganizacionRepository organizacionRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticatedUserHelper authHelper;
     private final ServiceNotification serviceNotification;
@@ -43,6 +50,16 @@ public class ServiceUsuario {
     @Transactional(readOnly = true)
     public Page<UsuarioDTO> obtenerModeradoresDTO(Pageable pageable) {
         return usuarioRepository.findByRolNombre("MODERADOR", pageable).map(this::toDTO);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<UsuarioDTO> obtenerOrganizaciones(Pageable pageable) {
+        return usuarioRepository.findByRolNombre("ORGANIZACION", pageable).map(this::toDTO);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<OrganizacionDTO> obtenerTopOrganizaciones(Pageable pageable) {
+        return organizacionRepository.findTopOrganizaciones(pageable).map(this::toOrganizacionDTO);
     }
 
     @Transactional(readOnly = true)
@@ -199,6 +216,34 @@ public class ServiceUsuario {
         dto.setCorreo(u.getCorreo());
         dto.setTelefono(u.getTelefono());
         dto.setRolNombre(u.getRol() != null ? u.getRol().getNombre() : "");
+        return dto;
+    }
+
+    public PagedResponse<UsuarioDTO> toPaged(Page<UsuarioDTO> page) {
+        return new PagedResponse<>(page.getContent(), page.getNumber(), page.getSize(),
+                page.getTotalElements(), page.getTotalPages());
+    }
+
+    public PagedResponse<OrganizacionDTO> toPagedOrganizacion(Page<OrganizacionDTO> page) {
+        return new PagedResponse<>(page.getContent(), page.getNumber(), page.getSize(),
+                page.getTotalElements(), page.getTotalPages());
+    }
+
+    private OrganizacionDTO toOrganizacionDTO(Organizacion o) {
+        OrganizacionDTO dto = new OrganizacionDTO();
+        dto.setId(o.getId());
+        dto.setRazonSocial(o.getRazonSocial());
+        dto.setNit(o.getNit());
+        dto.setRepresentanteLegal(o.getRepresentanteLegal());
+        dto.setUrlRut(o.getUrlRut());
+        dto.setFechaCreacion(o.getFechaCreacion());
+        dto.setPromedioRating(o.getPromedioRating());
+        dto.setTotalValoraciones(o.getTotalValoraciones());
+        dto.setTotalSeguidores(o.getTotalSeguidores());
+        dto.setTotalEventosCreados(o.getTotalEventosCreados());
+        dto.setEventosFinalizados(o.getEventosFinalizados());
+        dto.setEventosRechazados(o.getEventosRechazados());
+        dto.setNivel(o.getNivel());
         return dto;
     }
 }
