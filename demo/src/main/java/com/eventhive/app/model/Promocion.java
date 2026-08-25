@@ -34,6 +34,8 @@ public class Promocion {
     @Column(nullable = false)
     private Double descuento;
 
+    //quien la hizo.
+
     @Column(name = "fecha_inicio", nullable = false)
     private LocalDate fechaInicio;
 

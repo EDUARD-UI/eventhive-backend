@@ -34,7 +34,7 @@ public class ServiceUsuario {
     private final AuthenticatedUserHelper authHelper;
     private final ServiceNotification serviceNotification;
 
-    //consultas
+    //CONSULTAS Y FILTROS
     @Transactional(readOnly = true)
     public Usuario obtenerUsuarioPorId(Long id) {
         return usuarioRepository.findById(id)
@@ -53,8 +53,8 @@ public class ServiceUsuario {
     }
 
     @Transactional(readOnly = true)
-    public Page<UsuarioDTO> obtenerOrganizaciones(Pageable pageable) {
-        return usuarioRepository.findByRolNombre("ORGANIZACION", pageable).map(this::toDTO);
+    public Page<OrganizacionDTO> obtenerOrganizaciones(Pageable pageable) {
+        return organizacionRepository.findAll(pageable).map(this::toOrganizacionDTO);
     }
 
     @Transactional(readOnly = true)
@@ -102,7 +102,7 @@ public class ServiceUsuario {
         return usuarioRepository.findAll(pageable);
     }
 
-    //operaciones crud
+    //OPERACIONES CRUD
     @Transactional
     @PreAuthorize("isAuthenticated()")
     public UsuarioDTO actualizarPerfil(UsuarioDTO dto) {
@@ -196,7 +196,7 @@ public class ServiceUsuario {
         usuarioRepository.save(u);
     }
 
-    // metodos auxiliares
+    // METODOS AUXILIARES Y MAPEO
     private UsuarioDTO toDTO(Usuario u) {
         UsuarioDTO dto = new UsuarioDTO();
         dto.setId(u.getId());
@@ -234,7 +234,7 @@ public class ServiceUsuario {
         dto.setId(o.getId());
         dto.setRazonSocial(o.getRazonSocial());
         dto.setNit(o.getNit());
-        dto.setRepresentanteLegal(o.getRepresentanteLegal());
+        dto.setRepresentante(o.getRepresentante().getNombreCompleto());
         dto.setUrlRut(o.getUrlRut());
         dto.setFechaCreacion(o.getFechaCreacion());
         dto.setPromedioRating(o.getPromedioRating());

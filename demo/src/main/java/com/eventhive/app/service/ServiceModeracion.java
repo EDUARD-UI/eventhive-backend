@@ -9,6 +9,7 @@ import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Evento;
 import com.eventhive.app.model.ModeracionEvento;
 import com.eventhive.app.model.Usuario;
+import com.eventhive.app.model.Organizacion;
 import com.eventhive.app.repository.EventoRepository;
 import com.eventhive.app.repository.ModeracionEventoRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
@@ -30,6 +31,7 @@ public class ServiceModeracion {
     private final AuthenticatedUserHelper authHelper;
     private final ServiceNotification serviceNotification;
 
+    //CONSULTAS
     @Transactional(readOnly = true)
     @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
     public Page<Evento> listarPendientesRevision(Pageable pageable) {
@@ -37,22 +39,23 @@ public class ServiceModeracion {
     }
 
     @Transactional(readOnly = true)
-    public Page<ModeracionEventoDTO> listarModeraciones(Long eventoId, Pageable pageable) {
-        Evento evento = obtenerPorId(eventoId);
+    public Page<ModeracionEventoDTO> HistorialModeraciones(Long eventoId, Pageable pageable) {
+        Evento evento = obtenerPorId(eventoId);//validar que el evento existe
         Usuario usuario = authHelper.usuarioAutenticado();
-        boolean esOwner = evento.getOrganizador() != null && usuario.getId().equals(evento.getOrganizador().getId());
+        boolean esRepresentante = evento.getOrganizacion() != null && usuario.getId().equals(evento.getOrganizacion().getRepresentante().getId());
 
-        if (!esOwner) {
+        if (!esRepresentante) {
             throw new BusinessException("No autorizado para ver el historial de este evento");
         }
 
         return moderacionRepository.findByEventoId(eventoId, pageable).map(this::toModeracionDTO);
     }
 
+    //OPERACIONES DE MODERACION
     @Transactional
     @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
-    public Evento aprobarEvento(Long id) {
-        Evento evento = obtenerEnRevision(id);
+    public Evento aprobarEvento(Long eventoId) {
+        Evento evento = obtenerEnRevision(eventoId);
         evento.setEstado(EstadoEvento.PUBLICADO);
         registrarModeracion(evento, EstadoEvento.PUBLICADO, null, null);
 
@@ -63,9 +66,9 @@ public class ServiceModeracion {
 
     @Transactional
     @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
-    public Evento solicitarCorreccion(Long id, MotivosRechazos motivo, String observacion) {
+    public Evento solicitarCorreccion(Long eventoId, MotivosRechazos motivo, String observacion) {
         validarMotivo(motivo, observacion);
-        Evento evento = obtenerEnRevision(id);
+        Evento evento = obtenerEnRevision(eventoId);
         evento.setEstado(EstadoEvento.EN_CORRECCION);
         registrarModeracion(evento, EstadoEvento.EN_CORRECCION, motivo, observacion);
         return eventoRepository.save(evento);
@@ -73,24 +76,22 @@ public class ServiceModeracion {
 
     @Transactional
     @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
-    public Evento rechazarEvento(Long id, MotivosRechazos motivo, String observacion) {
+    public Evento rechazarEvento(Long eventoId, MotivosRechazos motivo, String observacion) {
         validarMotivo(motivo, observacion);
-        Evento evento = obtenerEnRevision(id);
+        Evento evento = obtenerEnRevision(eventoId);
         evento.setEstado(EstadoEvento.RECHAZADO);
         registrarModeracion(evento, EstadoEvento.RECHAZADO, motivo, observacion);
 
-        Usuario organizador = evento.getOrganizador();
-        organizador.getOrganizacion().setEventosRechazados(organizador.getOrganizacion().getEventosRechazados() + 1);
+        Organizacion organizacion = evento.getOrganizacion();
+        organizacion.setEventosRechazados(organizacion.getEventosRechazados() + 1);
         return eventoRepository.save(evento);
     }
 
-    // Única acción del ADMINISTRADOR sobre un evento ya publicado: suspenderlo.
-    // No puede crearlo, editarlo ni eliminarlo (eso es exclusivo del organizador dueño).
     @Transactional
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public Evento suspenderEvento(Long id, MotivosRechazos motivo, String observacion) {
+    public Evento suspenderEvento(Long eventoId, MotivosRechazos motivo, String observacion) {
         validarMotivo(motivo, observacion);
-        Evento evento = obtenerPorId(id);
+        Evento evento = obtenerPorId(eventoId);
         if (evento.getEstado() != EstadoEvento.PUBLICADO)
             throw new BusinessException("Solo se pueden suspender eventos en estado PUBLICADO");
 
@@ -105,8 +106,8 @@ public class ServiceModeracion {
     // Revierte una suspensión: el evento vuelve a estar visible/PUBLICADO
     @Transactional
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public Evento reactivarEvento(Long id) {
-        Evento evento = obtenerPorId(id);
+    public Evento reactivarEvento(Long eventoId) {
+        Evento evento = obtenerPorId(eventoId);
         if (evento.getEstado() != EstadoEvento.SUSPENDIDO)
             throw new BusinessException("Solo se pueden reactivar eventos en estado SUSPENDIDO");
 
@@ -118,6 +119,8 @@ public class ServiceModeracion {
         return guardado;
     }
 
+    //METODOS AUXILIARES
+    //validar que exista un motivo y la observacion si es OTRO
     private void validarMotivo(MotivosRechazos motivo, String observacion) {
         if (motivo == null) {
             throw new BusinessException("El motivo es requerido");
@@ -127,37 +130,32 @@ public class ServiceModeracion {
         }
     }
 
-    private Evento obtenerEnRevision(Long id) {
-        Evento evento = obtenerPorId(id);
+    //validar que el evento este en revision
+    private Evento obtenerEnRevision(Long eventoId) {
+        Evento evento = obtenerPorId(eventoId);
         if (evento.getEstado() != EstadoEvento.PENDIENTE_REVISION) {
             throw new BusinessException("Solo se pueden moderar eventos en estado PENDIENTE_REVISION");
         }
         return evento;
     }
 
-    private void registrarModeracion(Evento evento, EstadoEvento resultado, MotivosRechazos motivo, String observacion) {
+    private void registrarModeracion(Evento evento, EstadoEvento estadoFinal, MotivosRechazos motivo, String observacion) {
         ModeracionEvento moderacion = new ModeracionEvento();
         moderacion.setEvento(evento);
         moderacion.setModerador(authHelper.usuarioAutenticado());
-        moderacion.setEstadoResultante(resultado);
+        moderacion.setEstadoResultante(estadoFinal);
         moderacion.setMotivo(motivo);
         moderacion.setObservacion(motivo == MotivosRechazos.OTRO ? observacion : null);
         moderacion.setFecha(LocalDateTime.now());
         moderacionRepository.save(moderacion);
     }
 
-    private Evento obtenerPorId(Long id) {
-        return eventoRepository.findByIdConReferencias(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con id: " + id));
+    private Evento obtenerPorId(Long eventoId) {
+        return eventoRepository.findByIdConReferencias(eventoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con id: " + eventoId));
     }
 
-    private boolean esStaff(Usuario usuario) {
-        return usuario != null
-                && usuario.getRol() != null
-                && ("ADMINISTRADOR".equals(usuario.getRol().getNombre())
-                || "MODERADOR".equals(usuario.getRol().getNombre()));
-    }
-
+    //METODOS DE MAPEO
     private ModeracionEventoDTO toModeracionDTO(ModeracionEvento moderacion) {
         ModeracionEventoDTO dto = new ModeracionEventoDTO();
         dto.setId(moderacion.getId());

@@ -3,8 +3,11 @@ package com.eventhive.app.controllers;
 import com.eventhive.app.dto.ApiResponse;
 import com.eventhive.app.dto.PagedResponse;
 import com.eventhive.app.dto.request.EditarClaveRequest;
+import com.eventhive.app.dto.response.OrganizacionDTO;
 import com.eventhive.app.dto.response.UsuarioDTO;
+import com.eventhive.app.model.Organizacion;
 import com.eventhive.app.model.Usuario;
+import com.eventhive.app.service.ServiceSeguidor;
 import com.eventhive.app.service.ServiceUsuario;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -20,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 public class UsuariosApiController {
 
     private final ServiceUsuario usuarioService;
+    private final ServiceSeguidor seguidorService;
 
     @GetMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")
@@ -93,28 +97,13 @@ public class UsuariosApiController {
         return ResponseEntity.ok(ApiResponse.ok("Usuario obtenido", dto));
     }
 
-    @PostMapping
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<Void>> crear(
-            @RequestParam String nombre,
-            @RequestParam String correo,
-            @RequestParam String telefono,
-            @RequestParam String clave,
-            @RequestParam Long rolId) {
-
-        usuarioService.crearUsuario(nombre, correo, telefono, clave, rolId);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.ok("Usuario creado exitosamente"));
-    }
-
-    @PutMapping("/{id}/asignar-rol")
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<Void>> asignarRol(
-            @PathVariable Long id,
-            @RequestParam Long rolId) {
-
-        usuarioService.asignarRol(id, rolId);
-        return ResponseEntity.ok(ApiResponse.ok("Rol asignado exitosamente"));
+    @GetMapping("/misOrganizaciones-seguidas")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<PagedResponse<Organizacion>>> misOrganizacionesSeguidas(Pageable pageable) {
+        Page<Organizacion> page = seguidorService.listarOrganizacionesSeguidas(pageable);
+        PagedResponse<Organizacion> response = new PagedResponse<>(page.getContent(), page.getNumber(),
+                page.getSize(), page.getTotalElements(), page.getTotalPages());
+        return ResponseEntity.ok(ApiResponse.ok("Organizaciones seguidas obtenidas", response));
     }
 
     @DeleteMapping("/{id}")

@@ -3,6 +3,7 @@ package com.eventhive.app.service;
 import com.eventhive.app.dto.response.BoletosCompraDTO;
 import com.eventhive.app.dto.response.CompraResponseDTO;
 import com.eventhive.app.enums.EstadoCompra;
+import com.eventhive.app.enums.PermisoEvento;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Evento;
@@ -28,7 +29,7 @@ public class ServiceBoletos {
 
     //validar el ingreso de un tiquete por codigo qr
     @Transactional
-    @PreAuthorize("hasRole('ORGANIZACION')")
+    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
     public void realizarCheckIn(String codigoQR) {
         Tiquete tiquete = tiqueteRepository.findByCodigoQR(codigoQR)
                 .orElseThrow(() -> new ResourceNotFoundException("Tiquete no encontrado o inválido"));
@@ -65,11 +66,16 @@ public class ServiceBoletos {
 
     //validar IDOR
     private void validarPermisoCheckIn(Tiquete tiquete) {
-        Usuario staff = authHelper.usuarioAutenticado();
+        Usuario operador = authHelper.usuarioAutenticado();
 
-        Long organizadorEventoId = tiquete.getEvento().getOrganizador().getId();
-        if (!organizadorEventoId.equals(staff.getId())) {
+        Long organizacionID = tiquete.getEvento().getOrganizacion().getId();
+        if (!operador.getOrganizacion().getId().equals(organizacionID)) {
             throw new ResourceNotFoundException("Ups, No esta autorizado para operar este tiquete");
+        }
+
+        boolean esRepresentante = operador.getOrganizacion().getRepresentante().getId().equals(operador.getId());
+        if (!esRepresentante && !operador.getPermisosEvento().contains(PermisoEvento.CHECK_IN)) {
+            throw new BusinessException("No tienes permiso de check-in en esta organización");
         }
     }
 

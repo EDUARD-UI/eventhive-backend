@@ -21,7 +21,7 @@ import lombok.Setter;
 
 @Entity
 @Table(name = "solicitudes_verificacion", indexes = {
-    @Index(name = "idx_sv_organizador", columnList = "organizador_id"),
+    @Index(name = "idx_sv_representante", columnList = "representante_id"),
     @Index(name = "idx_sv_estado", columnList = "estado")
 })
 @Getter
@@ -33,8 +33,8 @@ public class SolicitudVerificacion {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organizador_id", nullable = false)
-    private Usuario organizador;
+    @JoinColumn(name = "representante_id", nullable = false)
+    private Usuario representanteLegal;
 
     // Datos de la empresa del organizador
     @Column(name = "razon_social", length = 200)
@@ -43,10 +43,6 @@ public class SolicitudVerificacion {
     @Column(name = "nit", length = 20)
     private String nit;
 
-    @Column(name = "representante_legal", length = 150)
-    private String representanteLegal;
-
-    // Correo con el que el organizador iniciará sesión al ser aprobado
     @Column(name = "correo_empresarial", length = 150)
     private String correoEmpresarial;
 

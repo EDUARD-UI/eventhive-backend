@@ -13,38 +13,31 @@ import com.eventhive.app.model.SolicitudVerificacion;
 
 public interface SolicitudVerificacionRepository extends JpaRepository<SolicitudVerificacion, Long> {
 
-    // Obtiene la última solicitud de verificación de un organizador
+    // Obtiene la última solicitud de verificación de un representante
     @Query("""
         SELECT s FROM SolicitudVerificacion s
-        JOIN FETCH s.organizador
-        WHERE s.organizador.id = :organizadorId
+        JOIN FETCH s.representanteLegal
+        WHERE s.representanteLegal.id = :representanteId
         ORDER BY s.fechaSolicitud DESC
         """)
-    Optional<SolicitudVerificacion> findFirstByOrganizadorId(
-            @Param("organizadorId") Long organizadorId);
+    Optional<SolicitudVerificacion> findFirstByRepresentanteId(@Param("representanteId") Long representanteId);
 
-    // Lista solicitudes de verificación por estado
     @Query("""
         SELECT s FROM SolicitudVerificacion s
-        JOIN FETCH s.organizador
+        JOIN FETCH s.representanteLegal
         WHERE s.estado = :estado
         ORDER BY s.fechaSolicitud ASC
         """)
-    Page<SolicitudVerificacion> findByEstado(
-            @Param("estado") EstadoSolicitud estado,
-            Pageable pageable);
+    Page<SolicitudVerificacion> findByEstado(@Param("estado") EstadoSolicitud estado, Pageable pageable);
 
-    // Comprueba si existe una solicitud activa para un organizador
     @Query("""
         SELECT COUNT(s) > 0 FROM SolicitudVerificacion s
-        WHERE s.organizador.id = :organizadorId
+        WHERE s.representanteLegal.id = :representanteId
           AND s.estado = :estado
         """)
-    boolean existsByOrganizadorIdAndEstado(
-            @Param("organizadorId") Long organizadorId,
-            @Param("estado") EstadoSolicitud estado);
+    boolean existsByRepresentanteIdAndEstado(@Param("representanteId") Long representanteId,
+                                             @Param("estado") EstadoSolicitud estado);
 
-    // Comprueba si ya existe una solicitud con el mismo correo empresarial
     @Query("""
         SELECT COUNT(s) > 0 FROM SolicitudVerificacion s
         WHERE s.correoEmpresarial = :correo

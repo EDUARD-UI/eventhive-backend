@@ -29,6 +29,7 @@ public class PromocionApiController {
     private final ServicePromocion servicePromocion;
     private final AuthenticatedUserHelper authHelper;
 
+    //CONSULTAS
     @GetMapping("/evento/{eventoId}")
     public ResponseEntity<ApiResponse<PromocionDTO>> porEvento(@PathVariable Long eventoId) {
         try {
@@ -78,24 +79,22 @@ public class PromocionApiController {
         return ResponseEntity.ok(ApiResponse.ok("Promociones obtenidas", response));
     }
 
-    @GetMapping("/organizador")
-    @PreAuthorize("hasRole('ORGANIZACION')")
-    public ResponseEntity<ApiResponse<PagedResponse<PromocionDTO>>> porOrganizador(Pageable pageable) {
+    @GetMapping("/mi-organizacion")
+    @PreAuthorize("hasRole('REPRESENTANTE') or hasRole('OPERADOR')")
+    public ResponseEntity<ApiResponse<PagedResponse<PromocionDTO>>> porOrganizacion(Pageable pageable) {
         Usuario usuario = authHelper.usuarioAutenticado();
-        Page<PromocionDTO> page = servicePromocion.obtenerDTOPorOrganizador(usuario.getId(), pageable);
-        PagedResponse<PromocionDTO> response = new PagedResponse<>(
-            page.getContent(),
-            page.getNumber(),
-            page.getSize(),
-            page.getTotalElements(),
-            page.getTotalPages()
-        );
+        if (usuario.getOrganizacion() == null) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("No perteneces a ninguna organización"));
+        }
+        Page<PromocionDTO> page = servicePromocion.obtenerDTOPorOrganizacion(usuario.getOrganizacion().getId(), pageable);
+        PagedResponse<PromocionDTO> response = new PagedResponse<>(page.getContent(), page.getNumber(),
+                page.getSize(), page.getTotalElements(), page.getTotalPages());
         return ResponseEntity.ok(ApiResponse.ok("Promociones obtenidas", response));
     }
 
-    // PromocionApiController.java
+    //OPERACIONES CRUD
     @PostMapping
-    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> crear(@Valid @RequestBody PromocionRequest request) {
 
         servicePromocion.crearPromocion(request.getEventoId(), request.getDescripcion(),
@@ -105,7 +104,7 @@ public class PromocionApiController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> actualizar(
             @PathVariable Long id, @Valid @RequestBody PromocionRequest request) {
 
@@ -116,7 +115,7 @@ public class PromocionApiController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long id) {
         Usuario usuario = authHelper.usuarioAutenticado();
         servicePromocion.eliminarPromocion(id, usuario);

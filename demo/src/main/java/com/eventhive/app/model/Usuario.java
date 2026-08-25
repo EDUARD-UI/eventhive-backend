@@ -1,16 +1,19 @@
 package com.eventhive.app.model;
 
+import com.eventhive.app.enums.PermisoEvento;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "usuarios", indexes = {
-    @Index(name = "idx_usuario_correo", columnList = "correo", unique = true),
-    @Index(name = "idx_usuario_rol",    columnList = "rol_id"),
-    @Index(name = "idx_usuario_organizacion", columnList = "organizacion_id")
+        @Index(name = "idx_usuario_correo", columnList = "correo", unique = true),
+        @Index(name = "idx_usuario_rol",    columnList = "rol_id"),
+        @Index(name = "idx_usuario_organizacion", columnList = "organizacion_id")
 })
 @Getter
 @Setter
@@ -20,12 +23,20 @@ public class Usuario {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Solo se asigna cuando el usuario (rol ORGANIZACION) es APROBADO en su
-    // SolicitudVerificacion; antes de eso permanece en null.
-    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
-    @JoinColumn(name = "organizacion_id", unique = true)
+    //organizacion
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organizacion_id")
     private Organizacion organizacion;
 
+    //solo Rol trabajador
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "usuario_permisos_evento",
+            joinColumns = @JoinColumn(name = "usuario_id"))
+    @Enumerated(EnumType.STRING)
+    @Column(name = "permiso", length = 30)
+    private Set<PermisoEvento> permisosEvento = new HashSet<>();
+
+    //datos personales
     @Column(nullable = false, length = 100)
     private String nombreCompleto;
 
@@ -45,6 +56,7 @@ public class Usuario {
     @JoinColumn(name = "rol_id", nullable = false)
     private Rol rol;
 
+    //datos de seguridad
     @Column(name = "intentos_fallidos", nullable = false)
     private int intentosFallidos = 0;
 

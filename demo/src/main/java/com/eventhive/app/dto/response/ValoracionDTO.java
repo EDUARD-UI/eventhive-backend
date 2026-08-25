@@ -9,8 +9,8 @@ public class ValoracionDTO {
     private Long   id;
     private String comentario;
     private long   calificacion;
-    private Long   organizadorId;
-    private String organizadorNombre;
+    private Long   organizacionId;
+    private String organizacionNombre;
     private Long   clienteId;
     private String clienteNombre;
 }

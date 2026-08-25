@@ -30,11 +30,11 @@ public class ValoracionesApiController {
                 serviceValoracion.obtenerValoracionesDTOPorUsuario(authHelper.usuarioAutenticado().getId(), pageable)));
     }
 
-    @GetMapping("/organizador/{organizadorId}")
-        public ResponseEntity<ApiResponse<Page<ValoracionDTO>>> valoracionesPorOrganizador(
-            @PathVariable("organizadorId") Long organizadorId, Pageable pageable) {
-        return ResponseEntity.ok(ApiResponse.ok("Valoraciones del organizador",
-            serviceValoracion.obtenerValoracionesDTOPorOrganizador(organizadorId, pageable)));
+    @GetMapping("/organizacion/{organizacionId}")
+    public ResponseEntity<ApiResponse<Page<ValoracionDTO>>> valoracionesPorOrganizacion(
+            @PathVariable("organizacionId") Long organizacionId, Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.ok("Valoraciones de la organización",
+                serviceValoracion.obtenerValoracionesDTOPorOrganizacion(organizacionId, pageable)));
     }
 
     @PostMapping

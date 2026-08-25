@@ -7,13 +7,11 @@ import com.eventhive.app.dto.request.ModeracionEventoRequest;
 import com.eventhive.app.dto.response.EventoBusquedaDTO;
 import com.eventhive.app.dto.response.EventoDTO;
 import com.eventhive.app.dto.response.EventoMapaDTO;
-import com.eventhive.app.dto.response.ModeracionEventoDTO;
 import com.eventhive.app.service.ServiceEvento;
 import com.eventhive.app.service.ServiceModeracion;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -48,9 +46,27 @@ public class EventosApiController {
         return ResponseEntity.ok(ApiResponse.ok("Eventos obtenidos", serviceEvento.toPagedDTO(page)));
     }
 
+    //eventos cercanos a la fecha actual
+    @GetMapping("/proximos")
+    public ResponseEntity<ApiResponse<List<EventoDTO>>> eventosProximos(){
+        return ResponseEntity.ok(ApiResponse.ok("Proximos eventos obtenidos",
+                serviceEvento.listarEventosProximos()));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<EventoDTO>> obtener(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok("Evento obtenido", serviceEvento.toDTO(serviceEvento.obtenerPorId(id))));
+        return ResponseEntity.ok(ApiResponse.ok("Evento obtenido", serviceEvento.toDTO(serviceEvento.obtenerReferenciasEvento(id))));
+    }
+
+    @GetMapping("/mapa")
+    public ResponseEntity<ApiResponse<List<EventoMapaDTO>>> eventosParaMapa(
+            @RequestParam(required = false) Long categoriaId,
+            @RequestParam(required = false) Double lat,
+            @RequestParam(required = false) Double lng,
+            @RequestParam(required = false) Double radioKm) {
+
+        return ResponseEntity.ok(ApiResponse.ok("Eventos para el mapa",
+                serviceEvento.buscarParaMapa(categoriaId, lat, lng, radioKm)));
     }
 
     @GetMapping("/buscar")
@@ -71,26 +87,15 @@ public class EventosApiController {
     }
 
     @GetMapping("/organizador")
-    @PreAuthorize("hasRole('ORGANIZACION')")
-    public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> eventosPorOrganzador(Pageable pageable) {
+    @PreAuthorize("hasRole('REPRESENTANTE')")
+    public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> eventosPorOrganizacion(Pageable pageable) {
         Long id = authHelper.usuarioAutenticado().getId();
         return ResponseEntity.ok(ApiResponse.ok("Eventos obtenidos",
-                serviceEvento.toPagedDTO(serviceEvento.listarPorOrganizador(id, pageable))));
-    }
-
-    @GetMapping("/mapa")
-    public ResponseEntity<ApiResponse<List<EventoMapaDTO>>> eventosParaMapa(
-            @RequestParam(required = false) Long categoriaId,
-            @RequestParam(required = false) Double lat,
-            @RequestParam(required = false) Double lng,
-            @RequestParam(required = false) Double radioKm) {
-
-        return ResponseEntity.ok(ApiResponse.ok("Eventos para el mapa",
-                serviceEvento.buscarParaMapa(categoriaId, lat, lng, radioKm)));
+                serviceEvento.toPagedDTO(serviceEvento.listarPorOrganizacion(id, pageable))));
     }
 
     @GetMapping("/organizador/buscar")
-    @PreAuthorize("hasRole('ORGANIZACION')")
+    @PreAuthorize("hasRole('REPRESENTANTE')")
     public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> filtrarMisEventos(
             @RequestParam String titulo,
             Pageable pageable) {
@@ -103,7 +108,7 @@ public class EventosApiController {
         Long id = authHelper.usuarioAutenticado().getId();
         return ResponseEntity.ok(ApiResponse.ok("Resultados de búsqueda",
                 serviceEvento.toPagedDTO(
-                        serviceEvento.buscarPorOrganizadorYTitulo(id, titulo, pageable))));
+                        serviceEvento.filtrarPorOrganizacionYTitulo(id, titulo, pageable))));
     }
 
     @GetMapping("/admin/buscar")
@@ -116,12 +121,12 @@ public class EventosApiController {
 
         return ResponseEntity.ok(ApiResponse.ok("Resultados de búsqueda",
                 serviceEvento.toPagedDTO(
-                        serviceEvento.buscarAdmin(titulo, categoriaId, estado, pageable))));
+                        serviceEvento.filtrarCrud(titulo, categoriaId, estado, pageable))));
     }
 
     //crud
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('ORGANIZACION')")
+    @PreAuthorize("hasRole('REPRESENTANTE')")
     public ResponseEntity<ApiResponse<EventoDTO>> crear(
             @RequestPart("datos") @Valid EventoRequest request,
             @RequestPart(value = "foto", required = false) MultipartFile foto){
@@ -132,7 +137,7 @@ public class EventosApiController {
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('ORGANIZACION')")
+    @PreAuthorize("hasRole('REPRESENTANTE')")
     public ResponseEntity<ApiResponse<EventoDTO>> actualizar(
             @PathVariable Long id,
             @RequestPart("datos") @Valid EventoRequest request,
@@ -143,24 +148,9 @@ public class EventosApiController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ORGANIZACION')")
+    @PreAuthorize("hasRole('REPRESENTANTE')")
     public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long id) {
         serviceEvento.eliminarEvento(id);
         return ResponseEntity.ok(ApiResponse.ok("Evento eliminado"));
-    }
-
-    @PatchMapping("/{id}/suspender")
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<EventoDTO>> suspender(@PathVariable Long id,
-            @RequestBody ModeracionEventoRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok("Evento suspendido",
-                serviceEvento.toDTO(serviceEvento.suspenderEvento(id, request.getMotivo(), request.getObservacion()))));
-    }
-
-    @PatchMapping("/{id}/reactivar")
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<EventoDTO>> reactivar(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok("Evento reactivado",
-                serviceEvento.toDTO(serviceEvento.reactivarEvento(id))));
     }
 }

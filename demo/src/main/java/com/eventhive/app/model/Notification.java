@@ -20,7 +20,7 @@ public class Notification {
     private String id;
 
     private Long usuarioId;
-    private Long organizadorId;
+    private Long organizacionId;
     private Long eventoId;
     private String nombreEvento;
     private TipoNotification tipoNotificacion;

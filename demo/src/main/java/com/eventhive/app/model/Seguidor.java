@@ -23,9 +23,9 @@ import lombok.Setter;
 @Table(
         name = "seguidores",
         uniqueConstraints = {
-            @UniqueConstraint(name = "uk_organizador_seguidor", columnNames = {"organizador_id", "seguidor_id"})
+            @UniqueConstraint(name = "uk_organizacion_seguidor", columnNames = {"organizacion_id", "seguidor_id"})
         }, indexes = {
-            @Index(name = "idx_seguidor_organizador", columnList = "organizador_id"),
+            @Index(name = "idx_seguidor_organizacion", columnList = "organizacion_id"),
             @Index(name = "idx_seguidor_usuario", columnList = "seguidor_id")
         }
 )
@@ -36,8 +36,8 @@ public class Seguidor {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organizador_id", nullable = false)
-    private Usuario organizador;
+    @JoinColumn(name = "organizacion_id", nullable = false)
+    private Organizacion organizacion;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "seguidor_id", nullable = false)

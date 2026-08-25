@@ -1,30 +1,36 @@
 package com.eventhive.app.repository;
 
-import java.util.List;
-
+import com.eventhive.app.model.Organizacion;
+import com.eventhive.app.model.Seguidor;
+import com.eventhive.app.model.Usuario;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import com.eventhive.app.model.Seguidor;
-import com.eventhive.app.model.Usuario;
+import java.util.List;
 
 public interface SeguidorRepository extends JpaRepository<Seguidor, Long> {
 
-    // Verifica si un usuario sigue a un organizador
-    boolean existsByOrganizadorIdAndSeguidorId(Long organizadorId, Long seguidorId);
+    //validar si existe la relacion de seguidor
+    boolean existsByOrganizacionIdAndSeguidorId(Long organizacionId, Long seguidorId);
 
-    // Elimina la relación de seguimiento entre organizador y usuario
-    void deleteByOrganizadorIdAndSeguidorId(Long organizadorId, Long seguidorId);
+    //elimnar la relacion de seguidor
+    void deleteByOrganizacionIdAndSeguidorId(Long organizacionId, Long seguidorId);
 
-    // Retorna los seguidores de un organizador
-    @Query("SELECT s.seguidor FROM Seguidor s WHERE s.organizador.id = :organizadorId")
-    List<Usuario> findSeguidoresByOrganizadorId(@Param("organizadorId") Long organizadorId);
+    // Retorna paginados los seguidores de una organización
+    @Query("SELECT s.seguidor FROM Seguidor s WHERE s.organizacion.id = :organizacionId")
+    Page<Usuario> findSeguidoresByOrganizacionId(@Param("organizacionId") Long organizacionId, Pageable pageable);
 
-    // Retorna los organizadores que sigue un usuario
-    @Query("SELECT s.organizador FROM Seguidor s WHERE s.seguidor.id = :seguidorId")
-    List<Usuario> findOrganizadoresBySeguidorId(@Param("seguidorId") Long seguidorId);
+    // Retorna todos los seguidores de una organización sin paginacion
+    @Query(" SELECT s.seguidor FROM Seguidor s WHERE s.organizacion.id = :organizacionId")
+    List<Usuario> findAllSeguidoresByOrganizacionId(@Param("organizacionId") Long organizacionId);
 
-    // Cuenta los seguidores de un organizador
-    long countByOrganizadorId(Long organizadorId);
+    // Retorna paginadas las organizaciones que sigue un usuario
+    @Query("SELECT s.organizacion FROM Seguidor s WHERE s.seguidor.id = :seguidorId")
+    Page<Organizacion> findOrganizacionesBySeguidorId(@Param("seguidorId") Long seguidorId, Pageable pageable);
+
+    //numero total de seguidores de una organizacion
+    long countByOrganizacionId(Long organizacionId);
 }

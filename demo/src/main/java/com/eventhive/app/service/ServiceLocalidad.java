@@ -1,6 +1,7 @@
 package com.eventhive.app.service;
 
 import com.eventhive.app.dto.request.LocalidadRequest;
+import com.eventhive.app.enums.PermisoEvento;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Evento;
@@ -20,9 +21,10 @@ public class ServiceLocalidad {
     private final LocalidadRepository localidadRepository;
     private final ServiceEvento serviceEvento;
 
+    //CONSULTAS
     @Transactional(readOnly = true)
     public List<Localidad> listarPorEvento(Long eventoId) {
-        serviceEvento.obtenerPorId(eventoId); // validar que el evento exista
+        serviceEvento.obtenerReferenciasEvento(eventoId); // validar que el evento exista
         return localidadRepository.findByEventoId(eventoId);
     }
 
@@ -31,11 +33,12 @@ public class ServiceLocalidad {
                 .orElseThrow(() -> new ResourceNotFoundException("Localidad no encontrada con id: " + id));
     }
 
+    //OPERACIONES CRUD
     @Transactional
-    @PreAuthorize("hasRole('ORGANIZACION')")
+    @PreAuthorize("hasRole('REPRESENTANTE')")
     public Localidad agregar(Long eventoId, LocalidadRequest request) {
-        Evento evento = serviceEvento.obtenerPorId(eventoId);
-        serviceEvento.verificarPermiso(evento);
+        Evento evento = serviceEvento.obtenerReferenciasEvento(eventoId);
+        serviceEvento.verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
 
         Localidad localidad = new Localidad();
         localidad.setNombre(request.getNombre());
@@ -48,10 +51,10 @@ public class ServiceLocalidad {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ORGANIZACION')")
+    @PreAuthorize("hasRole('REPRESENTANTE')")
     public Localidad actualizar(Long eventoId, Long localidadId, LocalidadRequest datos) {
-        Evento evento = serviceEvento.obtenerPorId(eventoId);
-        serviceEvento.verificarPermiso(evento);
+        Evento evento = serviceEvento.obtenerReferenciasEvento(eventoId);
+        serviceEvento.verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
 
         Localidad localidad = obtenerPorId(localidadId);
 
@@ -77,10 +80,10 @@ public class ServiceLocalidad {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ORGANIZACION')")
+    @PreAuthorize("hasRole('REPRESENTANTE')")
     public void eliminar(Long eventoId, Long localidadId) {
-        Evento evento = serviceEvento.obtenerPorId(eventoId);
-        serviceEvento.verificarPermiso(evento);
+        Evento evento = serviceEvento.obtenerReferenciasEvento(eventoId);
+        serviceEvento.verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
 
         Localidad localidad = obtenerPorId(localidadId);
 

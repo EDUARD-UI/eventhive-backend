@@ -3,8 +3,10 @@ package com.eventhive.app.service;
 import com.eventhive.app.dto.response.ValoracionDTO;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
+import com.eventhive.app.model.Organizacion;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.model.Valoracion;
+import com.eventhive.app.repository.OrganizacionRepository;
 import com.eventhive.app.repository.UsuarioRepository;
 import com.eventhive.app.repository.ValoracionRepository;
 import lombok.RequiredArgsConstructor;
@@ -19,40 +21,40 @@ import org.springframework.transaction.annotation.Transactional;
 public class ServiceValoracion {
 
     private final ValoracionRepository valoracionRepository;
-    private final UsuarioRepository usuarioRepository;
-    private final ServiceMetricasOrganizacion serviceMetricasOrganizacion;   // ← inyección nueva
+    private final OrganizacionRepository organizacionRepository;
+    private final ServiceOrganizacion serviceOrganizacion;
 
     @Transactional(readOnly = true)
     public Page<ValoracionDTO> obtenerValoracionesDTOPorUsuario(Long usuarioId, Pageable pageable) {
-        return valoracionRepository.findByClienteIdConOrganizador(usuarioId, pageable).map(this::toDTO);
+        return valoracionRepository.findByClienteIdConOrganizacion(usuarioId, pageable).map(this::toDTO);
     }
 
     @Transactional(readOnly = true)
-    public Page<ValoracionDTO> obtenerValoracionesDTOPorOrganizador(Long organizadorId, Pageable pageable) {
-        return valoracionRepository.findByOrganizadorIdConCliente(organizadorId, pageable).map(this::toDTO);
+    public Page<ValoracionDTO> obtenerValoracionesDTOPorOrganizacion(Long organizacionId, Pageable pageable) {
+        return valoracionRepository.findByOrganizacionIdConCliente(organizacionId, pageable).map(this::toDTO);
     }
 
     @Transactional
     @PreAuthorize("hasRole('CLIENTE')")
-    public void crearValoracion(Usuario cliente, Long organizadorId, String comentario, long calificacion) {
-        validarNoEsMismoUsuario(cliente.getId(), organizadorId);
+    public void crearValoracion(Usuario cliente, Long organizacionId, String comentario, long calificacion) {
+        validarNoEsMismoUsuario(cliente.getId(), organizacionId);
         validarCalificacion(calificacion);
 
-        if (valoracionRepository.existsByClienteIdAndOrganizadorId(cliente.getId(), organizadorId)) {
+        if (valoracionRepository.existsByClienteIdAndOrganizacionId(cliente.getId(), organizacionId)) {
             throw new BusinessException("Ya valoraste a este organizador");
         }
 
-        Usuario organizador = usuarioRepository.findById(organizadorId)
-                .orElseThrow(() -> new ResourceNotFoundException("Organizador no encontrado"));
+        Organizacion organizacion = organizacionRepository.findById(organizacionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organización no encontrada"));
 
         Valoracion v = new Valoracion();
         v.setCliente(cliente);
-        v.setOrganizador(organizador);
+        v.setOrganizacion(organizacion);
         v.setComentario(comentario);
         v.setCalificacion((int) calificacion);
         valoracionRepository.save(v);
 
-        serviceMetricasOrganizacion.actualizarMetricasValoracion(organizadorId);
+        serviceOrganizacion.actualizarMetricasValoracion(organizacionId);
     }
 
     @Transactional
@@ -60,27 +62,27 @@ public class ServiceValoracion {
     public void actualizarValoracion(Long id, Usuario cliente, String comentario, long calificacion) {
         validarCalificacion(calificacion);
         Valoracion v = obtenerVerificada(id, cliente);
-        Long organizadorId = v.getOrganizador().getId();
+        Long organizacionId = v.getOrganizacion().getId();
 
         v.setComentario(comentario);
         v.setCalificacion((int) calificacion);
         valoracionRepository.save(v);
 
-        serviceMetricasOrganizacion.actualizarMetricasValoracion(organizadorId);
+        serviceOrganizacion.actualizarMetricasValoracion(organizacionId);
     }
 
     @Transactional
     @PreAuthorize("hasRole('CLIENTE')")
     public void eliminarValoracion(Long id, Usuario cliente) {
         Valoracion v = obtenerVerificada(id, cliente);
-        Long organizadorId = v.getOrganizador().getId();
+        Long organizacionId = v.getOrganizacion().getId();
 
         valoracionRepository.deleteById(id);
 
-        serviceMetricasOrganizacion.actualizarMetricasValoracion(organizadorId);
+        serviceOrganizacion.actualizarMetricasValoracion(organizacionId);
     }
 
-    // --- helpers ---
+    // METODOS AUXILIARES Y DE MAPEO
     private Valoracion obtenerVerificada(Long id, Usuario cliente) {
         Valoracion v = valoracionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Valoración no encontrada"));
@@ -96,8 +98,8 @@ public class ServiceValoracion {
         }
     }
 
-    private void validarNoEsMismoUsuario(Long clienteId, Long organizadorId) {
-        if (clienteId.equals(organizadorId)) {
+    private void validarNoEsMismoUsuario(Long clienteId, Long organizacionId) {
+        if (clienteId.equals(organizacionId)) {
             throw new BusinessException("No puedes valorarte a ti mismo");
         }
     }
@@ -107,13 +109,15 @@ public class ServiceValoracion {
         dto.setId(v.getId());
         dto.setComentario(v.getComentario());
         dto.setCalificacion(v.getCalificacion());
-        if (v.getOrganizador() != null) {
-            dto.setOrganizadorId(v.getOrganizador().getId());
-            dto.setOrganizadorNombre(v.getOrganizador().getNombreCompleto());
-        }
+
         if (v.getCliente() != null) {
             dto.setClienteId(v.getCliente().getId());
             dto.setClienteNombre(v.getCliente().getNombreCompleto());
+        }
+
+        if (v.getOrganizacion() != null) {
+            dto.setOrganizacionId(v.getOrganizacion().getId());
+            dto.setOrganizacionNombre(v.getOrganizacion().getRazonSocial());
         }
         return dto;
     }

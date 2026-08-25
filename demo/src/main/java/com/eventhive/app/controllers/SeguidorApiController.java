@@ -16,35 +16,22 @@ import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/organizadores")
+@RequestMapping("/api/seguidores")
 public class SeguidorApiController {
 
     private final ServiceSeguidor serviceSeguidor;
 
-    @PostMapping("/{organizadorId}/seguir")
+    @PostMapping("/{organizacionId}/seguir")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Void>> seguir(@PathVariable Long organizadorId) {
-        serviceSeguidor.seguir(organizadorId);
+    public ResponseEntity<ApiResponse<Void>> seguir(@PathVariable Long organizacionId) {
+        serviceSeguidor.seguir(organizacionId);
         return ResponseEntity.ok(ApiResponse.ok("Ahora sigues a este organizador"));
     }
 
-    @DeleteMapping("/{organizadorId}/seguir")
+    @DeleteMapping("/{organizacionId}/seguir")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Void>> dejarDeSeguir(@PathVariable Long organizadorId) {
-        serviceSeguidor.dejarDeSeguir(organizadorId);
+    public ResponseEntity<ApiResponse<Void>> dejarDeSeguir(@PathVariable Long organizacionId) {
+        serviceSeguidor.dejarDeSeguir(organizacionId);
         return ResponseEntity.ok(ApiResponse.ok("Dejaste de seguir al organizador"));
-    }
-
-    @GetMapping("/{organizadorId}/seguidores/total")
-    public ResponseEntity<ApiResponse<Long>> totalSeguidores(@PathVariable Long organizadorId) {
-        return ResponseEntity.ok(ApiResponse.ok("Total seguidores",
-                serviceSeguidor.contarSeguidores(organizadorId)));
-    }
-
-    @GetMapping("/siguiendo")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Object>> listarSiguiendo() {
-        return ResponseEntity.ok(ApiResponse.ok("Organizadores seguidos",
-                serviceSeguidor.listarSiguiendo()));
     }
 }

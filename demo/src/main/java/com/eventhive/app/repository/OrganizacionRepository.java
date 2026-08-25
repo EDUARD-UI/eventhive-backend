@@ -16,4 +16,6 @@ public interface OrganizacionRepository extends JpaRepository<Organizacion, Long
     // Top: primero por nivel de confianza, luego por cantidad de seguidores
     @Query("SELECT o FROM Organizacion o ORDER BY o.nivel DESC, o.totalSeguidores DESC")
     Page<Organizacion> findTopOrganizaciones(Pageable pageable);
+
+    boolean existsByCorreoContacto(String correoContacto);
 }

@@ -2,6 +2,7 @@ package com.eventhive.app.service;
 
 import com.eventhive.app.dto.response.LoginResponseDTO;
 import com.eventhive.app.exception.BusinessException;
+import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Rol;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.repository.RolesRepository;
@@ -72,10 +73,8 @@ public class ServiceAutenticacion {
             throw new BusinessException("Refresh token inválido o expirado");
 
         String correo = jwtUtils.getCorreoDesdeToken(refreshToken);
-        Usuario usuario = usuarioRepository.findByCorreo(correo);
-
-        if (usuario == null)
-            throw new BusinessException("Usuario no encontrado");
+        Usuario usuario = usuarioRepository.findByCorreo(correo)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con correo: " + correo));
 
         UsuarioPrincipal principal = new UsuarioPrincipal(usuario);
         String nuevoAccessToken = jwtUtils.generarAccessToken(principal);
@@ -90,8 +89,8 @@ public class ServiceAutenticacion {
     }
 
     private void registrarIntentoFallido(String correo) {
-        Usuario usuario = usuarioRepository.findByCorreo(correo);
-        if (usuario == null) return; // no revela si el correo existe
+        Usuario usuario = usuarioRepository.findByCorreo(correo)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con correo: " + correo));
 
         usuario.setIntentosFallidos(usuario.getIntentosFallidos() + 1);
 
@@ -120,8 +119,8 @@ public class ServiceAutenticacion {
     @Transactional
     public void registrarOrganizacion(String nombre, String correo, String telefono, String clave) {
         validarRegistro(correo);
-        Rol rol = rolesRepository.findByNombre("ORGANIZACION")
-                .orElseThrow(() -> new BusinessException("Rol ORGANIZACION no existe"));
+        Rol rol = rolesRepository.findByNombre("REPRESENTANTE")
+                .orElseThrow(() -> new BusinessException("Rol REPRESENTANTE no existe"));
         usuarioRepository.save(crearUsuario(nombre, correo, telefono, clave, rol));
     }
 

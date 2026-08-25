@@ -23,6 +23,6 @@ public class EventoDTO {
     private Double latitud;
     private Double longitud;
     private EventoCategoriaDTO categoria;
-    private EventoOrganizadorDTO organizador;
+    private EventoOrganizacionDTO organizacion;
     private List<Localidad> localidades;
 }

@@ -16,181 +16,142 @@ import com.eventhive.app.model.Evento;
 
 public interface EventoRepository extends JpaRepository<Evento, Long> {
 
-    // Busca eventos publicados visibles para la vista pública
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
-        JOIN FETCH e.organizador o
-        JOIN FETCH o.rol
+        JOIN FETCH e.organizacion o
         WHERE e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
         """)
     Page<Evento> findPublicadosVisibles(Pageable pageable);
 
-    // Busca eventos publicados de una categoría específica
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria c
-        JOIN FETCH e.organizador o
-        JOIN FETCH o.rol
+        JOIN FETCH e.organizacion o
         WHERE c.id = :categoriaId
           AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
         """)
-    Page<Evento> findByCategoriaVisibles(
-            @Param("categoriaId") Long categoriaId,
-            Pageable pageable);
+    Page<Evento> findByCategoriaVisibles(@Param("categoriaId") Long categoriaId, Pageable pageable);
 
-    // Busca eventos publicados por título y/o fecha (al menos uno debe venir informado)
-    @Query("""
-    SELECT e FROM Evento e
-    JOIN FETCH e.categoria
-    JOIN FETCH e.organizador o
-    JOIN FETCH o.rol
-    WHERE e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
-      AND (:titulo IS NULL OR LOWER(e.titulo) LIKE LOWER(CONCAT('%', :titulo, '%')))
-      AND (:fecha IS NULL OR e.fecha = :fecha)
-    """)
-    Page<Evento> findByTituloOrFechaVisibles(
-            @Param("titulo") String titulo,
-            @Param("fecha") LocalDate fecha,
-            Pageable pageable);
-
-    @Query(value = """
-    SELECT e.id AS id,
-           e.titulo AS titulo,
-           e.descripcion AS descripcion,
-           c.nombre AS categoriaNombre,
-           ST_Y(e.ubicacion::geometry) AS latitud,
-           ST_X(e.ubicacion::geometry) AS longitud
-    FROM eventos e
-    JOIN categorias c ON c.id = e.categoria_id
-    WHERE e.estado = 'PUBLICADO'
-      AND (:categoriaId IS NULL OR e.categoria_id = :categoriaId)
-      AND (
-            CAST(:lat AS double precision) IS NULL
-            OR CAST(:lng AS double precision) IS NULL
-            OR CAST(:radioMetros AS double precision) IS NULL
-            OR ST_DWithin(
-                 e.ubicacion,
-                 ST_SetSRID(ST_MakePoint(CAST(:lng AS double precision), CAST(:lat AS double precision)), 4326)::geography,
-                 CAST(:radioMetros AS double precision)
-               )
-          )
-    """, nativeQuery = true)
-    List<EventoMapaProjection> findParaMapa(
-            @Param("categoriaId") Long categoriaId,
-            @Param("lat") Double lat,
-            @Param("lng") Double lng,
-            @Param("radioMetros") Double radioMetros);
-
-    // Obtiene todos los eventos con sus referencias cargadas
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
-        JOIN FETCH e.organizador o
-        JOIN FETCH o.rol
+        JOIN FETCH e.organizacion o
+        WHERE e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
+          AND (:titulo IS NULL OR LOWER(e.titulo) LIKE LOWER(CONCAT('%', :titulo, '%')))
+          AND (:fecha IS NULL OR e.fecha = :fecha)
+        """)
+    Page<Evento> findByTituloOrFechaVisibles(@Param("titulo") String titulo,
+                                             @Param("fecha") LocalDate fecha,
+                                             Pageable pageable);
+
+    @Query(value = """
+        SELECT e.id AS id, e.titulo AS titulo, e.descripcion AS descripcion,
+               c.nombre AS categoriaNombre,
+               ST_Y(e.ubicacion::geometry) AS latitud,
+               ST_X(e.ubicacion::geometry) AS longitud
+        FROM eventos e
+        JOIN categorias c ON c.id = e.categoria_id
+        WHERE e.estado = 'PUBLICADO'
+          AND (:categoriaId IS NULL OR e.categoria_id = :categoriaId)
+          AND (
+                CAST(:lat AS double precision) IS NULL
+                OR CAST(:lng AS double precision) IS NULL
+                OR CAST(:radioMetros AS double precision) IS NULL
+                OR ST_DWithin(
+                     e.ubicacion,
+                     ST_SetSRID(ST_MakePoint(CAST(:lng AS double precision), CAST(:lat AS double precision)), 4326)::geography,
+                     CAST(:radioMetros AS double precision)
+                   )
+              )
+        """, nativeQuery = true)
+    List<EventoMapaProjection> findParaMapa(@Param("categoriaId") Long categoriaId,
+                                            @Param("lat") Double lat,
+                                            @Param("lng") Double lng,
+                                            @Param("radioMetros") Double radioMetros);
+
+    @Query("""
+        SELECT e FROM Evento e
+        JOIN FETCH e.categoria
+        JOIN FETCH e.organizacion o
         """)
     Page<Evento> findAllConReferencias(Pageable pageable);
 
-    // Busca un evento por id con sus referencias cargadas
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
-        JOIN FETCH e.organizador o
-        JOIN FETCH o.rol
+        JOIN FETCH e.organizacion o
         WHERE e.id = :id
         """)
     Optional<Evento> findByIdConReferencias(@Param("id") Long id);
 
-    // Obtiene los eventos de un organizador con sus referencias cargadas
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
-        JOIN FETCH e.organizador o
-        JOIN FETCH o.rol
-        WHERE o.id = :organizadorId
+        JOIN FETCH e.organizacion o
+        WHERE o.id = :organizacionId
         ORDER BY e.fechaCreacion DESC
         """)
-    Page<Evento> findByOrganizadorIdConReferencias(
-            @Param("organizadorId") Long organizadorId,
-            Pageable pageable);
+    Page<Evento> findByOrganizacionIdConReferencias(@Param("organizacionId") Long organizacionId, Pageable pageable);
 
-    // Busca eventos de un organizador cuyo título coincide con el texto indicado
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
-        JOIN FETCH e.organizador o
-        JOIN FETCH o.rol
-        WHERE o.id = :organizadorId
+        JOIN FETCH e.organizacion o
+        WHERE o.id = :organizacionId
           AND LOWER(e.titulo) LIKE LOWER(CONCAT('%', :titulo, '%'))
         """)
-    Page<Evento> findByOrganizadorIdAndTituloConReferencias(
-            @Param("organizadorId") Long organizadorId,
-            @Param("titulo") String titulo,
-            Pageable pageable);
+    Page<Evento> findByOrganizacionIdAndTituloConReferencias(@Param("organizacionId") Long organizacionId,
+                                                             @Param("titulo") String titulo,
+                                                             Pageable pageable);
 
-    // Obtiene eventos filtrados por estado con sus referencias cargadas
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
-        JOIN FETCH e.organizador o
-        JOIN FETCH o.rol
+        JOIN FETCH e.organizacion o
         WHERE e.estado = :estado
         """)
-    Page<Evento> findByEstadoConReferencias(
-            @Param("estado") EstadoEvento estado,
-            Pageable pageable);
+    Page<Evento> findByEstadoConReferencias(@Param("estado") EstadoEvento estado, Pageable pageable);
 
-    // Busca eventos cuyo título coincide con el texto indicado
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
-        JOIN FETCH e.organizador o
-        JOIN FETCH o.rol
+        JOIN FETCH e.organizacion o
         WHERE LOWER(e.titulo) LIKE LOWER(CONCAT('%', :titulo, '%'))
         """)
-    Page<Evento> findByTituloConReferencias(
-            @Param("titulo") String titulo,
-            Pageable pageable);
+    Page<Evento> findByTituloConReferencias(@Param("titulo") String titulo, Pageable pageable);
 
-    // Busca eventos por fecha y estado
     @Query("""
         SELECT e FROM Evento e
-        JOIN FETCH e.organizador o
+        JOIN FETCH e.organizacion o
         WHERE e.fecha = :fecha
           AND e.estado = :estado
         """)
-    List<Evento> findByFechaAndEstado(
-            @Param("fecha") LocalDate fecha,
-            @Param("estado") EstadoEvento estado);
+    List<Evento> findByFechaAndEstado(@Param("fecha") LocalDate fecha, @Param("estado") EstadoEvento estado);
 
-    // Cuenta eventos por categoría para el panel de administración
     long countByCategoriaId(Long categoriaId);
 
-    // Cuenta eventos por estado para el panel de administración
     long countByEstado(EstadoEvento estado);
 
-    // Cuenta eventos por organizador para el panel de administración
-    long countByOrganizadorId(Long organizadorId);
+    long countByOrganizacionId(Long organizacionId);
 
-    // Cuenta eventos activos (pendientes, en corrección o publicados) para validar el límite del nivel
     @Query("""
         SELECT COUNT(e) FROM Evento e
-        WHERE e.organizador.id = :organizadorId
+        WHERE e.organizacion.id = :organizacionId
           AND e.estado IN (
               com.eventhive.app.enums.EstadoEvento.PENDIENTE_REVISION,
               com.eventhive.app.enums.EstadoEvento.EN_CORRECCION,
               com.eventhive.app.enums.EstadoEvento.PUBLICADO)
         """)
-    long countActivosByOrganizadorId(@Param("organizadorId") Long organizadorId);
+    long countActivosByOrganizacionId(@Param("organizacionId") Long organizacionId);
 
-    // Eventos publicados cuya fecha ya pasó: candidatos a auto-finalizar
     @Query("""
         SELECT e FROM Evento e
-        JOIN FETCH e.organizador
+        JOIN FETCH e.organizacion
         WHERE e.fecha < :fecha
           AND e.estado = :estado
         """)
-    List<Evento> findByFechaAnteriorYEstado(
-            @Param("fecha") LocalDate fecha,
-            @Param("estado") EstadoEvento estado);
+    List<Evento> findByFechaAnteriorYEstado(@Param("fecha") LocalDate fecha, @Param("estado") EstadoEvento estado);
+
+    List<Evento> findByFechaAfterAndEstado(LocalDate fechaActual, EstadoEvento estadoEvento);
 }

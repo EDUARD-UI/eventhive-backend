@@ -24,7 +24,7 @@ public class VerificacionApiController {
     private final ServiceSolicitudVerificacion serviceSolicitud;
 
     @PostMapping(value = "/solicitar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('ORGANIZACION')")
+    @PreAuthorize("hasRole('REPRESENTANTE')")
     public ResponseEntity<ApiResponse<Void>> crearSolicitud(
             @RequestPart("datos") SolicitudVerificacionRequest request,
             @RequestPart(value = "rut", required = false) MultipartFile archivoRut) {
@@ -35,7 +35,7 @@ public class VerificacionApiController {
     }
 
     @GetMapping("/mis-solicitudes")
-    @PreAuthorize("hasRole('ORGANIZACION')")
+    @PreAuthorize("hasRole('REPRESENTANTE')")
     public ResponseEntity<ApiResponse<SolicitudVerificacionDTO>> miSolicitud() {
         return ResponseEntity.ok(ApiResponse.ok("Solicitud obtenida", serviceSolicitud.miSolicitud()));
     }
@@ -58,9 +58,9 @@ public class VerificacionApiController {
     @PutMapping("/{solicitudId}/aprobar")
     @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('MODERADOR')")
     public ResponseEntity<ApiResponse<String>> aprobarSolicitud(@PathVariable Long solicitudId) {
-        String claveGenerada = serviceSolicitud.aprobarSolicitud(solicitudId);
+        serviceSolicitud.aprobarSolicitud(solicitudId);
         return ResponseEntity.ok(ApiResponse.ok(
-                "Solicitud aprobada. Comparte esta contraseña con el organizador", claveGenerada));
+                "Solicitud aprobada. Comparte esta contraseña con el organizador"));
     }
 
     @PatchMapping("/{solicitudId}/solicitar-correccion")

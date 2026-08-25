@@ -13,9 +13,10 @@ public class OrganizacionDTO {
     private Long id;
 
     // Datos legales
+    private String representante;
     private String razonSocial;
     private String nit;
-    private String representanteLegal;
+    private String correoContacto;
     private String urlRut;
     private LocalDateTime fechaCreacion;
 

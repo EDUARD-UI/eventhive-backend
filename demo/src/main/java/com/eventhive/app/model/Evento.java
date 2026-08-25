@@ -81,8 +81,12 @@ public class Evento {
     private Categoria categoria;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organizador_id", nullable = false)
-    private Usuario organizador;
+    @JoinColumn(name = "organizacion_id", nullable = false)
+    private Organizacion organizacion;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "creado_por_id", nullable = false)
+    private Usuario creadoPor;
 
     @OneToMany(mappedBy = "evento", cascade = CascadeType.ALL,
             orphanRemoval = true, fetch = FetchType.LAZY)

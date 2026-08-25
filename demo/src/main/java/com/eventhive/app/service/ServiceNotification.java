@@ -9,6 +9,7 @@ import com.eventhive.app.repository.NotificationRepository;
 import com.eventhive.app.repository.SeguidorRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
@@ -23,12 +24,13 @@ public class ServiceNotification {
     private final SeguidorRepository seguidorRepository;
     private final AuthenticatedUserHelper authHelper;
 
+    //NOTIFICACIONES
     public void notificarNuevoEvento(Evento evento) {
         notificarASeguidores(
                 evento,
                 TipoNotification.NUEVO_EVENTO,
                 "¡Nuevo evento disponible!",
-                evento.getOrganizador().getNombreCompleto() + " publicó: " + evento.getTitulo()
+                evento.getOrganizacion().getRazonSocial() + " publicó: " + evento.getTitulo()
         );
     }
 
@@ -95,27 +97,27 @@ public class ServiceNotification {
         notificationRepository.deleteByUsuarioIdAndLeidaTrue(usuario.getId());
     }
 
-    //metodos auxiliares
+    //METODOS AUXILIARES Y MAPEO
     private void notificarASeguidores(Evento evento, TipoNotification tipo,
                                       String titulo, String mensaje) {
         List<Usuario> seguidores = seguidorRepository
-                .findSeguidoresByOrganizadorId(evento.getOrganizador().getId());
+                .findAllSeguidoresByOrganizacionId(evento.getOrganizacion().getId());
 
         seguidores.forEach(seguidor -> crearNotificacion(
                 seguidor.getId(),
-                evento.getOrganizador().getId(),
+                evento.getOrganizacion().getId(),
                 evento.getId(),
                 evento.getTitulo(),
                 tipo, titulo, mensaje
         ));
     }
 
-    private void crearNotificacion(Long usuarioId, Long organizadorId, Long eventoId,
+    private void crearNotificacion(Long usuarioId, Long organizacionId, Long eventoId,
                                    String nombreEvento, TipoNotification tipo,
                                    String titulo, String mensaje) {
         Notification n = new Notification();
         n.setUsuarioId(usuarioId);
-        n.setOrganizadorId(organizadorId);
+        n.setOrganizacionId(organizacionId);
         n.setEventoId(eventoId);
         n.setNombreEvento(nombreEvento);
         n.setTipoNotificacion(tipo);

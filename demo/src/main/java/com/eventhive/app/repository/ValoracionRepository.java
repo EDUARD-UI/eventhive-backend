@@ -10,34 +10,28 @@ import com.eventhive.app.model.Valoracion;
 
 public interface ValoracionRepository extends JpaRepository<Valoracion, Long> {
 
-    // Obtiene valoraciones de un cliente con el organizador cargado
     @Query("""
         SELECT v FROM Valoracion v
-        JOIN FETCH v.organizador
+        JOIN FETCH v.organizacion
         WHERE v.cliente.id = :clienteId
         ORDER BY v.id DESC
         """)
-    Page<Valoracion> findByClienteIdConOrganizador(@Param("clienteId") Long clienteId, Pageable pageable);
+    Page<Valoracion> findByClienteIdConOrganizacion(@Param("clienteId") Long clienteId, Pageable pageable);
 
-    // Obtiene valoraciones de un organizador con el cliente cargado
     @Query("""
         SELECT v FROM Valoracion v
         JOIN FETCH v.cliente
-        WHERE v.organizador.id = :organizadorId
+        WHERE v.organizacion.id = :organizacionId
         ORDER BY v.id DESC
         """)
-    Page<Valoracion> findByOrganizadorIdConCliente(@Param("organizadorId") Long organizadorId, Pageable pageable);
+    Page<Valoracion> findByOrganizacionIdConCliente(@Param("organizacionId") Long organizacionId, Pageable pageable);
 
-    // Calcula el promedio de calificaciones de un organizador
-    @Query("SELECT AVG(v.calificacion) FROM Valoracion v WHERE v.organizador.id = :organizadorId")
-    double calcularPromedioByOrganizadorId(@Param("organizadorId") Long organizadorId);
+    @Query("SELECT AVG(v.calificacion) FROM Valoracion v WHERE v.organizacion.id = :organizacionId")
+    double calcularPromedioByOrganizacionId(@Param("organizacionId") Long organizacionId);
 
-    // Cuenta las valoraciones de un organizador
-    long countByOrganizadorId(Long organizadorId);
+    long countByOrganizacionId(Long organizacionId);
 
-    // Cuenta las valoraciones de un cliente
     long countByClienteId(Long clienteId);
 
-    // Verifica si ya existe una valoración entre cliente y organizador
-    boolean existsByClienteIdAndOrganizadorId(Long clienteId, Long organizadorId);
+    boolean existsByClienteIdAndOrganizacionId(Long clienteId, Long organizacionId);
 }

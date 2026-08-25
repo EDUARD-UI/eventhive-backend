@@ -7,7 +7,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @AllArgsConstructor
-public class EventoOrganizadorDTO {
+public class EventoOrganizacionDTO {
     private Long id;
     private String nombre;
 }

@@ -17,11 +17,11 @@ import lombok.Setter;
 @Entity
 @Table(name = "valoraciones",
        indexes = {
-           @Index(name = "idx_val_organizador",  columnList = "organizador_id"),
+           @Index(name = "idx_val_organizacion",  columnList = "organizacion_id"),
            @Index(name = "idx_val_cliente", columnList = "cliente_id")
        },
        uniqueConstraints = {
-           @UniqueConstraint(name = "uq_val_cliente_organizador", columnNames = {"cliente_id", "organizador_id"})
+           @UniqueConstraint(name = "uq_val_cliente_organizacion", columnNames = {"cliente_id", "organizacion_id"})
        }
 )
 
@@ -43,6 +43,6 @@ public class Valoracion {
     private Usuario cliente;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organizador_id", nullable = false)
-    private Usuario organizador;
+    @JoinColumn(name = "organizacion_id", nullable = false)
+    private Organizacion organizacion;
 }

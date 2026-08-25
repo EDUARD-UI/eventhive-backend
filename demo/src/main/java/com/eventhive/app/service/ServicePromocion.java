@@ -30,6 +30,7 @@ public class ServicePromocion {
     private final EventoRepository eventoRepository;
     private static final DateTimeFormatter FMT = DateTimeFormatter.ISO_LOCAL_DATE;
 
+    //CONSULTAS
     @Transactional(readOnly = true)
     public List<Promocion> obtenerPorEvento(Long eventoId) {
         return promocionRepository.findByEventoId(eventoId);
@@ -40,15 +41,15 @@ public class ServicePromocion {
         return promocionRepository.findAll(pageable).map(this::toDTO);
     }
 
-    @Transactional(readOnly = true)
-    public Page<PromocionDTO> obtenerDTOPorOrganizador(Long organizadorId, Pageable pageable) {
-        return promocionRepository.findByOrganizadorId(organizadorId, pageable).map(this::toDTO);
+    public Page<PromocionDTO> obtenerDTOPorOrganizacion(Long organizacionId, Pageable pageable) {
+        return promocionRepository.findByOrganizacionId(organizacionId, pageable).map(this::toDTO);
     }
 
+    //OPERACIONES CRUD
     @Transactional
-    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('REPRESENTANTE') or hasRole('ADMINISTRADOR')")
     public void crearPromocion(Long eventoId, String descripcion, BigDecimal descuento,
-                               String fechaInicio, String fechaFin, Usuario organizador) {
+                               String fechaInicio, String fechaFin, Usuario usuario) {
         validarDescuento(descuento);
         LocalDate inicio = LocalDate.parse(fechaInicio, FMT);
         LocalDate fin = LocalDate.parse(fechaFin, FMT);
@@ -57,8 +58,8 @@ public class ServicePromocion {
         Evento evento = eventoRepository.findById(eventoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado: " + eventoId));
 
-        if (!esAdmin(organizador) && !evento.getOrganizador().getId().equals(organizador.getId()))
-            throw new BusinessException("No autorizado: el evento no te pertenece");
+        if (!esAdmin(usuario) && !perteneceALaOrganizacion(evento, usuario))
+            throw new BusinessException("No autorizado: el evento no pertenece a tu organización");
 
         // Un evento no puede tener dos promociones activas en el mismo rango de fechas
         if (promocionRepository.existsConflictoFechas(eventoId, inicio, fin, null))
@@ -75,12 +76,11 @@ public class ServicePromocion {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
-    public void actualizarPromocion(Long id, Long eventoId, String descripcion,
-                                    BigDecimal descuento, String fechaInicio,
-                                    String fechaFin, Usuario organizador) {
+    @PreAuthorize("hasRole('REPRESENTANTE') or hasRole('ADMINISTRADOR')")
+    public void actualizarPromocion(Long id, Long eventoId, String descripcion, BigDecimal descuento,
+                                    String fechaInicio, String fechaFin, Usuario usuario) {
         Promocion p = obtenerPromocionPorId(id);
-        validarPermiso(p, organizador);
+        validarPermiso(p, usuario);
         validarDescuento(descuento);
         LocalDate inicio = LocalDate.parse(fechaInicio, FMT);
         LocalDate fin = LocalDate.parse(fechaFin, FMT);
@@ -90,8 +90,8 @@ public class ServicePromocion {
             Evento nuevoEvento = eventoRepository.findById(eventoId)
                     .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado: " + eventoId));
 
-            if (!esAdmin(organizador) && !nuevoEvento.getOrganizador().getId().equals(organizador.getId()))
-                throw new BusinessException("No autorizado: el evento no te pertenece");
+            if (!esAdmin(usuario) && !perteneceALaOrganizacion(nuevoEvento, usuario))
+                throw new BusinessException("No autorizado: el evento no pertenece a tu organización");
 
             // Excluir la propia promoción al verificar conflicto (permite guardar sin cambios de fecha)
             if (promocionRepository.existsConflictoFechas(eventoId, inicio, fin, id))
@@ -109,14 +109,14 @@ public class ServicePromocion {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ORGANIZACION') or hasRole('ADMINISTRADOR')")
-    public void eliminarPromocion(Long id, Usuario organizador) {
+    @PreAuthorize("hasRole('REPRESENTANTE') or hasRole('ADMINISTRADOR')")
+    public void eliminarPromocion(Long id, Usuario usuario) {
         Promocion p = obtenerPromocionPorId(id);
-        validarPermiso(p, organizador);
+        validarPermiso(p, usuario);
         promocionRepository.deleteById(id);
     }
 
-    //metodos auxiliares
+    //METODOS AUXILIARES Y MAPEO
     private Promocion obtenerPromocionPorId(Long id) {
         return promocionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Promoción no encontrada: " + id));
@@ -136,13 +136,18 @@ public class ServicePromocion {
         return u.getRol() != null && "ADMINISTRADOR".equals(u.getRol().getNombre());
     }
 
-    private void validarPermiso(Promocion p, Usuario organizador) {
-        if (esAdmin(organizador)) return;
+    private void validarPermiso(Promocion p, Usuario usuario) {
+        if (esAdmin(usuario)) return;
         boolean autorizado = p.getEventos() != null && p.getEventos().stream()
-                .anyMatch(e -> e.getOrganizador() != null
-                        && e.getOrganizador().getId().equals(organizador.getId()));
+                .anyMatch(e -> perteneceALaOrganizacion(e, usuario));
         if (!autorizado)
             throw new BusinessException("No autorizado para modificar esta promoción");
+    }
+
+    private boolean perteneceALaOrganizacion(Evento evento, Usuario usuario) {
+        return usuario.getOrganizacion() != null
+                && evento.getOrganizacion() != null
+                && usuario.getOrganizacion().getId().equals(evento.getOrganizacion().getId());
     }
 
     private PromocionDTO toDTO(Promocion p) {

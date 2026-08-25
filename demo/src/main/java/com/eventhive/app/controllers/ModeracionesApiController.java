@@ -70,7 +70,7 @@ public class ModeracionesApiController {
     public ResponseEntity<ApiResponse<Page<ModeracionEventoDTO>>> historialModeracion(
             @PathVariable Long id, Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.ok("Historial de moderación",
-                serviceModeracion.listarModeraciones(id, pageable)));
+                serviceModeracion.HistorialModeraciones(id, pageable)));
     }
 
     @PatchMapping("/{id}/aprobar")
@@ -96,5 +96,21 @@ public class ModeracionesApiController {
             @RequestBody ModeracionEventoRequest request) {
         return ResponseEntity.ok(ApiResponse.ok("Evento rechazado",
                 serviceEvento.toDTO(serviceModeracion.rechazarEvento(id, request.getMotivo(), request.getObservacion()))));
+    }
+
+    @PatchMapping("/{id}/suspender")
+    @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
+    public ResponseEntity<ApiResponse<EventoDTO>> suspender(
+            @PathVariable Long id,
+            @RequestBody ModeracionEventoRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok("Evento suspendido",
+                serviceEvento.toDTO(serviceModeracion.suspenderEvento(id, request.getMotivo(), request.getObservacion()))));
+    }
+
+    @PatchMapping("/{id}/reactivar")
+    @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
+    public ResponseEntity<ApiResponse<EventoDTO>> reactivar(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok("Evento ractivado y publicado exitosamente",
+                serviceEvento.toDTO(serviceModeracion.reactivarEvento(id))));
     }
 }

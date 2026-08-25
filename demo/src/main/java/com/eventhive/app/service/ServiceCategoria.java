@@ -26,15 +26,14 @@ public class ServiceCategoria {
     private final SupabaseStorageService storageService;
     private final SupabaseStorageConfig storageConfig;
 
-    @Transactional(readOnly = true)
-    public Page<Categoria> obtenerTodasCategorias(Pageable pageable) {
-        return categoriaRepository.findAll(pageable);
-    }
-
-    @Transactional(readOnly = true)
     public Categoria obtenerCategoriaPorId(Long id) {
         return categoriaRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Categoría no encontrada"));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Categoria> obtenerTodasCategorias(Pageable pageable) {
+        return categoriaRepository.findAll(pageable);
     }
 
     @Transactional(readOnly = true)

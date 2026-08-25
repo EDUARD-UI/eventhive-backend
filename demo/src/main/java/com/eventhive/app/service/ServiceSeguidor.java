@@ -2,12 +2,15 @@ package com.eventhive.app.service;
 
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
+import com.eventhive.app.model.Organizacion;
 import com.eventhive.app.model.Seguidor;
 import com.eventhive.app.model.Usuario;
+import com.eventhive.app.repository.OrganizacionRepository;
 import com.eventhive.app.repository.SeguidorRepository;
-import com.eventhive.app.repository.UsuarioRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,63 +21,59 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ServiceSeguidor {
 
-    private final ServiceMetricasOrganizacion serviceMetricasOrganizacion;
+    private final ServiceOrganizacion serviceOrganizacion;
     private final SeguidorRepository seguidorRepository;
-    private final UsuarioRepository usuarioRepository;
+    private final OrganizacionRepository organizacionRepository;
     private final AuthenticatedUserHelper authHelper;
 
     @Transactional
     @PreAuthorize("isAuthenticated()")
-    public void seguir(Long organizadorId) {
+    public void seguir(Long organizacionId) {
         Usuario seguidor = authHelper.usuarioAutenticado();
-        Usuario organizador = buscarOrganizador(organizadorId);
+        Organizacion organizacion = buscarOrganizacion(organizacionId);
 
-        if (seguidor.getId().equals(organizadorId))
-            throw new BusinessException("No puedes seguirte a ti mismo");
+        if (seguidor.getOrganizacion() != null
+                && seguidor.getOrganizacion().getId().equals(organizacionId))
+            throw new BusinessException("No puedes seguir tu propia organización");
 
-        if (seguidorRepository.existsByOrganizadorIdAndSeguidorId(organizadorId, seguidor.getId()))
-            throw new BusinessException("Ya sigues a este organizador");
+        if (seguidorRepository.existsByOrganizacionIdAndSeguidorId(organizacionId, seguidor.getId()))
+            throw new BusinessException("Ya sigues a esta organización");
 
         Seguidor relacion = new Seguidor();
-        relacion.setOrganizador(organizador);
+        relacion.setOrganizacion(organizacion);
         relacion.setSeguidor(seguidor);
-        serviceMetricasOrganizacion.actualizarTotalSeguidores(organizadorId);
         seguidorRepository.save(relacion);
+        serviceOrganizacion.actualizarTotalSeguidores(organizacionId);
     }
 
     @Transactional
     @PreAuthorize("isAuthenticated()")
-    public void dejarDeSeguir(Long organizadorId) {
+    public void dejarDeSeguir(Long organizacionId) {
         Usuario seguidor = authHelper.usuarioAutenticado();
 
-        if (!seguidorRepository.existsByOrganizadorIdAndSeguidorId(organizadorId, seguidor.getId()))
-            throw new ResourceNotFoundException("No sigues a este organizador");
+        if (!seguidorRepository.existsByOrganizacionIdAndSeguidorId(organizacionId, seguidor.getId()))
+            throw new ResourceNotFoundException("No sigues a esta organización");
 
-        seguidorRepository.deleteByOrganizadorIdAndSeguidorId(organizadorId, seguidor.getId());
-        serviceMetricasOrganizacion.actualizarTotalSeguidores(organizadorId);
+        seguidorRepository.deleteByOrganizacionIdAndSeguidorId(organizacionId, seguidor.getId());
+        serviceOrganizacion.actualizarTotalSeguidores(organizacionId);
     }
 
+    // listar seguidores de una organizacion
     @Transactional(readOnly = true)
-    public List<Usuario> listarSeguidores(Long organizadorId) {
-        buscarOrganizador(organizadorId);
-        return seguidorRepository.findSeguidoresByOrganizadorId(organizadorId);
+    public Page<Usuario> listarSeguidores(Long organizacionId, Pageable pageable) {
+        buscarOrganizacion(organizacionId);
+        return seguidorRepository.findSeguidoresByOrganizacionId(organizacionId, pageable);
     }
 
     @Transactional(readOnly = true)
     @PreAuthorize("isAuthenticated()")
-    public List<Usuario> listarSiguiendo() {
+    public Page<Organizacion> listarOrganizacionesSeguidas(Pageable pageable) {
         Usuario seguidor = authHelper.usuarioAutenticado();
-        return seguidorRepository.findOrganizadoresBySeguidorId(seguidor.getId());
+        return seguidorRepository.findOrganizacionesBySeguidorId(seguidor.getId(), pageable);
     }
 
-    @Transactional(readOnly = true)
-    public long contarSeguidores(Long organizadorId) {
-        return seguidorRepository.countByOrganizadorId(organizadorId);
-    }
-
-    // metodo auxiliar
-    private Usuario buscarOrganizador(Long organizadorId) {
-        return usuarioRepository.findById(organizadorId)
-                .orElseThrow(() -> new ResourceNotFoundException("Organizador no encontrado: " + organizadorId));
+    private Organizacion buscarOrganizacion(Long organizacionId) {
+        return organizacionRepository.findById(organizacionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organización no encontrada: " + organizacionId));
     }
 }

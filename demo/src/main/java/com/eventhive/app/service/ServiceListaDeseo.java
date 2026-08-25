@@ -29,7 +29,7 @@ public class ServiceListaDeseo {
     @PreAuthorize("isAuthenticated()")
     public void agregar(Long eventoId) {
         Usuario usuario = authHelper.usuarioAutenticado();
-        Evento evento = serviceEvento.obtenerReferencia(eventoId);
+        Evento evento = serviceEvento.obtenerEventoPorId(eventoId);
 
         if (listaDeseoRepository.existsByUsuarioIdAndEventoId(usuario.getId(), eventoId)) {
             throw new BusinessException("El evento ya está en tu lista de deseados");

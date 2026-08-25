@@ -48,9 +48,9 @@ public interface PromocionRepository extends JpaRepository<Promocion, Long> {
 
     // Obtiene promociones de un organizador para el panel
     @Query("""
-        SELECT DISTINCT p FROM Promocion p
-        JOIN FETCH p.eventos e
-        WHERE e.organizador.id = :organizadorId
-        """)
-    Page<Promocion> findByOrganizadorId(@Param("organizadorId") Long organizadorId, Pageable pageable);
+    SELECT DISTINCT p FROM Promocion p
+    JOIN FETCH p.eventos e
+    WHERE e.organizacion.id = :organizacionId
+    """)
+    Page<Promocion> findByOrganizacionId(@Param("organizacionId") Long organizacionId, Pageable pageable);
 }
