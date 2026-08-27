@@ -41,13 +41,14 @@ public class ServicePromocion {
         return promocionRepository.findAll(pageable).map(this::toDTO);
     }
 
+    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
     public Page<PromocionDTO> obtenerDTOPorOrganizacion(Long organizacionId, Pageable pageable) {
         return promocionRepository.findByOrganizacionId(organizacionId, pageable).map(this::toDTO);
     }
 
     //OPERACIONES CRUD
     @Transactional
-    @PreAuthorize("hasRole('REPRESENTANTE') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR', 'ADMINISTRADOR')")
     public void crearPromocion(Long eventoId, String descripcion, BigDecimal descuento,
                                String fechaInicio, String fechaFin, Usuario usuario) {
         validarDescuento(descuento);
@@ -76,7 +77,7 @@ public class ServicePromocion {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('REPRESENTANTE') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR', 'ADMINISTRADOR')")
     public void actualizarPromocion(Long id, Long eventoId, String descripcion, BigDecimal descuento,
                                     String fechaInicio, String fechaFin, Usuario usuario) {
         Promocion p = obtenerPromocionPorId(id);
@@ -109,7 +110,7 @@ public class ServicePromocion {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('REPRESENTANTE') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR', 'ADMINISTRADOR')")
     public void eliminarPromocion(Long id, Usuario usuario) {
         Promocion p = obtenerPromocionPorId(id);
         validarPermiso(p, usuario);

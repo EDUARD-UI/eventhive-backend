@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -14,7 +15,7 @@ import com.eventhive.app.repository.projection.EventoMapaProjection;
 import com.eventhive.app.enums.EstadoEvento;
 import com.eventhive.app.model.Evento;
 
-public interface EventoRepository extends JpaRepository<Evento, Long> {
+public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecificationExecutor<Evento> {
 
     @Query("""
         SELECT e FROM Evento e
@@ -74,16 +75,19 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
         JOIN FETCH e.organizacion o
+        WHERE e.id = :id
         """)
-    Page<Evento> findAllConReferencias(Pageable pageable);
+    Optional<Evento> findByIdConReferencias(@Param("id") Long id);
 
+    // Usado por el endpoint público: solo expone el evento si está PUBLICADO (bug #2.2)
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
         JOIN FETCH e.organizacion o
         WHERE e.id = :id
+          AND e.estado = :estado
         """)
-    Optional<Evento> findByIdConReferencias(@Param("id") Long id);
+    Optional<Evento> findByIdAndEstadoConReferencias(@Param("id") Long id, @Param("estado") EstadoEvento estado);
 
     @Query("""
         SELECT e FROM Evento e
@@ -112,14 +116,6 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
         WHERE e.estado = :estado
         """)
     Page<Evento> findByEstadoConReferencias(@Param("estado") EstadoEvento estado, Pageable pageable);
-
-    @Query("""
-        SELECT e FROM Evento e
-        JOIN FETCH e.categoria
-        JOIN FETCH e.organizacion o
-        WHERE LOWER(e.titulo) LIKE LOWER(CONCAT('%', :titulo, '%'))
-        """)
-    Page<Evento> findByTituloConReferencias(@Param("titulo") String titulo, Pageable pageable);
 
     @Query("""
         SELECT e FROM Evento e

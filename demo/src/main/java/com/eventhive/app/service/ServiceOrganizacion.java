@@ -36,8 +36,8 @@ public class ServiceOrganizacion {
     //CONSULTAS
     @Transactional(readOnly = true)
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public OrganizacionDTO obtenerPorId(Long id) {
-        Organizacion organizacion = organizacionRepository.findById(id)
+    public OrganizacionDTO obtenerPorId(Long organizacionId) {
+        Organizacion organizacion = organizacionRepository.findById(organizacionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organización no encontrada"));
         return toDTO(organizacion);
     }

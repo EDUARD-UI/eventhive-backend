@@ -35,7 +35,7 @@ public class ServiceLocalidad {
 
     //OPERACIONES CRUD
     @Transactional
-    @PreAuthorize("hasRole('REPRESENTANTE')")
+    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
     public Localidad agregar(Long eventoId, LocalidadRequest request) {
         Evento evento = serviceEvento.obtenerReferenciasEvento(eventoId);
         serviceEvento.verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
@@ -51,7 +51,7 @@ public class ServiceLocalidad {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('REPRESENTANTE')")
+    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
     public Localidad actualizar(Long eventoId, Long localidadId, LocalidadRequest datos) {
         Evento evento = serviceEvento.obtenerReferenciasEvento(eventoId);
         serviceEvento.verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
@@ -64,8 +64,8 @@ public class ServiceLocalidad {
 
         // disponibles se setea segun la direferencia de la capacidad antigua y la nueva
         //para evitar errores con los ya vendidos
-        int deltaCapacidad = datos.getCapacidad() - localidad.getCapacidad();
-        int nuevosDisponibles = localidad.getDisponibles() + deltaCapacidad;
+        int diferenciaCapacidad = datos.getCapacidad() - localidad.getCapacidad();
+        int nuevosDisponibles = localidad.getDisponibles() + diferenciaCapacidad;
 
         if (nuevosDisponibles < 0) {
             throw new BusinessException(
@@ -80,7 +80,7 @@ public class ServiceLocalidad {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('REPRESENTANTE')")
+    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
     public void eliminar(Long eventoId, Long localidadId) {
         Evento evento = serviceEvento.obtenerReferenciasEvento(eventoId);
         serviceEvento.verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);

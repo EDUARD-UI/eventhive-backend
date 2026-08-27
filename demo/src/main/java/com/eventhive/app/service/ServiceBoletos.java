@@ -39,14 +39,17 @@ public class ServiceBoletos {
         if (tiquete.getCompra().getEstado() == EstadoCompra.CANCELADA) {
             throw new BusinessException("El tiquete pertenece a una compra cancelada");
         }
-        if (tiquete.isUsado()) {
+
+        // bug #15: UPDATE ... WHERE usado = false, en vez de leer y luego escribir.
+        // Así solo una petición concurrente puede consumir el tiquete.
+        int filasActualizadas = tiqueteRepository.marcarComoUsadoSiNoUsado(codigoQR);
+        if (filasActualizadas == 0) {
             throw new BusinessException("El tiquete ya fue utilizado");
         }
-        tiquete.setUsado(true);
-        tiqueteRepository.save(tiquete);
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('CLIENTE')")
     public BoletosCompraDTO obtenerBoletosPorCompra(Long compraId) {
         CompraResponseDTO compra = serviceCompra.obtenerPorId(compraId);
 

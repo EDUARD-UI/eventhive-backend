@@ -36,11 +36,11 @@ public class ServiceValoracion {
 
     @Transactional
     @PreAuthorize("hasRole('CLIENTE')")
-    public void crearValoracion(Usuario cliente, Long organizacionId, String comentario, long calificacion) {
-        validarNoEsMismoUsuario(cliente.getId(), organizacionId);
+    public void crearValoracion(Usuario usuario, Long organizacionId, String comentario, long calificacion) {
+        validarNoEsMiOrganizacion(usuario);
         validarCalificacion(calificacion);
 
-        if (valoracionRepository.existsByClienteIdAndOrganizacionId(cliente.getId(), organizacionId)) {
+        if (valoracionRepository.existsByClienteIdAndOrganizacionId(usuario.getId(), organizacionId)) {
             throw new BusinessException("Ya valoraste a este organizador");
         }
 
@@ -48,7 +48,7 @@ public class ServiceValoracion {
                 .orElseThrow(() -> new ResourceNotFoundException("Organización no encontrada"));
 
         Valoracion v = new Valoracion();
-        v.setCliente(cliente);
+        v.setCliente(usuario);
         v.setOrganizacion(organizacion);
         v.setComentario(comentario);
         v.setCalificacion((int) calificacion);
@@ -59,9 +59,9 @@ public class ServiceValoracion {
 
     @Transactional
     @PreAuthorize("hasRole('CLIENTE')")
-    public void actualizarValoracion(Long id, Usuario cliente, String comentario, long calificacion) {
+    public void actualizarValoracion(Long id, Usuario usuario, String comentario, long calificacion) {
         validarCalificacion(calificacion);
-        Valoracion v = obtenerVerificada(id, cliente);
+        Valoracion v = obtenerVerificada(id, usuario);
         Long organizacionId = v.getOrganizacion().getId();
 
         v.setComentario(comentario);
@@ -73,8 +73,8 @@ public class ServiceValoracion {
 
     @Transactional
     @PreAuthorize("hasRole('CLIENTE')")
-    public void eliminarValoracion(Long id, Usuario cliente) {
-        Valoracion v = obtenerVerificada(id, cliente);
+    public void eliminarValoracion(Long id, Usuario usuario) {
+        Valoracion v = obtenerVerificada(id, usuario);
         Long organizacionId = v.getOrganizacion().getId();
 
         valoracionRepository.deleteById(id);
@@ -83,10 +83,10 @@ public class ServiceValoracion {
     }
 
     // METODOS AUXILIARES Y DE MAPEO
-    private Valoracion obtenerVerificada(Long id, Usuario cliente) {
+    private Valoracion obtenerVerificada(Long id, Usuario usuario) {
         Valoracion v = valoracionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Valoración no encontrada"));
-        if (!v.getCliente().getId().equals(cliente.getId())) {
+        if (!v.getCliente().getId().equals(usuario.getId())) {
             throw new BusinessException("No autorizado para modificar esta valoración");
         }
         return v;
@@ -98,9 +98,12 @@ public class ServiceValoracion {
         }
     }
 
-    private void validarNoEsMismoUsuario(Long clienteId, Long organizacionId) {
-        if (clienteId.equals(organizacionId)) {
-            throw new BusinessException("No puedes valorarte a ti mismo");
+    private void validarNoEsMiOrganizacion(Usuario usuario) {
+        Long usuarioId = usuario.getId();
+        Long representanteId = usuario.getOrganizacion().getRepresentante().getId();
+
+        if (usuarioId.equals(representanteId)){
+            throw  new BusinessException("No puedes valorar tu propia organizacion");
         }
     }
 

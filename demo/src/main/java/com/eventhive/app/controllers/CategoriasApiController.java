@@ -26,6 +26,7 @@ public class CategoriasApiController {
 
     private final ServiceCategoria serviceCategoria;
 
+    //CONSULTAS
     @GetMapping
     public ResponseEntity<ApiResponse<PagedResponse<Categoria>>> obtener(Pageable pageable) {
         Page<Categoria> page = serviceCategoria.obtenerTodasCategorias(pageable);
@@ -76,6 +77,7 @@ public class CategoriasApiController {
                 serviceCategoria.obtenerCategoriaPorId(id)));
     }
 
+    //OPERACIONES CRUD
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> crear(

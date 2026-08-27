@@ -2,6 +2,7 @@ package com.eventhive.app.service;
 
 import com.eventhive.app.dto.response.NotificationDTO;
 import com.eventhive.app.enums.TipoNotification;
+import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Evento;
 import com.eventhive.app.model.Notification;
 import com.eventhive.app.model.Usuario;
@@ -85,10 +86,18 @@ public class ServiceNotification {
 
     @PreAuthorize("isAuthenticated()")
     public void marcarLeida(String notificationId) {
-        notificationRepository.findById(notificationId).ifPresent(n -> {
-            n.setLeida(true);
-            notificationRepository.save(n);
-        });
+        Usuario usuario = authHelper.usuarioAutenticado();
+
+        Notification notificacion = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Notificación no encontrada"));
+
+        // bug #2.1: antes cualquier usuario autenticado podía marcar como leída una notificación ajena
+        if (!notificacion.getUsuarioId().equals(usuario.getId())) {
+            throw new ResourceNotFoundException("Notificación no encontrada");
+        }
+
+        notificacion.setLeida(true);
+        notificationRepository.save(notificacion);
     }
 
     @PreAuthorize("isAuthenticated()")

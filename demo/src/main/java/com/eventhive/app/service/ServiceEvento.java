@@ -19,6 +19,7 @@ import com.eventhive.app.model.Organizacion;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.repository.CategoriaRepository;
 import com.eventhive.app.repository.EventoRepository;
+import com.eventhive.app.repository.specification.EventoSpecification;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
 import lombok.RequiredArgsConstructor;
 import org.locationtech.jts.geom.Coordinate;
@@ -27,6 +28,7 @@ import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,9 +64,38 @@ public class ServiceEvento {
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con id: " + id));
     }
 
+    // Uso interno (moderación, localidades, actualizar/eliminar): puede devolver cualquier estado.
+    // NUNCA exponer directamente en un endpoint público (bug #2.2).
     public Evento obtenerReferenciasEvento(Long id) {
         return eventoRepository.findByIdConReferencias(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con id: " + id));
+    }
+
+    // GET /api/eventos/{id} — público, solo PUBLICADO (bug #2.2)
+    @Transactional(readOnly = true)
+    public Evento obtenerEventoPublicoPorId(Long id) {
+        return eventoRepository.findByIdAndEstadoConReferencias(id, EstadoEvento.PUBLICADO)
+                .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con id: " + id));
+    }
+
+    // GET /api/eventos/organizador/{id} — el evento debe pertenecer a la organización del usuario autenticado
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
+    public Evento obtenerEventoDeOrganizacionPorId(Long organizacionId, Long id) {
+        Evento evento = obtenerReferenciasEvento(id);
+        boolean perteneceALaOrganizacion = evento.getOrganizacion() != null
+                && evento.getOrganizacion().getId().equals(organizacionId);
+        if (!perteneceALaOrganizacion) {
+            throw new ResourceNotFoundException("Evento no encontrado con id: " + id);
+        }
+        return evento;
+    }
+
+    // GET /api/eventos/admin/{id} — cualquier estado, solo administración
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
+    public Evento obtenerEventoAdminPorId(Long id) {
+        return obtenerReferenciasEvento(id);
     }
 
     @Transactional(readOnly = true)
@@ -79,6 +110,7 @@ public class ServiceEvento {
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('REPRESENTANTE')")
     public Page<Evento> listarPorOrganizacion(Long organizacionId, Pageable pageable) {
         return eventoRepository.findByOrganizacionIdConReferencias(organizacionId, pageable);
     }
@@ -116,6 +148,7 @@ public class ServiceEvento {
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('REPRESENTANTE')")
     public Page<Evento> filtrarPorOrganizacionYTitulo(Long organizacionId, String titulo, Pageable pageable) {
         return eventoRepository.findByOrganizacionIdAndTituloConReferencias(organizacionId, titulo, pageable);
     }
@@ -123,21 +156,9 @@ public class ServiceEvento {
     @Transactional(readOnly = true)
     @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
     public Page<Evento> filtrarCrud(String titulo, Long categoriaId, String estado, Pageable pageable) {
-        if (titulo != null && !titulo.isBlank()) {
-            return eventoRepository.findByTituloConReferencias(titulo.trim(), pageable);
-        }
-        if (categoriaId != null) {
-            return eventoRepository.findByEstadoConReferencias(EstadoEvento.PUBLICADO, pageable); // fallback seguro
-        }
-        if (estado != null && !estado.isBlank()) {
-            try {
-                return eventoRepository.findByEstadoConReferencias(
-                        EstadoEvento.valueOf(estado.trim().toUpperCase()), pageable);
-            } catch (IllegalArgumentException ex) {
-                throw new BusinessException("Estado inválido: " + estado);
-            }
-        }
-        return eventoRepository.findAllConReferencias(pageable);
+        // bug #1: antes era una cascada de "if" que descartaba filtros; ahora se combinan con AND
+        Specification<Evento> filtro = EventoSpecification.build(titulo, categoriaId, estado);
+        return eventoRepository.findAll(filtro, pageable);
     }
 
     // Creación, actualización y eliminación

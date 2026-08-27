@@ -20,6 +20,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -28,6 +29,10 @@ import lombok.Setter;
     @Index(name = "idx_compra_cliente", columnList = "cliente_id"),
     @Index(name = "idx_compra_fecha", columnList = "fecha_compra"),
     @Index(name = "idx_compra_cliente_fecha", columnList = "cliente_id, fecha_compra")
+}, uniqueConstraints = {
+    // bug #16: la idempotencia pertenece a un cliente, no es una clave global.
+    // Antes: @Column(unique = true) -> dos clientes distintos no podían usar la misma key.
+    @UniqueConstraint(name = "uk_compra_cliente_idempotency", columnNames = {"cliente_id", "idempotency_key"})
 })
 @Getter
 @Setter
@@ -37,8 +42,8 @@ public class Compra {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    //idempotencia: evitar q se haga la misma compra dos veces
-    @Column(name = "idempotency_key", length = 100, unique = true)
+    //idempotencia: evitar q se haga la misma compra dos veces (única por cliente, ver uniqueConstraints)
+    @Column(name = "idempotency_key", length = 100)
     private String idempotencyKey;
 
     @Column(name = "fecha_compra", nullable = false)
