@@ -17,7 +17,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,8 +39,8 @@ public class ServiceCompra {
     private final PromocionRepository promocionRepository;
     private final AuthenticatedUserHelper authHelper;
 
+    //CONSULTAS
     @Transactional(readOnly = true)
-    @PreAuthorize("isAuthenticated()")
     public Page<CompraResponseDTO> listarMisCompras(Pageable pageable) {
         Usuario usuario = authHelper.usuarioAutenticado();
         return compraRepository
@@ -50,7 +49,6 @@ public class ServiceCompra {
     }
 
     @Transactional(readOnly = true)
-    @PreAuthorize("isAuthenticated()")
     public CompraResponseDTO obtenerPorId(Long id) {
         Usuario usuario = authHelper.usuarioAutenticado();
         Compra compra = buscarCompra(id);
@@ -58,8 +56,8 @@ public class ServiceCompra {
         return compraToDTO(compra);
     }
 
+    //OPERACIONES DE COMPRA
     @Transactional
-    @PreAuthorize("isAuthenticated()")
     public CompraResponseDTO realizarCompra(CompraRequestDTO request) {
         validarRequest(request);
 
@@ -96,7 +94,6 @@ public class ServiceCompra {
     }
 
     @Transactional
-    @PreAuthorize("isAuthenticated()")
     public void cancelarCompra(Long id) {
         Usuario usuario = authHelper.usuarioAutenticado();
         Compra compra = buscarCompra(id);
@@ -107,11 +104,12 @@ public class ServiceCompra {
                 -> localidadRepository.incrementarDisponibles(
                 item.getLocalidad().getId(), item.getCantidad()));
 
-        compraRepository.deleteById(id);
-        tiqueteRepository.deleteByCompraId(id);
+        // No se borra la compra ni los tiquetes: deben conservarse para
+        // auditoría e histórico. Los tiquetes quedan asociados a una compra CANCELADA.
+        compraRepository.save(compra);
     }
 
-    // validaciones de negocios
+    // METODOS DE VALIDACION DE NEGOCIO
     private void validarEventoPublicado(Localidad localidad) {
         if (localidad.getEvento().getEstado() != EstadoEvento.PUBLICADO) {
             throw new BusinessException(
@@ -162,8 +160,7 @@ public class ServiceCompra {
         return promocionRepository
                 .findVigenteByEventoId(localidad.getEvento().getId(), LocalDate.now())
                 .map(promo -> localidad.getPrecio()
-                        .multiply(BigDecimal.valueOf(100)
-                                .subtract(BigDecimal.valueOf(promo.getDescuento())))
+                        .multiply(BigDecimal.valueOf(100).subtract(promo.getDescuento()))
                         .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP))
                 .orElse(localidad.getPrecio());
     }
@@ -207,7 +204,7 @@ public class ServiceCompra {
         tiqueteRepository.saveAll(tiquetes);
     }
 
-    // MAPEO
+    // METODOS DE MAPEO
     private CompraResponseDTO compraToDTO(Compra compra) {
         return CompraResponseDTO.builder()
                 .id(compra.getId())

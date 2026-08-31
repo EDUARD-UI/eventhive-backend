@@ -1,5 +1,23 @@
 package com.eventhive.app.service;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.PrecisionModel;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.eventhive.app.config.SupabaseStorageConfig;
 import com.eventhive.app.dto.PagedResponse;
 import com.eventhive.app.dto.request.EventoRequest;
@@ -8,6 +26,7 @@ import com.eventhive.app.dto.response.EventoCategoriaDTO;
 import com.eventhive.app.dto.response.EventoDTO;
 import com.eventhive.app.dto.response.EventoMapaDTO;
 import com.eventhive.app.dto.response.EventoOrganizacionDTO;
+import com.eventhive.app.dto.response.LocalidadDTO;
 import com.eventhive.app.enums.EstadoEvento;
 import com.eventhive.app.enums.PermisoEvento;
 import com.eventhive.app.enums.TipoNotification;
@@ -19,70 +38,59 @@ import com.eventhive.app.model.Organizacion;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.repository.CategoriaRepository;
 import com.eventhive.app.repository.EventoRepository;
+import com.eventhive.app.repository.ModeracionEventoRepository;
+import com.eventhive.app.repository.TiqueteRepository;
 import com.eventhive.app.repository.specification.EventoSpecification;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
-import lombok.RequiredArgsConstructor;
-import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.Point;
-import org.locationtech.jts.geom.PrecisionModel;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDate;
-import java.util.List;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 public class ServiceEvento {
 
     private final ServiceOrganizacion serviceOrganizacion;
+    private final ServiceNivelOrganizacion serviceNivelOrganizacion;
+    private final ServiceNotification serviceNotification;
     private final EventoRepository eventoRepository;
     private final CategoriaRepository categoriaRepository;
+    private final TiqueteRepository tiqueteRepository;
+    private final ModeracionEventoRepository moderacionEventoRepository;
     private final AuthenticatedUserHelper authHelper;
-    private final ServiceNotification serviceNotification;
     private final SupabaseStorageService storageService;
     private final SupabaseStorageConfig storageConfig;
-    private final ServiceNivelOrganizacion serviceNivelOrganizacion;
 
     private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory(new PrecisionModel(), 4326);
 
-    // Consultas
+    // CONSULTAS
     @Transactional(readOnly = true)
     public Page<Evento> listarTodos(Pageable pageable) {
         return eventoRepository.findPublicadosVisibles(pageable);
     }
 
     @Transactional(readOnly = true)
-    public Evento obtenerEventoPorId(Long id) {
-        return eventoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con id: " + id));
+    public Evento obtenerEventoPublicado(Long id) {
+        return eventoRepository.findByIdAndEstadoConReferencias(id, EstadoEvento.PUBLICADO)
+                .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado"));
     }
 
-    // Uso interno (moderación, localidades, actualizar/eliminar): puede devolver cualquier estado.
-    // NUNCA exponer directamente en un endpoint público (bug #2.2).
-    public Evento obtenerReferenciasEvento(Long id) {
+    @Transactional(readOnly = true)
+    public Evento obtenerEventoAdministrativo(Long id) {
         return eventoRepository.findByIdConReferencias(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado"));
     }
 
-    // GET /api/eventos/{id} — público, solo PUBLICADO (bug #2.2)
+    // solo devuelve evento en estado.PUBLICADO
     @Transactional(readOnly = true)
     public Evento obtenerEventoPublicoPorId(Long id) {
         return eventoRepository.findByIdAndEstadoConReferencias(id, EstadoEvento.PUBLICADO)
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con id: " + id));
     }
 
-    // GET /api/eventos/organizador/{id} — el evento debe pertenecer a la organización del usuario autenticado
+    //el evento debe pertenecer a la organización del usuario autenticado
     @Transactional(readOnly = true)
-    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
     public Evento obtenerEventoDeOrganizacionPorId(Long organizacionId, Long id) {
-        Evento evento = obtenerReferenciasEvento(id);
+        Evento evento = obtenerEventoPorId(id);
         boolean perteneceALaOrganizacion = evento.getOrganizacion() != null
                 && evento.getOrganizacion().getId().equals(organizacionId);
         if (!perteneceALaOrganizacion) {
@@ -91,11 +99,21 @@ public class ServiceEvento {
         return evento;
     }
 
-    // GET /api/eventos/admin/{id} — cualquier estado, solo administración
+    // devuelve evento con cualquier estado(solo administracion usa este metodo)
     @Transactional(readOnly = true)
-    @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
     public Evento obtenerEventoAdminPorId(Long id) {
+        return obtenerEventoPorId(id);
+    }
+
+    @Transactional(readOnly = true)
+    public Evento obtenerEventoPorId(Long id) {
         return obtenerReferenciasEvento(id);
+    }
+
+    @Transactional(readOnly = true)
+    public Evento obtenerReferenciasEvento(Long id) {
+        return eventoRepository.findByIdConReferencias(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con id: " + id));
     }
 
     @Transactional(readOnly = true)
@@ -103,14 +121,15 @@ public class ServiceEvento {
         return eventoRepository.findByCategoriaVisibles(categoriaId, pageable);
     }
 
-    public List<EventoDTO> listarEventosProximos() {
-        LocalDate fechaActual = LocalDate.now();
-        List<Evento> eventosProximos = eventoRepository.findByFechaAfterAndEstado(fechaActual, EstadoEvento.PUBLICADO);
-        return eventosProximos.stream().map(this::toDTO).toList();
+    @Transactional(readOnly = true)
+    public Page<Evento> listarEventosProximos(Pageable pageable) {
+        return eventoRepository.findProximosPublicados(
+                LocalDate.now(),
+                LocalTime.now(),
+                pageable);
     }
 
     @Transactional(readOnly = true)
-    @PreAuthorize("hasRole('REPRESENTANTE')")
     public Page<Evento> listarPorOrganizacion(Long organizacionId, Pageable pageable) {
         return eventoRepository.findByOrganizacionIdConReferencias(organizacionId, pageable);
     }
@@ -121,11 +140,8 @@ public class ServiceEvento {
         String tituloNormalizado = (titulo != null && !titulo.isBlank()) ? titulo.trim() : null;
 
         return eventoRepository
-                .findByTituloOrFechaVisibles(tituloNormalizado, fecha, pageable)
-                .map(e -> new EventoBusquedaDTO(
-                        e.getId(),
-                        e.getTitulo(),
-                        e.getCategoria() != null ? e.getCategoria().getNombre() : null));
+                .findByTituloAndFechaVisibles(tituloNormalizado, fecha, pageable)
+                .map(e -> new EventoBusquedaDTO());
     }
 
     // Eventos para el mapa: filtra por categoría y/o radio de distancia
@@ -148,22 +164,18 @@ public class ServiceEvento {
     }
 
     @Transactional(readOnly = true)
-    @PreAuthorize("hasRole('REPRESENTANTE')")
     public Page<Evento> filtrarPorOrganizacionYTitulo(Long organizacionId, String titulo, Pageable pageable) {
         return eventoRepository.findByOrganizacionIdAndTituloConReferencias(organizacionId, titulo, pageable);
     }
 
     @Transactional(readOnly = true)
-    @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
     public Page<Evento> filtrarCrud(String titulo, Long categoriaId, String estado, Pageable pageable) {
-        // bug #1: antes era una cascada de "if" que descartaba filtros; ahora se combinan con AND
         Specification<Evento> filtro = EventoSpecification.build(titulo, categoriaId, estado);
         return eventoRepository.findAll(filtro, pageable);
     }
 
-    // Creación, actualización y eliminación
+    // OPERACIONES CRUD
     @Transactional
-    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
     public Evento crearEvento(EventoRequest request, MultipartFile foto) {
         Usuario usuario = authHelper.usuarioAutenticado();
         Categoria categoria = resolverCategoria(request.getCategoriaId());
@@ -177,10 +189,10 @@ public class ServiceEvento {
         verificarLimiteDeNivel(organizacion);
 
         Evento evento = new Evento();
-        mapearCampos(evento, request, categoria);
+        mapearCamposRequest(evento, request, categoria);
         evento.setOrganizacion(organizacion);
         evento.setCreadoPor(usuario);
-        evento.setEstado(PermitePublicacionAutomatica(organizacion));
+        evento.setEstado(permitePublicacionAutomatica(organizacion));
 
         if (foto != null && !foto.isEmpty()) {
             evento.setFoto(storageService.subirImagenEvento(foto));
@@ -198,7 +210,6 @@ public class ServiceEvento {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
     public Evento actualizarEvento(Long id, EventoRequest request, MultipartFile foto) {
         Evento evento = obtenerReferenciasEvento(id);
         verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
@@ -209,11 +220,12 @@ public class ServiceEvento {
 
         EstadoEvento estadoAnterior = evento.getEstado();
         Categoria categoria = resolverCategoria(request.getCategoriaId());
-        mapearCampos(evento, request, categoria);
+        mapearCamposRequest(evento, request, categoria);
 
         if (estadoAnterior == EstadoEvento.EN_CORRECCION) {
-            evento.setEstado(EstadoEvento.PENDIENTE_REVISION);
+            transicionarEstado(evento, EstadoEvento.PENDIENTE_REVISION);
         }
+
         if (foto != null && !foto.isEmpty()) {
             eliminarFotoAnterior(evento.getFoto());
             evento.setFoto(storageService.subirImagenEvento(foto));
@@ -221,36 +233,63 @@ public class ServiceEvento {
 
         Evento guardado = eventoRepository.save(evento);
         notificarCambioSiCorresponde(guardado, estadoAnterior);
-
         return guardado;
     }
 
     @Transactional
-    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
-    public void eliminarEvento(Long id) {
-        Evento evento = obtenerReferenciasEvento(id);
+    public void cancelarEvento(Long id) {
+        Evento evento = obtenerEventoAdministrativo(id);
         verificarPermiso(evento, PermisoEvento.CANCELAR_EVENTO);
 
-        if (evento.getEstado() == EstadoEvento.SUSPENDIDO) {
-            throw new BusinessException("El evento está suspendido por un administrador y no puede eliminarse");
+        if (evento.getEstado() != EstadoEvento.PUBLICADO) {
+            throw new BusinessException("Solo se pueden cancelar eventos PUBLICADOS");
         }
 
-        Long organizacionId = evento.getOrganizacion().getId();
+        transicionarEstado(evento, EstadoEvento.CANCELADO);
+        serviceNotification.notificarCambioEvento(evento, TipoNotification.EVENTO_CANCELADO);
+    }
+
+    // Retira un evento en PENDIENTE_REVISION y lo devuelve a BORRADOR, sin eliminarlo.
+    @Transactional
+    public void retirarEvento(Long id) {
+        Evento evento = obtenerEventoAdministrativo(id);
+        verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
+
+        if (evento.getEstado() != EstadoEvento.PENDIENTE_REVISION) {
+            throw new BusinessException(
+                    "Solo se pueden retirar eventos en estado PENDIENTE_REVISION");
+        }
+
+        transicionarEstado(evento, EstadoEvento.BORRADOR);
+    }
+
+    @Transactional
+    public void eliminarEvento(Long id) {
+        Evento evento = obtenerEventoAdministrativo(id);
+        verificarPermiso(evento, PermisoEvento.CANCELAR_EVENTO);
+
+        if (evento.getEstado() != EstadoEvento.BORRADOR) {
+            throw new BusinessException("Solo se pueden eliminar físicamente eventos en BORRADOR");
+        }
+
+        if (moderacionEventoRepository.existsByEventoId(id) || tiqueteRepository.existsByEventoId(id)) {
+            throw new BusinessException("El evento tiene historial o ventas y debe conservarse");
+        }
 
         eliminarFotoAnterior(evento.getFoto());
-        eventoRepository.deleteById(id);
-
-        serviceOrganizacion.actualizarTotalEventos(organizacionId);
+        eventoRepository.delete(evento);
     }
 
     @Transactional
     public void finalizarEventosVencidos(LocalDate hoy) {
-        eventoRepository.findByFechaAnteriorYEstado(hoy, EstadoEvento.PUBLICADO).forEach(evento -> {
-            evento.setEstado(EstadoEvento.FINALIZADO);
-            Organizacion organizacion = evento.getOrganizacion();
-            organizacion.setEventosFinalizados(organizacion.getEventosFinalizados() + 1);
-            serviceNivelOrganizacion.evaluarAscenso(organizacion);
-        });
+        eventoRepository.findByFechaAnteriorYEstado(hoy, EstadoEvento.PUBLICADO)
+                .forEach(evento -> {
+                    transicionarEstado(evento, EstadoEvento.FINALIZADO);
+                    Organizacion organizacion = evento.getOrganizacion();
+
+                    organizacion.setEventosFinalizados(organizacion.getEventosFinalizados() + 1);
+                    serviceNivelOrganizacion.evaluarAscenso(organizacion);
+                });
     }
 
     //METODOS DE AUXILIARES Y IDOR
@@ -263,7 +302,7 @@ public class ServiceEvento {
         }
     }
 
-    private EstadoEvento PermitePublicacionAutomatica(Organizacion organizacion) {
+    private EstadoEvento permitePublicacionAutomatica(Organizacion organizacion) {
         if (organizacion.getNivel().permitePublicacionAutomatica()) {
             return EstadoEvento.PUBLICADO;
         }
@@ -338,8 +377,20 @@ public class ServiceEvento {
         dto.setFoto(e.getFoto() != null && !e.getFoto().isBlank() ? e.getFoto() : null);
         dto.setFecha(e.getFecha());
         dto.setHora(e.getHora());
-        dto.setLocalidades(e.getLocalidades());
         dto.setEstado(e.getEstado());
+        dto.setLocalidades(
+                e.getLocalidades() == null
+                        ? List.of()
+                        : e.getLocalidades().stream().map(localidad -> {
+                    LocalidadDTO l = new LocalidadDTO();
+                    l.setId(localidad.getId());
+                    l.setNombre(localidad.getNombre());
+                    l.setPrecio(localidad.getPrecio());
+                    l.setCapacidad(localidad.getCapacidad());
+                    l.setDisponibles(localidad.getDisponibles());
+                    return l;
+                }).toList()
+        );
 
         if (e.getUbicacion() != null) {
             dto.setLatitud(e.getUbicacion().getY());
@@ -347,9 +398,7 @@ public class ServiceEvento {
         }
 
         if (e.getCategoria() != null) {
-            dto.setCategoria(new EventoCategoriaDTO(
-                    e.getCategoria().getId(),
-                    e.getCategoria().getNombre()));
+            toEventoCategoriaDTO(e);
         }
 
         if (e.getOrganizacion() != null) {
@@ -370,7 +419,24 @@ public class ServiceEvento {
                 page.getTotalPages());
     }
 
-    private void mapearCampos(Evento evento, EventoRequest req, Categoria categoria) {
+    private EventoBusquedaDTO toEventoBusquedaDTO(Evento evento){
+        EventoBusquedaDTO dto = new EventoBusquedaDTO();
+        dto.setId(evento.getId());
+        dto.setNombreCategoria(evento.getCategoria().getNombre());
+        dto.setTitulo(evento.getTitulo());
+        return dto;
+    }
+
+    private EventoCategoriaDTO toEventoCategoriaDTO(Evento evento){
+        EventoCategoriaDTO dto = new EventoCategoriaDTO();
+        dto.setId(evento.getCategoria().getId());
+        dto.setNombre(evento.getCategoria().getNombre());
+        return dto;
+    }
+
+    private void mapearCamposRequest(Evento evento, EventoRequest req, Categoria categoria) {
+        validarFechaHoraEvento(req.getFecha(), req.getHora());
+
         evento.setTitulo(req.getTitulo());
         evento.setDescripcion(req.getDescripcion());
         evento.setFecha(req.getFecha());
@@ -381,5 +447,57 @@ public class ServiceEvento {
         // JTS usa orden (x=longitud, y=latitud)
         Point punto = GEOMETRY_FACTORY.createPoint(new Coordinate(req.getLongitud(), req.getLatitud()));
         evento.setUbicacion(punto);
+    }
+
+    // @FutureOrPresent en LocalDate no detecta que "hoy a una hora ya pasada" es inválido;
+    // esta validación de negocio complementa (no reemplaza) la anotación del DTO.
+    private void validarFechaHoraEvento(LocalDate fecha, LocalTime hora) {
+        LocalDateTime fechaHora = LocalDateTime.of(fecha, hora);
+        if (fechaHora.isBefore(LocalDateTime.now())) {
+            throw new BusinessException("La fecha y hora del evento no pueden estar en el pasado");
+        }
+    }
+
+    //VALIDACIONES EN CAMBIO DE ESTADOS
+    private static final Map<EstadoEvento, Set<EstadoEvento>> TRANSICIONES = Map.of(
+            EstadoEvento.BORRADOR,
+            Set.of(EstadoEvento.PENDIENTE_REVISION),
+
+            EstadoEvento.PENDIENTE_REVISION,
+            Set.of(
+                    EstadoEvento.PUBLICADO,
+                    EstadoEvento.EN_CORRECCION,
+                    EstadoEvento.RECHAZADO,
+                    EstadoEvento.BORRADOR
+            ),
+
+            EstadoEvento.EN_CORRECCION,
+            Set.of(EstadoEvento.PENDIENTE_REVISION, EstadoEvento.BORRADOR),
+
+            EstadoEvento.PUBLICADO,
+            Set.of(EstadoEvento.CANCELADO, EstadoEvento.FINALIZADO, EstadoEvento.SUSPENDIDO),
+
+            EstadoEvento.SUSPENDIDO,
+            Set.of(EstadoEvento.PUBLICADO),
+
+            EstadoEvento.CANCELADO,
+            Set.of(),
+
+            EstadoEvento.FINALIZADO,
+            Set.of(),
+
+            EstadoEvento.RECHAZADO,
+            Set.of()
+    );
+
+    public void transicionarEstado(Evento evento, EstadoEvento nuevoEstado) {
+        EstadoEvento actual = evento.getEstado();
+
+        if (!TRANSICIONES.getOrDefault(actual, Set.of()).contains(nuevoEstado)) {
+            throw new BusinessException(
+                    "Transición no permitida: " + actual + " -> " + nuevoEstado);
+        }
+
+        evento.setEstado(nuevoEstado);
     }
 }

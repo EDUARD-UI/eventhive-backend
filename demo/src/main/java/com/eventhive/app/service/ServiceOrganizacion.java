@@ -12,7 +12,6 @@ import com.eventhive.app.utils.AuthenticatedUserHelper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,7 +34,6 @@ public class ServiceOrganizacion {
 
     //CONSULTAS
     @Transactional(readOnly = true)
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public OrganizacionDTO obtenerPorId(Long organizacionId) {
         Organizacion organizacion = organizacionRepository.findById(organizacionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organización no encontrada"));
@@ -43,7 +41,6 @@ public class ServiceOrganizacion {
     }
 
     @Transactional(readOnly = true)
-    @PreAuthorize("hasRole('REPRESENTANTE')")
     public OrganizacionDTO miOrganizacion() {
         Usuario usuario = authHelper.usuarioAutenticado();
         if (usuario.getOrganizacion() == null)
@@ -51,19 +48,17 @@ public class ServiceOrganizacion {
         return toDTO(usuario.getOrganizacion());
     }
 
-    // Lista los operadores de la organizacion
+    // Lista los trabajadores de la organizacion
     @Transactional(readOnly = true)
-    @PreAuthorize("hasRole('REPRESENTANTE')")
     public Page<OperadorDTO> listarOperadores(Pageable pageable) {
         Organizacion organizacion = organizacionDelRepresentante();
-        return usuarioRepository.findByOrganizacionId(organizacion.getId(), pageable)
-                .map(this::toOperadorDTO)
-                .map(dto -> dto);
+        return usuarioRepository
+                .findOperadoresByOrganizacionId(organizacion.getId(), pageable)
+                .map(this::toOperadorDTO);
     }
 
     // GESTION DE PERMISOS Y OPERADORES
     @Transactional
-    @PreAuthorize("hasRole('REPRESENTANTE')")
     public void actualizarPermisos(Long operadorId, PermisosOperadorRequest request) {
         Organizacion organizacion = organizacionDelRepresentante();
         Usuario operador = obtenerOperadorDeLaOrganizacion(operadorId, organizacion);
@@ -73,7 +68,6 @@ public class ServiceOrganizacion {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('REPRESENTANTE')")
     public void expulsarOperador(Long operadorId) {
         Organizacion organizacion = organizacionDelRepresentante();
         Usuario operador = obtenerOperadorDeLaOrganizacion(operadorId, organizacion);
@@ -120,21 +114,30 @@ public class ServiceOrganizacion {
     private Organizacion organizacionDelRepresentante() {
         Usuario representante = authHelper.usuarioAutenticado();
         Organizacion organizacion = representante.getOrganizacion();
-        if (organizacion == null || !organizacion.getRepresentante().getId().equals(representante.getId()))
+        if (organizacion == null
+                || organizacion.getRepresentante() == null
+                || !organizacion.getRepresentante().getId().equals(representante.getId())
+                || representante.getRol() == null
+                || !"REPRESENTANTE".equalsIgnoreCase(representante.getRol().getNombre())) {
             throw new BusinessException("No tienes una organización para administrar");
+        }
         return organizacion;
     }
 
     private Usuario obtenerOperadorDeLaOrganizacion(Long operadorId, Organizacion organizacion) {
         Usuario operador = usuarioRepository.findById(operadorId)
-                .orElseThrow(() -> new ResourceNotFoundException("Operador no encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
 
         boolean perteneceAOrganizacion = operador.getOrganizacion() != null
                 && operador.getOrganizacion().getId().equals(organizacion.getId());
-        boolean esRepresentante = organizacion.getRepresentante().getId().equals(operador.getId());
 
-        if (!perteneceAOrganizacion || esRepresentante)
-            throw new BusinessException("El usuario indicado no es un operador de tu organización");
+        boolean esOperador = operador.getRol() != null
+                && "OPERADOR".equalsIgnoreCase(operador.getRol().getNombre());
+
+        if (!perteneceAOrganizacion || !esOperador) {
+            throw new BusinessException(
+                    "El usuario indicado no pertenece a tu organización");
+        }
 
         return operador;
     }
@@ -148,7 +151,7 @@ public class ServiceOrganizacion {
         return usuario.getOrganizacion();
     }
 
-    private OrganizacionDTO toDTO(Organizacion o) {
+    public OrganizacionDTO toDTO(Organizacion o) {
         OrganizacionDTO dto = new OrganizacionDTO();
         dto.setId(o.getId());
         dto.setRepresentante(o.getRepresentante().getNombreCompleto());

@@ -14,7 +14,6 @@ import com.eventhive.app.utils.AuthenticatedUserHelper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,7 +30,6 @@ public class ServiceInvitacionOrganizacion {
 
     //CONSULTAS
     @Transactional(readOnly = true)
-    @PreAuthorize("isAuthenticated()")
     public Page<InvitacionOrganizacionDTO> misInvitacionesPendientes(Pageable pageable) {
         Usuario usuario = authHelper.usuarioAutenticado();
         return invitacionRepository
@@ -41,7 +39,6 @@ public class ServiceInvitacionOrganizacion {
 
     // Historial de invitaciones enviadas por la organización del representante
     @Transactional(readOnly = true)
-    @PreAuthorize("hasRole('REPRESENTANTE')")
     public Page<InvitacionOrganizacionDTO> listarInvitacionesOrganizacion(Pageable pageable) {
         Organizacion organizacion = organizacionDelRepresentante();
         return invitacionRepository.findByOrganizacionId(organizacion.getId(), pageable).map(this::toDTO);
@@ -49,7 +46,6 @@ public class ServiceInvitacionOrganizacion {
 
     //ACCIONES DE INVITACION
     @Transactional
-    @PreAuthorize("hasRole('REPRESENTANTE')")
     public void invitar(String correoInvitado) {
         Usuario representante = authHelper.usuarioAutenticado();
         Organizacion organizacion = representante.getOrganizacion();
@@ -76,7 +72,6 @@ public class ServiceInvitacionOrganizacion {
     }
 
     @Transactional
-    @PreAuthorize("isAuthenticated()")
     public void aceptar(Long invitacionId) {
         Usuario operador = authHelper.usuarioAutenticado();
         InvitacionOrganizacion invitacion = obtenerPendientePara(invitacionId, operador.getCorreo());
@@ -95,7 +90,6 @@ public class ServiceInvitacionOrganizacion {
     }
 
     @Transactional
-    @PreAuthorize("isAuthenticated()")
     public void rechazar(Long invitacionId) {
         Usuario usuario = authHelper.usuarioAutenticado();
         InvitacionOrganizacion invitacion = obtenerPendientePara(invitacionId, usuario.getCorreo());

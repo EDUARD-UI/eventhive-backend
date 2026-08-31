@@ -12,7 +12,6 @@ import com.eventhive.app.repository.PromocionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,14 +40,19 @@ public class ServicePromocion {
         return promocionRepository.findAll(pageable).map(this::toDTO);
     }
 
-    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
+    @Transactional(readOnly = true)
+    public PromocionDTO obtenerPromocionVigente(Long eventoId) {
+        return promocionRepository.findVigenteByEventoId(eventoId, LocalDate.now())
+                .map(this::toDTO)
+                .orElse(null);
+    }
+
     public Page<PromocionDTO> obtenerDTOPorOrganizacion(Long organizacionId, Pageable pageable) {
         return promocionRepository.findByOrganizacionId(organizacionId, pageable).map(this::toDTO);
     }
 
     //OPERACIONES CRUD
     @Transactional
-    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR', 'ADMINISTRADOR')")
     public void crearPromocion(Long eventoId, String descripcion, BigDecimal descuento,
                                String fechaInicio, String fechaFin, Usuario usuario) {
         validarDescuento(descuento);
@@ -69,15 +73,14 @@ public class ServicePromocion {
 
         Promocion p = new Promocion();
         p.setDescripcion(descripcion);
-        p.setDescuento(descuento.doubleValue());
+        p.setDescuento(descuento);
         p.setFechaInicio(inicio);
         p.setFechaFin(fin);
-        p.setEventos(new ArrayList<>(List.of(evento)));
+        p.setEvento(evento);
         promocionRepository.save(p);
     }
 
     @Transactional
-    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR', 'ADMINISTRADOR')")
     public void actualizarPromocion(Long id, Long eventoId, String descripcion, BigDecimal descuento,
                                     String fechaInicio, String fechaFin, Usuario usuario) {
         Promocion p = obtenerPromocionPorId(id);
@@ -99,18 +102,17 @@ public class ServicePromocion {
                 throw new BusinessException(
                         "El evento ya tiene una promoción activa en ese rango de fechas");
 
-            p.setEventos(new ArrayList<>(List.of(nuevoEvento)));
+            p.setEvento(nuevoEvento);
         }
 
         p.setDescripcion(descripcion);
-        p.setDescuento(descuento.doubleValue());
+        p.setDescuento(descuento);
         p.setFechaInicio(inicio);
         p.setFechaFin(fin);
         promocionRepository.save(p);
     }
 
     @Transactional
-    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR', 'ADMINISTRADOR')")
     public void eliminarPromocion(Long id, Usuario usuario) {
         Promocion p = obtenerPromocionPorId(id);
         validarPermiso(p, usuario);
@@ -139,8 +141,7 @@ public class ServicePromocion {
 
     private void validarPermiso(Promocion p, Usuario usuario) {
         if (esAdmin(usuario)) return;
-        boolean autorizado = p.getEventos() != null && p.getEventos().stream()
-                .anyMatch(e -> perteneceALaOrganizacion(e, usuario));
+        boolean autorizado = p.getEvento() != null && perteneceALaOrganizacion(p.getEvento(), usuario);
         if (!autorizado)
             throw new BusinessException("No autorizado para modificar esta promoción");
     }
@@ -151,18 +152,18 @@ public class ServicePromocion {
                 && usuario.getOrganizacion().getId().equals(evento.getOrganizacion().getId());
     }
 
-    private PromocionDTO toDTO(Promocion p) {
+    //METODO DE MAPEO
+    public PromocionDTO toDTO(Promocion p) {
         PromocionDTO dto = new PromocionDTO();
         dto.setId(p.getId());
         dto.setDescripcion(p.getDescripcion());
-        dto.setDescuento(BigDecimal.valueOf(p.getDescuento()));
+        dto.setDescuento(p.getDescuento());
         dto.setFechaInicio(p.getFechaInicio());
         dto.setFechaFinal(p.getFechaFin());
-        if (p.getEventos() != null) {
-            p.getEventos().stream().filter(e -> e != null).findFirst().ifPresent(e -> {
-                dto.setEventoId(e.getId());
-                dto.setEventoTitulo(e.getTitulo());
-            });
+
+        if (p.getEvento() != null) {
+                dto.setEventoId(p.getEvento().getId());
+                dto.setEventoTitulo(p.getEvento().getTitulo());
         }
         return dto;
     }

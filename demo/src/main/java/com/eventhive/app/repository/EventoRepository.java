@@ -1,6 +1,7 @@
 package com.eventhive.app.repository;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,6 +17,12 @@ import com.eventhive.app.enums.EstadoEvento;
 import com.eventhive.app.model.Evento;
 
 public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecificationExecutor<Evento> {
+
+    long countByCategoriaId(Long categoriaId);
+
+    long countByEstado(EstadoEvento estado);
+
+    long countByOrganizacionId(Long organizacionId);
 
     @Query("""
         SELECT e FROM Evento e
@@ -42,7 +49,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
           AND (:titulo IS NULL OR LOWER(e.titulo) LIKE LOWER(CONCAT('%', :titulo, '%')))
           AND (:fecha IS NULL OR e.fecha = :fecha)
         """)
-    Page<Evento> findByTituloOrFechaVisibles(@Param("titulo") String titulo,
+    Page<Evento> findByTituloAndFechaVisibles(@Param("titulo") String titulo,
                                              @Param("fecha") LocalDate fecha,
                                              Pageable pageable);
 
@@ -125,12 +132,6 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         """)
     List<Evento> findByFechaAndEstado(@Param("fecha") LocalDate fecha, @Param("estado") EstadoEvento estado);
 
-    long countByCategoriaId(Long categoriaId);
-
-    long countByEstado(EstadoEvento estado);
-
-    long countByOrganizacionId(Long organizacionId);
-
     @Query("""
         SELECT COUNT(e) FROM Evento e
         WHERE e.organizacion.id = :organizacionId
@@ -140,6 +141,22 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
               com.eventhive.app.enums.EstadoEvento.PUBLICADO)
         """)
     long countActivosByOrganizacionId(@Param("organizacionId") Long organizacionId);
+
+    @Query("""
+    SELECT e FROM Evento e
+    JOIN FETCH e.categoria
+    JOIN FETCH e.organizacion
+    WHERE e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
+      AND (
+            e.fecha > :hoy
+            OR (e.fecha = :hoy AND e.hora >= :hora)
+          )
+    ORDER BY e.fecha ASC, e.hora ASC, e.id ASC
+    """)
+    Page<Evento> findProximosPublicados(
+            @Param("hoy") LocalDate hoy,
+            @Param("hora") LocalTime hora,
+            Pageable pageable);
 
     @Query("""
         SELECT e FROM Evento e

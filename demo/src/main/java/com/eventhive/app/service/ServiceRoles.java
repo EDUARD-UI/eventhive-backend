@@ -1,5 +1,6 @@
 package com.eventhive.app.service;
 
+import com.eventhive.app.dto.response.RolDTO;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Rol;
@@ -18,6 +19,7 @@ public class ServiceRoles {
     private final RolesRepository rolesRepository;
     private final UsuarioRepository usuarioRepository;
 
+    //CONSULTAS
     @Transactional(readOnly = true)
     public Rol findById(Long id) {
         return rolesRepository.findById(id)
@@ -35,6 +37,7 @@ public class ServiceRoles {
         return rolesRepository.findAll(pageable);
     }
 
+    //OPERACION CRUD
     @Transactional
     public void crearRol(String nombre) {
         if (rolesRepository.existsByNombre(nombre))
@@ -65,7 +68,14 @@ public class ServiceRoles {
             throw new BusinessException(
                     "No se puede eliminar el rol '" + rol.getNombre() + "' porque tiene "
                             + usuarios + " usuario(s) asociado(s)");
-
         rolesRepository.deleteById(id);
+    }
+
+    //METODOS AUXILIARES Y DE MAPEO
+    public RolDTO toDTO(Rol r) {
+        RolDTO dto = new RolDTO();
+        dto.setId(r.getId());
+        dto.setNombre(r.getNombre());
+        return dto;
     }
 }

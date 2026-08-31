@@ -25,6 +25,7 @@ public class RecordatorioDeEvento {
     private final ServiceEvento        serviceEvento;
 
     // Se ejecuta todos los días a las 9:00 AM
+    // recordar a los usuarios que su evento sucedera en un dia
     @Scheduled(cron = "0 0 9 * * *")
     public void enviarRecordatorios() {
         LocalDate manana = LocalDate.now().plusDays(1);

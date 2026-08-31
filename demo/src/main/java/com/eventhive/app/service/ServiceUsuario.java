@@ -1,6 +1,7 @@
 package com.eventhive.app.service;
 
 import com.eventhive.app.dto.PagedResponse;
+import com.eventhive.app.dto.request.ActualizarPerfilRequest;
 import com.eventhive.app.dto.response.OrganizacionDTO;
 import com.eventhive.app.dto.response.UsuarioDTO;
 import com.eventhive.app.dto.response.UsuarioSesionDTO;
@@ -16,7 +17,6 @@ import com.eventhive.app.utils.AuthenticatedUserHelper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,19 +68,16 @@ public class ServiceUsuario {
     }
 
     @Transactional(readOnly = true)
-    @PreAuthorize("isAuthenticated()")
     public UsuarioDTO obtenerPerfil() {
         return toDTO(authHelper.usuarioAutenticado());
     }
 
     @Transactional(readOnly = true)
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public Page<Usuario> obtenerTodos(Pageable pageable) {
         return usuarioRepository.findAll(pageable);
     }
 
     @Transactional(readOnly = true)
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public Page<Usuario> buscarPorFiltros(String nombre, Long rolId, Pageable pageable) {
         boolean tieneNombre = nombre != null && !nombre.isBlank();
         boolean tieneRol = rolId != null;
@@ -104,11 +101,10 @@ public class ServiceUsuario {
 
     //OPERACIONES CRUD
     @Transactional
-    @PreAuthorize("isAuthenticated()")
-    public UsuarioDTO actualizarPerfil(UsuarioDTO dto) {
+    public UsuarioDTO actualizarPerfil(ActualizarPerfilRequest request) {
         Usuario u = authHelper.usuarioAutenticado();
-        u.setNombreCompleto(dto.getNombre());
-        u.setTelefono(dto.getTelefono());
+        u.setNombreCompleto(request.getNombre());
+        u.setTelefono(request.getTelefono());
         return toDTO(usuarioRepository.save(u));
     }
 
@@ -147,7 +143,6 @@ public class ServiceUsuario {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public void crearUsuario(String nombre, String correo, String telefono, String clave, Long rolId) {
         if (usuarioRepository.existsByCorreo(correo)) {
             throw new BusinessException("Correo ya registrado");
@@ -170,7 +165,6 @@ public class ServiceUsuario {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public void eliminarUsuario(Long id) {
         if (!usuarioRepository.existsById(id)) {
             throw new ResourceNotFoundException("Usuario no encontrado");
@@ -180,7 +174,6 @@ public class ServiceUsuario {
 
     //cambio de clave
     @Transactional
-    @PreAuthorize("isAuthenticated()")
     public void cambiarClave(String claveActual, String claveNueva) {
         Usuario u = authHelper.usuarioAutenticado();
 
@@ -197,7 +190,7 @@ public class ServiceUsuario {
     }
 
     // METODOS AUXILIARES Y MAPEO
-    private UsuarioDTO toDTO(Usuario u) {
+    public UsuarioDTO toDTO(Usuario u) {
         UsuarioDTO dto = new UsuarioDTO();
         dto.setId(u.getId());
         dto.setNombre(u.getNombreCompleto());

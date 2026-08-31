@@ -15,7 +15,6 @@ import com.eventhive.app.utils.AuthenticatedUserHelper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -45,7 +44,7 @@ public class ServiceSolicitudVerificacion {
 
         // Se valida que no esté ya usado como contacto de otra organización.
         if (organizacionRepository.existsByCorreoContacto(request.getCorreoEmpresarial()))
-            throw new BusinessException("Ese correo empresarial ya está asociado a otra organización");
+            throw new BusinessException("Ese correo empresarial ya está en uso");
 
         String urlRut = null;
         if (archivoRut != null && !archivoRut.isEmpty())
@@ -64,7 +63,6 @@ public class ServiceSolicitudVerificacion {
     }
 
     @Transactional(readOnly = true)
-    @PreAuthorize("hasRole('REPRESENTANTE')")
     public SolicitudVerificacionDTO miSolicitud() {
         Usuario representante = authHelper.usuarioAutenticado();
         return solicitudRepository.findFirstByRepresentanteId(representante.getId())
@@ -73,13 +71,11 @@ public class ServiceSolicitudVerificacion {
     }
 
     @Transactional(readOnly = true)
-    @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('MODERADOR')")
     public Page<SolicitudVerificacionDTO> obtenerSolicitudesPendientes(Pageable pageable) {
         return solicitudRepository.findByEstado(EstadoSolicitud.PENDIENTE, pageable).map(this::toDTO);
     }
 
     @Transactional(readOnly = true)
-    @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('MODERADOR')")
     public SolicitudVerificacionDTO obtenerSolicitud(Long solicitudId) {
         return solicitudRepository.findById(solicitudId)
                 .map(this::toDTO)
@@ -87,7 +83,6 @@ public class ServiceSolicitudVerificacion {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('MODERADOR')")
     public void aprobarSolicitud(Long solicitudId) {
         SolicitudVerificacion solicitud = obtenerPendiente(solicitudId);
         Usuario representante = solicitud.getRepresentanteLegal();
@@ -118,7 +113,6 @@ public class ServiceSolicitudVerificacion {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('MODERADOR')")
     public void rechazarSolicitud(Long solicitudId, String motivo) {
         SolicitudVerificacion solicitud = obtenerPendiente(solicitudId);
         solicitud.setEstado(EstadoSolicitud.RECHAZADA);

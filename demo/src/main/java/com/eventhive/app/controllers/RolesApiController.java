@@ -1,6 +1,7 @@
 package com.eventhive.app.controllers;
 
 import com.eventhive.app.dto.request.RolRequest;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -38,7 +39,7 @@ public class RolesApiController {
     @PostMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> crearRol(
-            @RequestBody RolRequest rolRequest) {
+            @Valid @RequestBody RolRequest rolRequest) {
 
         serviceRoles.crearRol(rolRequest.getNombre());
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Rol creado exitosamente"));

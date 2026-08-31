@@ -3,6 +3,7 @@ package com.eventhive.app.service;
 import com.eventhive.app.config.SupabaseStorageConfig;
 import com.eventhive.app.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -11,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SupabaseStorageService {
@@ -18,6 +20,7 @@ public class SupabaseStorageService {
     private final SupabaseStorageConfig config;
     private final RestTemplate restTemplate;
 
+    //CARGA DE IMAGENES Y DOCUMENTOS AL STORAGE
     public String subirDocumentoVerificacion(MultipartFile archivo) {
         validarDocumento(archivo);
         return subirArchivo(archivo, config.getBucketVerificaciones(), "verificacion_");
@@ -47,7 +50,7 @@ public class SupabaseStorageService {
         try {
             restTemplate.exchange(url, HttpMethod.DELETE, new HttpEntity<>(headers), Void.class);
         } catch (Exception e) {
-            System.err.println("Advertencia: no se pudo eliminar archivo en Supabase: " + e.getMessage());
+            log.warn("No se pudo eliminar archivo en Supabase: {}", e.getMessage(), e);
         }
     }
 
@@ -56,13 +59,14 @@ public class SupabaseStorageService {
         return urlPublica.substring(urlPublica.lastIndexOf("/") + 1);
     }
 
+    //METODOS AUXILIARES Y VALIDACION
     private String subirArchivo(MultipartFile archivo, String bucket, String prefijo) {
         try {
             String extension = obtenerExtension(archivo.getOriginalFilename());
             String nombreArchivo = prefijo + UUID.randomUUID() + extension;
             String url = config.getUrl() + "/storage/v1/object/" + bucket + "/" + nombreArchivo;
 
-            HttpHeaders headers = construirHeaders(MediaType.parseMediaType(archivo.getContentType()));
+            HttpHeaders headers = construirHeaders(resolverContentType(archivo.getContentType()));
             HttpEntity<byte[]> request = new HttpEntity<>(archivo.getBytes(), headers);
             ResponseEntity<String> res = restTemplate.exchange(url, HttpMethod.PUT, request, String.class);
 
@@ -82,6 +86,20 @@ public class SupabaseStorageService {
         headers.set("Authorization", "Bearer " + config.getKey());
         headers.setContentType(contentType);
         return headers;
+    }
+
+    // Valida el content-type recibido del MultipartFile antes de dárselo a MediaType.parseMediaType,
+    // que lanza InvalidMediaTypeException (no controlada) ante un valor mal formado.
+    private MediaType resolverContentType(String contentType) {
+        if (contentType == null || contentType.isBlank()) {
+            throw new BusinessException("El tipo de archivo es requerido");
+        }
+
+        try {
+            return MediaType.parseMediaType(contentType);
+        } catch (InvalidMediaTypeException ex) {
+            throw new BusinessException("Tipo de archivo inválido");
+        }
     }
 
     private String obtenerExtension(String nombre) {

@@ -12,6 +12,18 @@ import com.eventhive.app.model.Tiquete;
 
 public interface TiqueteRepository extends JpaRepository<Tiquete, Long> {
 
+    Optional<Tiquete> findByCodigoQR(String codigoQR);
+
+    boolean existsByEventoId(Long eventoId);
+
+    @Modifying
+    void deleteByCompraId(Long compraId);
+
+    //actualización atómica del check-in. Si dos peticiones llegan a la vez
+    @Modifying
+    @Query("UPDATE Tiquete t SET t.usado = true WHERE t.codigoQR = :codigoQR AND t.usado = false")
+    int marcarComoUsadoSiNoUsado(@Param("codigoQR") String codigoQR);
+
     // Devuelve los tiquetes de una compra con detalles del evento y la localidad
     @Query("""
         SELECT t FROM Tiquete t
@@ -21,15 +33,4 @@ public interface TiqueteRepository extends JpaRepository<Tiquete, Long> {
         WHERE t.compra.id = :compraId
         """)
     List<Tiquete> findByCompraIdConDetalles(@Param("compraId") Long compraId);
-
-    Optional<Tiquete> findByCodigoQR(String codigoQR);
-
-    // bug #15: actualización atómica del check-in. Si dos peticiones llegan a la vez,
-    // solo una obtiene filasActualizadas == 1; la otra encuentra usado=true y no actualiza nada.
-    @Modifying
-    @Query("UPDATE Tiquete t SET t.usado = true WHERE t.codigoQR = :codigoQR AND t.usado = false")
-    int marcarComoUsadoSiNoUsado(@Param("codigoQR") String codigoQR);
-
-    @Modifying
-    void deleteByCompraId(Long compraId);
 }

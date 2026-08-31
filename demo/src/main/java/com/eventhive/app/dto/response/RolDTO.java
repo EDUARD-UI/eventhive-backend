@@ -1,13 +1,11 @@
 package com.eventhive.app.dto.response;
 
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 
 @Getter
 @Setter
-public class CategoriaDTO{
+public class RolDTO {
     private Long id;
     private String nombre;
-    private String urlFoto;
 }

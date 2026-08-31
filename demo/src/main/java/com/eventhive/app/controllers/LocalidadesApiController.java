@@ -2,7 +2,7 @@ package com.eventhive.app.controllers;
 
 import com.eventhive.app.dto.ApiResponse;
 import com.eventhive.app.dto.request.LocalidadRequest;
-import com.eventhive.app.model.Localidad;
+import com.eventhive.app.dto.response.LocalidadDTO;
 import com.eventhive.app.service.ServiceLocalidad;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,28 +23,32 @@ public class LocalidadesApiController {
     //CONSULTAS
     @GetMapping
     @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
-    public ResponseEntity<ApiResponse<List<Localidad>>> listar(@PathVariable Long eventoId) {
+    public ResponseEntity<ApiResponse<List<LocalidadDTO>>> listar(@PathVariable Long eventoId) {
         return ResponseEntity.ok(ApiResponse.ok("Localidades obtenidas",
-                serviceLocalidad.listarPorEvento(eventoId)));
+                serviceLocalidad.listarPorEvento(eventoId)
+                        .stream()
+                        .map(serviceLocalidad::toDTO)
+                        .toList()
+        ));
     }
 
     //OPERACIONES CRUD
     @PostMapping
     @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
-    public ResponseEntity<ApiResponse<Localidad>> agregar(@PathVariable Long eventoId,
+    public ResponseEntity<ApiResponse<LocalidadDTO>> agregar(@PathVariable Long eventoId,
             @Valid @RequestBody LocalidadRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("Localidad agregada",
-                        serviceLocalidad.agregar(eventoId, request)));
+                        serviceLocalidad.toDTO(serviceLocalidad.agregar(eventoId, request))));
     }
 
     @PutMapping("/{localidadId}")
     @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
-    public ResponseEntity<ApiResponse<Localidad>> actualizar(@PathVariable Long eventoId,
+    public ResponseEntity<ApiResponse<LocalidadDTO>> actualizar(@PathVariable Long eventoId,
             @PathVariable Long localidadId,
             @Valid @RequestBody LocalidadRequest request) {
         return ResponseEntity.ok(ApiResponse.ok("Localidad actualizada",
-                serviceLocalidad.actualizar(eventoId, localidadId, request)));
+                serviceLocalidad.toDTO(serviceLocalidad.actualizar(eventoId, localidadId, request))));
     }
 
     @DeleteMapping("/{localidadId}")

@@ -8,11 +8,4 @@ import lombok.Setter;
 public class EventoBusquedaDTO {
     private Long id;
     private String titulo, nombreCategoria;
-
-    public EventoBusquedaDTO(Long id, String titulo, String nombreCategoria) {
-        this.id = id;
-        this.titulo = titulo;
-        this.nombreCategoria = nombreCategoria;
-    }
-    
 }

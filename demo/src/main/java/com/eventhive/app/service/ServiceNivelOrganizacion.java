@@ -11,14 +11,13 @@ import com.eventhive.app.utils.AuthenticatedUserHelper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
-// El sistema solo SUGIERE el ascenso; quien lo aprueba siempre es un ADMINISTRADOR
+
 @Service
 @RequiredArgsConstructor
 public class ServiceNivelOrganizacion {
@@ -30,6 +29,12 @@ public class ServiceNivelOrganizacion {
     // Requisitos mínimos por nivel para avanzar al siguiente: eventos finalizados y antigüedad en días
     private static final int[] FINALIZADOS_REQUERIDOS = {3, 8};
     private static final int[] ANTIGUEDAD_DIAS_REQUERIDA = {30, 90};
+
+    //CONSULTAS
+    @Transactional(readOnly = true)
+    public Page<SugerenciaAscensoDTO> listarPendientes(Pageable pageable) {
+        return sugerenciaRepository.findByEstadoConOrganizacion(EstadoSolicitud.PENDIENTE, pageable).map(this::toDTO);
+    }
 
     // Se llama cada vez que un evento del organizador se finaliza o se rechaza
     @Transactional
@@ -54,14 +59,8 @@ public class ServiceNivelOrganizacion {
         sugerenciaRepository.save(sugerencia);
     }
 
-    @Transactional(readOnly = true)
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public Page<SugerenciaAscensoDTO> listarPendientes(Pageable pageable) {
-        return sugerenciaRepository.findByEstadoConOrganizacion(EstadoSolicitud.PENDIENTE, pageable).map(this::toDTO);
-    }
-
+    //OPERACIONES DE ASCENSO
     @Transactional
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public void aprobarAscenso(Long id) {
         SugerenciaAscenso sugerencia = obtenerPendiente(id);
 
@@ -73,11 +72,11 @@ public class ServiceNivelOrganizacion {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public void rechazarAscenso(Long id) {
         resolver(obtenerPendiente(id), EstadoSolicitud.RECHAZADA);
     }
 
+    //METODOS AUXILIARES Y DE MAPEO
     private SugerenciaAscenso obtenerPendiente(Long id) {
         SugerenciaAscenso s = sugerenciaRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Sugerencia no encontrada"));

@@ -1,27 +1,19 @@
 package com.eventhive.app.model;
 
-import java.time.LocalDate;
-import java.util.List;
-
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Index;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToMany;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
 @Entity
 @Table(name = "promociones", indexes = {
-    @Index(name = "idx_promo_fecha", columnList = "fecha_inicio, fecha_fin")
+        @Index(name = "idx_promo_evento", columnList = "evento_id"),
+        @Index(name = "idx_promo_fecha", columnList = "fecha_inicio, fecha_fin")
 })
-@Getter @Setter
+@Getter
+@Setter
 public class Promocion {
 
     @Id
@@ -31,10 +23,8 @@ public class Promocion {
     @Column(length = 255)
     private String descripcion;
 
-    @Column(nullable = false)
-    private Double descuento;
-
-    //quien la hizo.
+    @Column(nullable = false, precision = 5, scale = 2)
+    private BigDecimal descuento;
 
     @Column(name = "fecha_inicio", nullable = false)
     private LocalDate fechaInicio;
@@ -42,15 +32,7 @@ public class Promocion {
     @Column(name = "fecha_fin", nullable = false)
     private LocalDate fechaFin;
 
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-        name = "promocion_eventos",
-        joinColumns        = @JoinColumn(name = "promocion_id"),
-        inverseJoinColumns = @JoinColumn(name = "evento_id"),
-        indexes = {
-            @Index(name = "idx_pe_evento",    columnList = "evento_id"),
-            @Index(name = "idx_pe_promocion", columnList = "promocion_id")
-        }
-    )
-    private List<Evento> eventos;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "evento_id", nullable = false)
+    private Evento evento;
 }

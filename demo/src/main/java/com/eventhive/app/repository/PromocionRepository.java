@@ -14,42 +14,42 @@ import com.eventhive.app.model.Promocion;
 
 public interface PromocionRepository extends JpaRepository<Promocion, Long> {
 
+    // Obtiene las promociones asociadas a un evento
+    List<Promocion> findByEventoId(Long eventoId);
+
+    boolean existsByEventoId(Long eventoId);
+
     // Busca una promoción vigente para un evento en una fecha dada
     @Query("""
-        SELECT p FROM Promocion p
-        JOIN FETCH p.eventos e
-        WHERE e.id = :eventoId
-        AND p.fechaInicio <= :hoy
-        AND p.fechaFin    >= :hoy
-        """)
-    Optional<Promocion> findVigenteByEventoId(@Param("eventoId") Long eventoId,
-                                               @Param("hoy")      LocalDate hoy);
-
-    // Obtiene las promociones asociadas a un evento
-    @Query("SELECT p FROM Promocion p JOIN p.eventos e WHERE e.id = :eventoId")
-    List<Promocion> findByEventoId(@Param("eventoId") Long eventoId);
-
-    // Verifica si existen promociones para un evento
-    @Query("SELECT COUNT(p) > 0 FROM Promocion p JOIN p.eventos e WHERE e.id = :eventoId")
-    boolean existsByEventoId(@Param("eventoId") Long eventoId);
+    SELECT p FROM Promocion p
+    JOIN FETCH p.evento e
+    WHERE e.id = :eventoId
+      AND p.fechaInicio <= :hoy
+      AND p.fechaFin >= :hoy
+    """)
+    Optional<Promocion> findVigenteByEventoId(
+            @Param("eventoId") Long eventoId,
+            @Param("hoy") LocalDate hoy);
 
     // Comprueba si existe conflicto de fechas con otra promoción
     @Query("""
-        SELECT COUNT(p) > 0 FROM Promocion p JOIN p.eventos e
-        WHERE e.id = :eventoId
-        AND p.fechaInicio <= :fin
-        AND p.fechaFin   >= :inicio
-        AND (:excludeId IS NULL OR p.id <> :excludeId)
-        """)
-    boolean existsConflictoFechas(@Param("eventoId") Long eventoId,
-                                   @Param("inicio") LocalDate inicio,
-                                   @Param("fin") LocalDate fin,
-                                   @Param("excludeId") Long excludeId);
+    SELECT COUNT(p) > 0
+    FROM Promocion p
+    WHERE p.evento.id = :eventoId
+      AND p.fechaInicio <= :fin
+      AND p.fechaFin >= :inicio
+      AND (:excludeId IS NULL OR p.id <> :excludeId)
+    """)
+    boolean existsConflictoFechas(
+            @Param("eventoId") Long eventoId,
+            @Param("inicio") LocalDate inicio,
+            @Param("fin") LocalDate fin,
+            @Param("excludeId") Long excludeId);
 
     // Obtiene promociones de un organizador para el panel
     @Query("""
-    SELECT DISTINCT p FROM Promocion p
-    JOIN FETCH p.eventos e
+    SELECT p FROM Promocion p
+    JOIN FETCH p.evento e
     WHERE e.organizacion.id = :organizacionId
     """)
     Page<Promocion> findByOrganizacionId(@Param("organizacionId") Long organizacionId, Pageable pageable);

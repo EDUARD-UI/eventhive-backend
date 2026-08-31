@@ -20,9 +20,6 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     // Busca usuarios por nombre de rol
     Page<Usuario> findByRolNombre(String nombre, Pageable pageable);
 
-    // Lista los operadores (y también sirve para cualquier miembro) de una organización
-    Page<Usuario> findByOrganizacionId(Long organizacionId, Pageable pageable);
-
     // Busca un usuario por correo con su rol cargado
     @Query("SELECT u FROM Usuario u JOIN FETCH u.rol WHERE u.correo = :correo")
     Optional<Usuario> findByCorreoConRol(@Param("correo") String correo);
@@ -48,4 +45,16 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     Page<Usuario> findByNombreYRolId(@Param("nombre") String nombre,
                                      @Param("rolId")   Long rolId,
                                      Pageable pageable);
+
+    // Lista los operadores de una organizacion
+    @Query("""
+    SELECT u FROM Usuario u
+    JOIN FETCH u.rol r
+    WHERE u.organizacion.id = :organizacionId
+      AND UPPER(r.nombre) = 'OPERADOR'
+    ORDER BY u.nombreCompleto ASC
+    """)
+    Page<Usuario> findOperadoresByOrganizacionId(
+            @Param("organizacionId") Long organizacionId,
+            Pageable pageable);
 }

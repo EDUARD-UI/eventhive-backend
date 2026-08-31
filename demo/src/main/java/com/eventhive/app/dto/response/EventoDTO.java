@@ -1,7 +1,6 @@
 package com.eventhive.app.dto.response;
 
 import com.eventhive.app.enums.EstadoEvento;
-import com.eventhive.app.model.Localidad;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -24,5 +23,5 @@ public class EventoDTO {
     private Double longitud;
     private EventoCategoriaDTO categoria;
     private EventoOrganizacionDTO organizacion;
-    private List<Localidad> localidades;
+    private List<LocalidadDTO> localidades;
 }

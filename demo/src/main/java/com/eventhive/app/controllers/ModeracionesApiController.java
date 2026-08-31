@@ -5,6 +5,7 @@ import com.eventhive.app.dto.response.EventoDTO;
 import com.eventhive.app.dto.response.ModeracionEventoDTO;
 import com.eventhive.app.service.ServiceEvento;
 import com.eventhive.app.service.ServiceModeracion;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -27,7 +28,7 @@ public class ModeracionesApiController {
     private final ServiceEvento serviceEvento;
     private final ServiceModeracion serviceModeracion;
 
-    //gestion de moderadores
+    //GESTION DE MODERADORES
     @GetMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<PagedResponse<UsuarioDTO>>> listarModeradores(Pageable pageable) {
@@ -57,7 +58,7 @@ public class ModeracionesApiController {
         return ResponseEntity.ok(ApiResponse.ok("Rol de moderador asigando correctamente"));
     }
 
-    // Moderación a eventos
+    // MODERACION A EVENTOS
     @GetMapping("/moderacion/pendientes")
     @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> pendientesRevision(Pageable pageable) {
@@ -84,7 +85,7 @@ public class ModeracionesApiController {
     @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<EventoDTO>> solicitarCorreccion(
             @PathVariable Long id,
-            @RequestBody ModeracionEventoRequest request) {
+            @RequestBody @Valid ModeracionEventoRequest request) {
         return ResponseEntity.ok(ApiResponse.ok("Se solicitaron correcciones al organizador",
                 serviceEvento.toDTO(serviceModeracion.solicitarCorreccion(id, request.getMotivo(), request.getObservacion()))));
     }
@@ -93,22 +94,22 @@ public class ModeracionesApiController {
     @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<EventoDTO>> rechazar(
             @PathVariable Long id,
-            @RequestBody ModeracionEventoRequest request) {
+            @RequestBody @Valid ModeracionEventoRequest request) {
         return ResponseEntity.ok(ApiResponse.ok("Evento rechazado",
                 serviceEvento.toDTO(serviceModeracion.rechazarEvento(id, request.getMotivo(), request.getObservacion()))));
     }
 
     @PatchMapping("/{id}/suspender")
-    @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<EventoDTO>> suspender(
             @PathVariable Long id,
-            @RequestBody ModeracionEventoRequest request) {
+            @RequestBody @Valid ModeracionEventoRequest request) {
         return ResponseEntity.ok(ApiResponse.ok("Evento suspendido",
                 serviceEvento.toDTO(serviceModeracion.suspenderEvento(id, request.getMotivo(), request.getObservacion()))));
     }
 
     @PatchMapping("/{id}/reactivar")
-    @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<EventoDTO>> reactivar(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok("Evento ractivado y publicado exitosamente",
                 serviceEvento.toDTO(serviceModeracion.reactivarEvento(id))));

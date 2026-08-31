@@ -12,7 +12,6 @@ import com.eventhive.app.utils.AuthenticatedUserHelper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,7 +25,6 @@ public class ServiceListaDeseo {
 
     //operaciones crud
     @Transactional
-    @PreAuthorize("isAuthenticated()")
     public void agregar(Long eventoId) {
         Usuario usuario = authHelper.usuarioAutenticado();
         Evento evento = serviceEvento.obtenerEventoPorId(eventoId);
@@ -42,7 +40,6 @@ public class ServiceListaDeseo {
     }
 
     @Transactional
-    @PreAuthorize("isAuthenticated()")
     public void quitar(Long eventoId) {
         Usuario usuario = authHelper.usuarioAutenticado();
 
@@ -55,7 +52,6 @@ public class ServiceListaDeseo {
 
     //consultas
     @Transactional(readOnly = true)
-    @PreAuthorize("isAuthenticated()")
     public PagedResponse<EventoDTO> listarMisDeseados(Pageable pageable) {
         Usuario usuario = authHelper.usuarioAutenticado();
         Page<Evento> page = listaDeseoRepository.findEventosDeseadosByUsuarioId(usuario.getId(), pageable);

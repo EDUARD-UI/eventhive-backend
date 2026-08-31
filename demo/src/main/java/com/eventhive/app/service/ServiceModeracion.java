@@ -1,5 +1,12 @@
 package com.eventhive.app.service;
 
+import java.time.LocalDateTime;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.eventhive.app.dto.response.ModeracionEventoDTO;
 import com.eventhive.app.enums.EstadoEvento;
 import com.eventhive.app.enums.MotivosRechazos;
@@ -8,19 +15,13 @@ import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Evento;
 import com.eventhive.app.model.ModeracionEvento;
-import com.eventhive.app.model.Usuario;
 import com.eventhive.app.model.Organizacion;
+import com.eventhive.app.model.Usuario;
 import com.eventhive.app.repository.EventoRepository;
 import com.eventhive.app.repository.ModeracionEventoRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -30,10 +31,10 @@ public class ServiceModeracion {
     private final ModeracionEventoRepository moderacionRepository;
     private final AuthenticatedUserHelper authHelper;
     private final ServiceNotification serviceNotification;
+    private final ServiceEvento serviceEvento;
 
     //CONSULTAS
     @Transactional(readOnly = true)
-    @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
     public Page<Evento> listarPendientesRevision(Pageable pageable) {
         return eventoRepository.findByEstadoConReferencias(EstadoEvento.PENDIENTE_REVISION, pageable);
     }
@@ -42,7 +43,11 @@ public class ServiceModeracion {
     public Page<ModeracionEventoDTO> HistorialModeraciones(Long eventoId, Pageable pageable) {
         Evento evento = obtenerPorId(eventoId);//validar que el evento existe
         Usuario usuario = authHelper.usuarioAutenticado();
-        boolean esRepresentante = evento.getOrganizacion() != null && usuario.getId().equals(evento.getOrganizacion().getRepresentante().getId());
+
+        Organizacion organizacion = evento.getOrganizacion();
+        boolean esRepresentante = organizacion != null
+                && organizacion.getRepresentante() != null
+                && usuario.getId().equals(organizacion.getRepresentante().getId());
 
         if (!esRepresentante) {
             throw new BusinessException("No autorizado para ver el historial de este evento");
@@ -53,10 +58,9 @@ public class ServiceModeracion {
 
     //OPERACIONES DE MODERACION
     @Transactional
-    @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
     public Evento aprobarEvento(Long eventoId) {
         Evento evento = obtenerEnRevision(eventoId);
-        evento.setEstado(EstadoEvento.PUBLICADO);
+        serviceEvento.transicionarEstado(evento, EstadoEvento.PUBLICADO);
         registrarModeracion(evento, EstadoEvento.PUBLICADO, null, null);
 
         Evento guardado = eventoRepository.save(evento);
@@ -65,21 +69,19 @@ public class ServiceModeracion {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
     public Evento solicitarCorreccion(Long eventoId, MotivosRechazos motivo, String observacion) {
         validarMotivo(motivo, observacion);
         Evento evento = obtenerEnRevision(eventoId);
-        evento.setEstado(EstadoEvento.EN_CORRECCION);
+        serviceEvento.transicionarEstado(evento, EstadoEvento.EN_CORRECCION);
         registrarModeracion(evento, EstadoEvento.EN_CORRECCION, motivo, observacion);
         return eventoRepository.save(evento);
     }
 
     @Transactional
-    @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
     public Evento rechazarEvento(Long eventoId, MotivosRechazos motivo, String observacion) {
         validarMotivo(motivo, observacion);
         Evento evento = obtenerEnRevision(eventoId);
-        evento.setEstado(EstadoEvento.RECHAZADO);
+        serviceEvento.transicionarEstado(evento, EstadoEvento.RECHAZADO);
         registrarModeracion(evento, EstadoEvento.RECHAZADO, motivo, observacion);
 
         Organizacion organizacion = evento.getOrganizacion();
@@ -88,14 +90,13 @@ public class ServiceModeracion {
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public Evento suspenderEvento(Long eventoId, MotivosRechazos motivo, String observacion) {
         validarMotivo(motivo, observacion);
         Evento evento = obtenerPorId(eventoId);
         if (evento.getEstado() != EstadoEvento.PUBLICADO)
             throw new BusinessException("Solo se pueden suspender eventos en estado PUBLICADO");
 
-        evento.setEstado(EstadoEvento.SUSPENDIDO);
+        serviceEvento.transicionarEstado(evento, EstadoEvento.SUSPENDIDO);
         registrarModeracion(evento, EstadoEvento.SUSPENDIDO, motivo, observacion);
 
         Evento guardado = eventoRepository.save(evento);
@@ -105,13 +106,12 @@ public class ServiceModeracion {
 
     // Revierte una suspensión: el evento vuelve a estar visible/PUBLICADO
     @Transactional
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public Evento reactivarEvento(Long eventoId) {
         Evento evento = obtenerPorId(eventoId);
         if (evento.getEstado() != EstadoEvento.SUSPENDIDO)
             throw new BusinessException("Solo se pueden reactivar eventos en estado SUSPENDIDO");
 
-        evento.setEstado(EstadoEvento.PUBLICADO);
+        serviceEvento.transicionarEstado(evento, EstadoEvento.PUBLICADO);
         registrarModeracion(evento, EstadoEvento.PUBLICADO, null, null);
 
         Evento guardado = eventoRepository.save(evento);

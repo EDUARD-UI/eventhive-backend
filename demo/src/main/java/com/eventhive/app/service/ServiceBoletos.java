@@ -13,7 +13,6 @@ import com.eventhive.app.model.Usuario;
 import com.eventhive.app.repository.TiqueteRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,7 +28,6 @@ public class ServiceBoletos {
 
     //validar el ingreso de un tiquete por codigo qr
     @Transactional
-    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
     public void realizarCheckIn(String codigoQR) {
         Tiquete tiquete = tiqueteRepository.findByCodigoQR(codigoQR)
                 .orElseThrow(() -> new ResourceNotFoundException("Tiquete no encontrado o inválido"));
@@ -40,8 +38,6 @@ public class ServiceBoletos {
             throw new BusinessException("El tiquete pertenece a una compra cancelada");
         }
 
-        // bug #15: UPDATE ... WHERE usado = false, en vez de leer y luego escribir.
-        // Así solo una petición concurrente puede consumir el tiquete.
         int filasActualizadas = tiqueteRepository.marcarComoUsadoSiNoUsado(codigoQR);
         if (filasActualizadas == 0) {
             throw new BusinessException("El tiquete ya fue utilizado");
@@ -49,7 +45,6 @@ public class ServiceBoletos {
     }
 
     @Transactional(readOnly = true)
-    @PreAuthorize("hasRole('CLIENTE')")
     public BoletosCompraDTO obtenerBoletosPorCompra(Long compraId) {
         CompraResponseDTO compra = serviceCompra.obtenerPorId(compraId);
 
@@ -70,6 +65,9 @@ public class ServiceBoletos {
     //validar IDOR
     private void validarPermisoCheckIn(Tiquete tiquete) {
         Usuario operador = authHelper.usuarioAutenticado();
+        if (operador.getOrganizacion() == null) {
+            throw new BusinessException("El usuario no pertenece a una organización");
+        }
 
         Long organizacionID = tiquete.getEvento().getOrganizacion().getId();
         if (!operador.getOrganizacion().getId().equals(organizacionID)) {

@@ -1,23 +1,32 @@
 package com.eventhive.app.controllers;
 
-import com.eventhive.app.dto.ApiResponse;
-import com.eventhive.app.dto.request.CategoriaRequest;
-import com.eventhive.app.dto.response.CategoriaDTO;
-import com.eventhive.app.dto.response.CategoriaEventosDTO;
-import com.eventhive.app.dto.PagedResponse;
-import com.eventhive.app.model.Categoria;
-import com.eventhive.app.service.ServiceCategoria;
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
+import com.eventhive.app.dto.ApiResponse;
+import com.eventhive.app.dto.PagedResponse;
+import com.eventhive.app.dto.request.CategoriaRequest;
+import com.eventhive.app.dto.response.CategoriaDTO;
+import com.eventhive.app.dto.response.CategoriaEventosDTO;
+import com.eventhive.app.service.ServiceCategoria;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequiredArgsConstructor
@@ -28,39 +37,28 @@ public class CategoriasApiController {
 
     //CONSULTAS
     @GetMapping
-    public ResponseEntity<ApiResponse<PagedResponse<Categoria>>> obtener(Pageable pageable) {
-        Page<Categoria> page = serviceCategoria.obtenerTodasCategorias(pageable);
+    public ResponseEntity<ApiResponse<PagedResponse<CategoriaDTO>>> listar(Pageable pageable) {
+        Page<CategoriaDTO> page = serviceCategoria.obtenerTodasCategorias(pageable)
+                .map(categoria -> serviceCategoria.toDTO(categoria));
 
-        page.getContent().forEach(cat -> {
-            if (cat.getFoto() != null && cat.getFoto().trim().isEmpty()) {
-                cat.setFoto(null);
-            }
-        });
-
-        PagedResponse<Categoria> response = new PagedResponse<>(
-                page.getContent(),
-                page.getNumber(),
-                page.getSize(),
-                page.getTotalElements(),
-                page.getTotalPages()
-        );
-
-        return ResponseEntity.ok(ApiResponse.ok("Categorías obtenidas", response));
+        return ResponseEntity.ok(ApiResponse.ok("Categorías obtenidas",
+                new PagedResponse<>(
+                        page.getContent(),
+                        page.getNumber(),
+                        page.getSize(),
+                        page.getTotalElements(),
+                        page.getTotalPages()
+                )));
     }
 
     @GetMapping("/nombres")
-    public ResponseEntity<ApiResponse<List<CategoriaDTO>>> listar() {
-        List<CategoriaDTO> categorias = serviceCategoria.obtenerCategoriaDTO();
-        categorias.forEach(cat -> {
-            if (cat.getNombre() != null && cat.getNombre().isEmpty()) {
-                cat.setId(null);
-            }
-        });
-        return ResponseEntity.ok(ApiResponse.ok("Categorías obtenidas", categorias));
+    public ResponseEntity<ApiResponse<List<CategoriaDTO>>> listarDTO() {
+        return ResponseEntity.ok(ApiResponse.ok("Categorías obtenidas",
+                serviceCategoria.obtenerCategoriaDTO()));
     }
 
     @GetMapping("/destacadas")
-    public ResponseEntity<ApiResponse<List<Categoria>>> destacadas() {
+    public ResponseEntity<ApiResponse<List<CategoriaDTO>>> destacadas() {
         return ResponseEntity.ok(ApiResponse.ok("Categorías destacadas",
                 serviceCategoria.obtenerTop4Categorias()));
     }
@@ -72,39 +70,33 @@ public class CategoriasApiController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Categoria>> obtenerPorId(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<CategoriaDTO>> obtenerPorId(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok("Categoría obtenida",
-                serviceCategoria.obtenerCategoriaPorId(id)));
+                serviceCategoria.toDTO(serviceCategoria.obtenerCategoriaPorId(id))));
     }
 
     //OPERACIONES CRUD
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> crear(
-            @RequestBody CategoriaRequest request,
-            @RequestParam(required = false) MultipartFile foto) {
-        try {
-            serviceCategoria.crearCategoria(request.getNombre(), foto);
-            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Categoría creada exitosamente"));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error(e.getMessage()));
-        }
+            @RequestPart("datos") @Valid CategoriaRequest request,
+            @RequestPart(value = "foto", required = false) MultipartFile foto) {
+
+        String nombreNormalizado = request.getNombre().trim();
+        serviceCategoria.crearCategoria(nombreNormalizado, foto);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok("Categoría creada exitosamente"));
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> actualizar(
             @PathVariable Long id,
-            @RequestParam String nombre,
-            @RequestParam(required = false) MultipartFile foto) {
-        try {
-            serviceCategoria.actualizarCategoria(id, nombre, foto);
-            return ResponseEntity.ok(ApiResponse.ok("Categoría actualizada exitosamente"));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error(e.getMessage()));
-        }
+            @RequestPart("datos") @Valid CategoriaRequest request,
+            @RequestPart(value = "foto", required = false) MultipartFile foto) {
+
+        serviceCategoria.actualizarCategoria(id, request.getNombre(), foto);
+        return ResponseEntity.ok(ApiResponse.ok("Categoría actualizada exitosamente"));
     }
 
     @DeleteMapping("/{id}")

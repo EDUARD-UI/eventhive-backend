@@ -30,8 +30,6 @@ import lombok.Setter;
     @Index(name = "idx_compra_fecha", columnList = "fecha_compra"),
     @Index(name = "idx_compra_cliente_fecha", columnList = "cliente_id, fecha_compra")
 }, uniqueConstraints = {
-    // bug #16: la idempotencia pertenece a un cliente, no es una clave global.
-    // Antes: @Column(unique = true) -> dos clientes distintos no podían usar la misma key.
     @UniqueConstraint(name = "uk_compra_cliente_idempotency", columnNames = {"cliente_id", "idempotency_key"})
 })
 @Getter

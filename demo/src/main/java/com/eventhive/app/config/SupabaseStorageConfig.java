@@ -1,32 +1,38 @@
 package com.eventhive.app.config;
 
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
-import lombok.Getter;
 
-@Getter
 @Configuration
+@RequiredArgsConstructor
+@EnableConfigurationProperties(SupabaseStorageProperties.class)
 public class SupabaseStorageConfig {
 
-    //url del storage
-    @Value("${supabase.url}")
-    private String url;
+    private final SupabaseStorageProperties properties;
 
-    //clave del storage
-    @Value("${supabase.key}")
-    private String key;
+    public String getUrl() {
+        return properties.getUrl();
+    }
 
-    //nombre de los buckets
-    @Value("${supabase.bucket.verificaciones}")
-    private String bucketVerificaciones;
+    public String getKey() {
+        return properties.getKey();
+    }
 
-    @Value("${supabase.bucket.eventos}")
-    private String bucketEventos;
+    public String getBucketVerificaciones() {
+        return properties.getBucket().getVerificaciones();
+    }
 
-    @Value("${supabase.bucket.categorias}")
-    private String bucketCategorias;
+    public String getBucketEventos() {
+        return properties.getBucket().getEventos();
+    }
 
-    @Value("${supabase.bucket.permisos}")
-    private String bucketPermisos;
+    public String getBucketCategorias() {
+        return properties.getBucket().getCategorias();
+    }
+
+    public String getBucketPermisos() {
+        return properties.getBucket().getPermisos();
+    }
 }

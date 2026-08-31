@@ -8,6 +8,7 @@ import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.service.*;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -83,25 +84,26 @@ public class OrganizacionApiController {
 
     @GetMapping("/mi-organizacion/seguidores")
     @PreAuthorize("hasRole('REPRESENTANTE') or hasRole('OPERADOR')")
-    public ResponseEntity<ApiResponse<PagedResponse<Usuario>>> misSeguidores(Pageable pageable) {
+    public ResponseEntity<ApiResponse<PagedResponse<UsuarioDTO>>> misSeguidores(Pageable pageable) {
         Usuario usuario = authHelper.usuarioAutenticado();
         if (usuario.getOrganizacion() == null) {
             throw new BusinessException("El usuario no tiene una organización asociada");
         }
         Long organizacionId = usuario.getOrganizacion().getId();
-        Page<Usuario> page = serviceSeguidor.listarSeguidores(organizacionId, pageable);
-        PagedResponse<Usuario> response = new PagedResponse<>(page.getContent(), page.getNumber(),
+        Page<UsuarioDTO> page = serviceSeguidor.listarSeguidores(organizacionId, pageable);
+        PagedResponse<UsuarioDTO> response = new PagedResponse<>(page.getContent(), page.getNumber(),
                 page.getSize(), page.getTotalElements(), page.getTotalPages());
         return ResponseEntity.ok(ApiResponse.ok("Seguidores de la organizacion obtenidos", response));
     }
 
-    //endpoint para obtener las valoracion de mi organizacion
+    //endpoint para obtener las valoracion de mi organizacion(crear)
 
     //GESTION DE PERMISOS Y OPERADORES
     @PatchMapping("/operadores/{id}/permisos")
     @PreAuthorize("hasRole('REPRESENTANTE')")
     public ResponseEntity<ApiResponse<Void>> actualizarPermisos(
-            @PathVariable Long id, @RequestBody PermisosOperadorRequest request) {
+            @PathVariable Long id,
+            @Valid @RequestBody PermisosOperadorRequest request) {
         serviceOrganizacion.actualizarPermisos(id, request);
         return ResponseEntity.ok(ApiResponse.ok("Permisos actualizados"));
     }

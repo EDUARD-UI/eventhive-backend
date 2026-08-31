@@ -2,13 +2,14 @@ package com.eventhive.app.controllers;
 
 import com.eventhive.app.dto.ApiResponse;
 import com.eventhive.app.dto.PagedResponse;
+import com.eventhive.app.dto.request.ActualizarPerfilRequest;
 import com.eventhive.app.dto.request.EditarClaveRequest;
 import com.eventhive.app.dto.response.OrganizacionDTO;
 import com.eventhive.app.dto.response.UsuarioDTO;
-import com.eventhive.app.model.Organizacion;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.service.ServiceSeguidor;
 import com.eventhive.app.service.ServiceUsuario;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,21 +26,12 @@ public class UsuariosApiController {
     private final ServiceUsuario usuarioService;
     private final ServiceSeguidor seguidorService;
 
+    //CONSULTAS
     @GetMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<PagedResponse<UsuarioDTO>>> listar(Pageable pageable) {
         Page<UsuarioDTO> page = usuarioService.obtenerTodos(pageable)
-                .map(usuario -> {
-                    UsuarioDTO dto = new UsuarioDTO();
-                    dto.setId(usuario.getId());
-                    dto.setNombre(usuario.getNombreCompleto());
-                    dto.setCorreo(usuario.getCorreo());
-                    dto.setTelefono(usuario.getTelefono());
-                    if (usuario.getRol() != null) {
-                        dto.setRolNombre(usuario.getRol().getNombre());
-                    }
-                    return dto;
-                });
+                .map(usuarioService::toDTO);
 
         PagedResponse<UsuarioDTO> response = new PagedResponse<>(
                 page.getContent(),
@@ -54,60 +46,38 @@ public class UsuariosApiController {
 
     @GetMapping("/buscar")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<PagedResponse<UsuarioDTO>>> buscar(
+    public ResponseEntity<ApiResponse<PagedResponse<UsuarioDTO>>> filtrarUsuarios(
             @RequestParam(required = false) String nombre,
             @RequestParam(required = false) Long rolId,
             Pageable pageable) {
-        try {
-            Page<Usuario> page = usuarioService.buscarPorFiltros(nombre, rolId, pageable);
-            Page<UsuarioDTO> pageDto = page.map(usuario -> {
-                UsuarioDTO dto = new UsuarioDTO();
-                dto.setId(usuario.getId());
-                dto.setNombre(usuario.getNombreCompleto());
-                dto.setCorreo(usuario.getCorreo());
-                dto.setTelefono(usuario.getTelefono());
-                if (usuario.getRol() != null) {
-                    dto.setRolNombre(usuario.getRol().getNombre());
-                }
-                return dto;
-            });
-            PagedResponse<UsuarioDTO> response = new PagedResponse<>(
-                    pageDto.getContent(), pageDto.getNumber(), pageDto.getSize(),
-                    pageDto.getTotalElements(), pageDto.getTotalPages()
-            );
-            return ResponseEntity.ok(ApiResponse.ok("Resultados de búsqueda", response));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Error en búsqueda: " + e.getMessage()));
-        }
+
+        Page<UsuarioDTO> page = usuarioService.buscarPorFiltros(nombre, rolId, pageable)
+                .map(usuarioService::toDTO);
+
+        return ResponseEntity.ok(ApiResponse.ok("Resultados de búsqueda", usuarioService.toPaged(page)));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<UsuarioDTO>> obtenerPorId(@PathVariable Long id) {
-        var usuario = usuarioService.obtenerUsuarioPorId(id);
-        UsuarioDTO dto = new UsuarioDTO();
-        dto.setId(usuario.getId());
-        dto.setNombre(usuario.getNombreCompleto());
-        dto.setCorreo(usuario.getCorreo());
-        dto.setTelefono(usuario.getTelefono());
-        if (usuario.getRol() != null) {
-            dto.setRolNombre(usuario.getRol().getNombre());
-        }
-        return ResponseEntity.ok(ApiResponse.ok("Usuario obtenido", dto));
+        Usuario usuario = usuarioService.obtenerUsuarioPorId(id);
+        return ResponseEntity.ok(ApiResponse.ok("Usuario obtenido", usuarioService.toDTO(usuario)));
     }
 
     @GetMapping("/misOrganizaciones-seguidas")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<PagedResponse<Organizacion>>> misOrganizacionesSeguidas(Pageable pageable) {
-        Page<Organizacion> page = seguidorService.listarOrganizacionesSeguidas(pageable);
-        PagedResponse<Organizacion> response = new PagedResponse<>(page.getContent(), page.getNumber(),
+    public ResponseEntity<ApiResponse<PagedResponse<OrganizacionDTO>>> misOrganizacionesSeguidas(Pageable pageable) {
+        Page<OrganizacionDTO> page = seguidorService.listarOrganizacionesSeguidas(pageable);
+
+        PagedResponse<OrganizacionDTO> response = new PagedResponse<>(page.getContent(), page.getNumber(),
                 page.getSize(), page.getTotalElements(), page.getTotalPages());
+
         return ResponseEntity.ok(ApiResponse.ok("Organizaciones seguidas obtenidas", response));
     }
 
+    //OPERACIONES PERFIL DE USUARIO
     @DeleteMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long id) {
         usuarioService.eliminarUsuario(id);
         return ResponseEntity.ok(ApiResponse.ok("Usuario eliminado exitosamente"));
@@ -122,15 +92,15 @@ public class UsuariosApiController {
 
     @PutMapping("/perfil")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<UsuarioDTO>> actualizarPerfil(@RequestBody UsuarioDTO dto) {
-        return ResponseEntity.ok(ApiResponse.ok("Perfil actualizado",
-                usuarioService.actualizarPerfil(dto)));
+    public ResponseEntity<ApiResponse<UsuarioDTO>> actualizarPerfil(
+            @Valid @RequestBody ActualizarPerfilRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok("Perfil actualizado", usuarioService.actualizarPerfil(request)));
     }
 
     @PutMapping("/perfil/cambiar-clave")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Void>> cambiarClave(
-            @RequestBody EditarClaveRequest datos) {
+            @Valid @RequestBody EditarClaveRequest datos) {
         usuarioService.cambiarClave(datos.getClaveActual(), datos.getClaveNueva());
         return ResponseEntity.ok(ApiResponse.ok("Contraseña actualizada correctamente"));
     }

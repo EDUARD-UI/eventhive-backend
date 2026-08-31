@@ -18,4 +18,6 @@ public interface ModeracionEventoRepository extends JpaRepository<ModeracionEven
         ORDER BY m.fecha DESC
         """)
     Page<ModeracionEvento> findByEventoId(@Param("eventoId") Long eventoId, Pageable pageable);
+
+    boolean existsByEventoId(Long eventoId);
 }

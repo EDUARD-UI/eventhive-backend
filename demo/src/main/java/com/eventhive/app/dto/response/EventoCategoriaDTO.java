@@ -8,9 +8,4 @@ import lombok.Setter;
 public class EventoCategoriaDTO {
     private Long id;
     private String nombre;
-
-    public EventoCategoriaDTO(Long id, String nombre) {
-        this.id = id;
-        this.nombre = nombre;
-    }
 }

@@ -11,7 +11,6 @@ import com.eventhive.app.repository.SeguidorRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -68,7 +67,6 @@ public class ServiceNotification {
         notificationRepository.save(n);
     }
 
-    @PreAuthorize("isAuthenticated()")
     public List<NotificationDTO> obtenerMisNotificaciones() {
         Usuario usuario = authHelper.usuarioAutenticado();
         return notificationRepository
@@ -78,13 +76,11 @@ public class ServiceNotification {
                 .toList();
     }
 
-    @PreAuthorize("isAuthenticated()")
     public long contarNoLeidas() {
         Usuario usuario = authHelper.usuarioAutenticado();
         return notificationRepository.countByUsuarioIdAndLeidaFalse(usuario.getId());
     }
 
-    @PreAuthorize("isAuthenticated()")
     public void marcarLeida(String notificationId) {
         Usuario usuario = authHelper.usuarioAutenticado();
 
@@ -100,30 +96,31 @@ public class ServiceNotification {
         notificationRepository.save(notificacion);
     }
 
-    @PreAuthorize("isAuthenticated()")
     public void limpiarLeidas() {
         Usuario usuario = authHelper.usuarioAutenticado();
         notificationRepository.deleteByUsuarioIdAndLeidaTrue(usuario.getId());
     }
 
     //METODOS AUXILIARES Y MAPEO
-    private void notificarASeguidores(Evento evento, TipoNotification tipo,
-                                      String titulo, String mensaje) {
+    private void notificarASeguidores(Evento evento, TipoNotification tipo, String titulo, String mensaje) {
         List<Usuario> seguidores = seguidorRepository
                 .findAllSeguidoresByOrganizacionId(evento.getOrganizacion().getId());
 
-        seguidores.forEach(seguidor -> crearNotificacion(
-                seguidor.getId(),
-                evento.getOrganizacion().getId(),
-                evento.getId(),
-                evento.getTitulo(),
-                tipo, titulo, mensaje
-        ));
+        List<Notification> notificaciones = seguidores.stream()
+                .map(seguidor -> crearNotificacion(
+                        seguidor.getId(),
+                        evento.getOrganizacion().getId(),
+                        evento.getId(),
+                        evento.getTitulo(),
+                        tipo, titulo, mensaje))
+                .toList();
+
+        notificationRepository.saveAll(notificaciones);
     }
 
-    private void crearNotificacion(Long usuarioId, Long organizacionId, Long eventoId,
-                                   String nombreEvento, TipoNotification tipo,
-                                   String titulo, String mensaje) {
+    private Notification crearNotificacion(Long usuarioId, Long organizacionId, Long eventoId,
+            String nombreEvento, TipoNotification tipo, String titulo, String mensaje) {
+
         Notification n = new Notification();
         n.setUsuarioId(usuarioId);
         n.setOrganizacionId(organizacionId);
@@ -134,7 +131,7 @@ public class ServiceNotification {
         n.setMensaje(mensaje);
         n.setLeida(false);
         n.setFechaCreacion(LocalDateTime.now());
-        notificationRepository.save(n);
+        return n;
     }
 
     private NotificationDTO toDTO(Notification n) {

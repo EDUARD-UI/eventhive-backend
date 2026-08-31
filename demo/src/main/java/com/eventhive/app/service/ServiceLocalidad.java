@@ -1,18 +1,20 @@
 package com.eventhive.app.service;
 
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.eventhive.app.dto.request.LocalidadRequest;
+import com.eventhive.app.dto.response.LocalidadDTO;
 import com.eventhive.app.enums.PermisoEvento;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Evento;
 import com.eventhive.app.model.Localidad;
 import com.eventhive.app.repository.LocalidadRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -24,7 +26,7 @@ public class ServiceLocalidad {
     //CONSULTAS
     @Transactional(readOnly = true)
     public List<Localidad> listarPorEvento(Long eventoId) {
-        serviceEvento.obtenerReferenciasEvento(eventoId); // validar que el evento exista
+        serviceEvento.obtenerEventoPorId(eventoId); // validar que el evento exista
         return localidadRepository.findByEventoId(eventoId);
     }
 
@@ -35,9 +37,8 @@ public class ServiceLocalidad {
 
     //OPERACIONES CRUD
     @Transactional
-    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
     public Localidad agregar(Long eventoId, LocalidadRequest request) {
-        Evento evento = serviceEvento.obtenerReferenciasEvento(eventoId);
+        Evento evento = serviceEvento.obtenerEventoPorId(eventoId);
         serviceEvento.verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
 
         Localidad localidad = new Localidad();
@@ -51,9 +52,8 @@ public class ServiceLocalidad {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
     public Localidad actualizar(Long eventoId, Long localidadId, LocalidadRequest datos) {
-        Evento evento = serviceEvento.obtenerReferenciasEvento(eventoId);
+        Evento evento = serviceEvento.obtenerEventoPorId(eventoId);
         serviceEvento.verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
 
         Localidad localidad = obtenerPorId(localidadId);
@@ -80,9 +80,8 @@ public class ServiceLocalidad {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
     public void eliminar(Long eventoId, Long localidadId) {
-        Evento evento = serviceEvento.obtenerReferenciasEvento(eventoId);
+        Evento evento = serviceEvento.obtenerEventoPorId(eventoId);
         serviceEvento.verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
 
         Localidad localidad = obtenerPorId(localidadId);
@@ -92,5 +91,16 @@ public class ServiceLocalidad {
         }
 
         localidadRepository.deleteById(localidadId);
+    }
+
+    // METODOS AUXILIARES Y DE MAPEO
+    public LocalidadDTO toDTO(Localidad localidad) {
+        LocalidadDTO dto = new LocalidadDTO();
+        dto.setId(localidad.getId());
+        dto.setNombre(localidad.getNombre());
+        dto.setPrecio(localidad.getPrecio());
+        dto.setCapacidad(localidad.getCapacidad());
+        dto.setDisponibles(localidad.getDisponibles());
+        return dto;
     }
 }

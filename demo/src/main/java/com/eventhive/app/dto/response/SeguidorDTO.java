@@ -1,13 +1,14 @@
 package com.eventhive.app.dto.response;
 
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 
-@Getter
-@Setter
-public class CategoriaDTO{
+import java.time.LocalDateTime;
+
+@Getter @Setter
+public class SeguidorDTO {
+
     private Long id;
     private String nombre;
-    private String urlFoto;
+    private LocalDateTime fechaSeguimiento;
 }
