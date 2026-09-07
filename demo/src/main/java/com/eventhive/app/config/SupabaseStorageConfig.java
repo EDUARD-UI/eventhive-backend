@@ -31,8 +31,4 @@ public class SupabaseStorageConfig {
     public String getBucketCategorias() {
         return properties.getBucket().getCategorias();
     }
-
-    public String getBucketPermisos() {
-        return properties.getBucket().getPermisos();
-    }
 }

@@ -19,5 +19,6 @@ public interface ModeracionEventoRepository extends JpaRepository<ModeracionEven
         """)
     Page<ModeracionEvento> findByEventoId(@Param("eventoId") Long eventoId, Pageable pageable);
 
+    // Verifica si un evento tiene registros de moderación.
     boolean existsByEventoId(Long eventoId);
 }

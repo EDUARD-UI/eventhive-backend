@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 public class SolicitudVerificacionDTO {
 
     private Long id;
+    private Long organizacionId;
     private Long representanteId;
     private String representanteNombre;
     private String representanteCorreo;

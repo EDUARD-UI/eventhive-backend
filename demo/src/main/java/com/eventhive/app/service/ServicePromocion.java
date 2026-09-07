@@ -31,11 +31,6 @@ public class ServicePromocion {
 
     //CONSULTAS
     @Transactional(readOnly = true)
-    public List<Promocion> obtenerPorEvento(Long eventoId) {
-        return promocionRepository.findByEventoId(eventoId);
-    }
-
-    @Transactional(readOnly = true)
     public Page<PromocionDTO> obtenerTodasPromociones(Pageable pageable) {
         return promocionRepository.findAll(pageable).map(this::toDTO);
     }
@@ -63,7 +58,7 @@ public class ServicePromocion {
         Evento evento = eventoRepository.findById(eventoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado: " + eventoId));
 
-        if (!esAdmin(usuario) && !perteneceALaOrganizacion(evento, usuario))
+        if (!esAdmin(usuario) && !esRepresentanteDeLaOrganizacion(evento, usuario))
             throw new BusinessException("No autorizado: el evento no pertenece a tu organización");
 
         // Un evento no puede tener dos promociones activas en el mismo rango de fechas
@@ -94,7 +89,7 @@ public class ServicePromocion {
             Evento nuevoEvento = eventoRepository.findById(eventoId)
                     .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado: " + eventoId));
 
-            if (!esAdmin(usuario) && !perteneceALaOrganizacion(nuevoEvento, usuario))
+            if (!esAdmin(usuario) && !esRepresentanteDeLaOrganizacion(nuevoEvento, usuario))
                 throw new BusinessException("No autorizado: el evento no pertenece a tu organización");
 
             // Excluir la propia promoción al verificar conflicto (permite guardar sin cambios de fecha)
@@ -141,15 +136,16 @@ public class ServicePromocion {
 
     private void validarPermiso(Promocion p, Usuario usuario) {
         if (esAdmin(usuario)) return;
-        boolean autorizado = p.getEvento() != null && perteneceALaOrganizacion(p.getEvento(), usuario);
+        boolean autorizado = p.getEvento() != null && esRepresentanteDeLaOrganizacion(p.getEvento(), usuario);
         if (!autorizado)
             throw new BusinessException("No autorizado para modificar esta promoción");
     }
 
-    private boolean perteneceALaOrganizacion(Evento evento, Usuario usuario) {
-        return usuario.getOrganizacion() != null
-                && evento.getOrganizacion() != null
-                && usuario.getOrganizacion().getId().equals(evento.getOrganizacion().getId());
+    //solo el representante de la organizacion puede hacer promociones a un evento de la organizacion
+    private boolean esRepresentanteDeLaOrganizacion(Evento evento, Usuario usuario) {
+        return evento.getOrganizacion() != null
+                && evento.getOrganizacion().getRepresentante() != null
+                && evento.getOrganizacion().getRepresentante().getId().equals(usuario.getId());
     }
 
     //METODO DE MAPEO

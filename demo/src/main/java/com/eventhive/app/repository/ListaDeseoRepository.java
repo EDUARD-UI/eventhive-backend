@@ -11,12 +11,13 @@ import com.eventhive.app.model.ListaDeseo;
 
 public interface ListaDeseoRepository extends JpaRepository<ListaDeseo, Long> {
 
+    // Verifica si un usuario guardó un evento en su lista de deseos.
     boolean existsByUsuarioIdAndEventoId(Long usuarioId, Long eventoId);
 
+    // Elimina un evento de la lista de deseos de un usuario.
     void deleteByUsuarioIdAndEventoId(Long usuarioId, Long eventoId);
 
+    // Lista los eventos deseados por un usuario, del más reciente al más antiguo.
     @Query("SELECT d.evento FROM ListaDeseo d WHERE d.usuario.id = :usuarioId ORDER BY d.id DESC")
     Page<Evento> findEventosDeseadosByUsuarioId(@Param("usuarioId") Long usuarioId, Pageable pageable);
-
-    long countByEventoId(Long eventoId);
 }

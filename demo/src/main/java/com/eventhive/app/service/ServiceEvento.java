@@ -39,6 +39,7 @@ import com.eventhive.app.model.Usuario;
 import com.eventhive.app.repository.CategoriaRepository;
 import com.eventhive.app.repository.EventoRepository;
 import com.eventhive.app.repository.ModeracionEventoRepository;
+import com.eventhive.app.repository.OrganizacionRepository;
 import com.eventhive.app.repository.TiqueteRepository;
 import com.eventhive.app.repository.specification.EventoSpecification;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
@@ -56,6 +57,7 @@ public class ServiceEvento {
     private final CategoriaRepository categoriaRepository;
     private final TiqueteRepository tiqueteRepository;
     private final ModeracionEventoRepository moderacionEventoRepository;
+    private final OrganizacionRepository organizacionRepository;
     private final AuthenticatedUserHelper authHelper;
     private final SupabaseStorageService storageService;
     private final SupabaseStorageConfig storageConfig;
@@ -63,34 +65,24 @@ public class ServiceEvento {
     private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory(new PrecisionModel(), 4326);
 
     // CONSULTAS
-    @Transactional(readOnly = true)
     public Page<Evento> listarTodos(Pageable pageable) {
         return eventoRepository.findPublicadosVisibles(pageable);
     }
 
-    @Transactional(readOnly = true)
-    public Evento obtenerEventoPublicado(Long id) {
-        return eventoRepository.findByIdAndEstadoConReferencias(id, EstadoEvento.PUBLICADO)
-                .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado"));
-    }
-
-    @Transactional(readOnly = true)
     public Evento obtenerEventoAdministrativo(Long id) {
         return eventoRepository.findByIdConReferencias(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado"));
     }
 
     // solo devuelve evento en estado.PUBLICADO
-    @Transactional(readOnly = true)
     public Evento obtenerEventoPublicoPorId(Long id) {
         return eventoRepository.findByIdAndEstadoConReferencias(id, EstadoEvento.PUBLICADO)
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con id: " + id));
     }
 
     //el evento debe pertenecer a la organización del usuario autenticado
-    @Transactional(readOnly = true)
     public Evento obtenerEventoDeOrganizacionPorId(Long organizacionId, Long id) {
-        Evento evento = obtenerEventoPorId(id);
+        Evento evento = obtenerReferenciasEvento(id);
         boolean perteneceALaOrganizacion = evento.getOrganizacion() != null
                 && evento.getOrganizacion().getId().equals(organizacionId);
         if (!perteneceALaOrganizacion) {
@@ -99,18 +91,6 @@ public class ServiceEvento {
         return evento;
     }
 
-    // devuelve evento con cualquier estado(solo administracion usa este metodo)
-    @Transactional(readOnly = true)
-    public Evento obtenerEventoAdminPorId(Long id) {
-        return obtenerEventoPorId(id);
-    }
-
-    @Transactional(readOnly = true)
-    public Evento obtenerEventoPorId(Long id) {
-        return obtenerReferenciasEvento(id);
-    }
-
-    @Transactional(readOnly = true)
     public Evento obtenerReferenciasEvento(Long id) {
         return eventoRepository.findByIdConReferencias(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con id: " + id));
@@ -141,7 +121,7 @@ public class ServiceEvento {
 
         return eventoRepository
                 .findByTituloAndFechaVisibles(tituloNormalizado, fecha, pageable)
-                .map(e -> new EventoBusquedaDTO());
+                .map(this::toEventoBusquedaDTO);
     }
 
     // Eventos para el mapa: filtra por categoría y/o radio de distancia
@@ -281,15 +261,19 @@ public class ServiceEvento {
     }
 
     @Transactional
-    public void finalizarEventosVencidos(LocalDate hoy) {
-        eventoRepository.findByFechaAnteriorYEstado(hoy, EstadoEvento.PUBLICADO)
-                .forEach(evento -> {
-                    transicionarEstado(evento, EstadoEvento.FINALIZADO);
-                    Organizacion organizacion = evento.getOrganizacion();
+    public void finalizarEventosVencidos(LocalDate hoy, LocalTime horaActual) {
+        List<Evento> vencidos = eventoRepository.findVencidosYEstado(hoy, horaActual, EstadoEvento.PUBLICADO);
 
-                    organizacion.setEventosFinalizados(organizacion.getEventosFinalizados() + 1);
-                    serviceNivelOrganizacion.evaluarAscenso(organizacion);
-                });
+        for (Evento evento : vencidos) {
+            transicionarEstado(evento, EstadoEvento.FINALIZADO);
+            actualizarMetricasPorFinalizacion(evento.getOrganizacion());
+        }
+    }
+
+    private void actualizarMetricasPorFinalizacion(Organizacion organizacion) {
+        organizacion.setEventosFinalizados(organizacion.getEventosFinalizados() + 1);
+        organizacionRepository.save(organizacion);
+        serviceNivelOrganizacion.evaluarAscenso(organizacion);
     }
 
     //METODOS DE AUXILIARES Y IDOR
@@ -398,7 +382,7 @@ public class ServiceEvento {
         }
 
         if (e.getCategoria() != null) {
-            toEventoCategoriaDTO(e);
+            dto.setCategoria(toEventoCategoriaDTO(e));
         }
 
         if (e.getOrganizacion() != null) {
@@ -449,8 +433,6 @@ public class ServiceEvento {
         evento.setUbicacion(punto);
     }
 
-    // @FutureOrPresent en LocalDate no detecta que "hoy a una hora ya pasada" es inválido;
-    // esta validación de negocio complementa (no reemplaza) la anotación del DTO.
     private void validarFechaHoraEvento(LocalDate fecha, LocalTime hora) {
         LocalDateTime fechaHora = LocalDateTime.of(fecha, hora);
         if (fechaHora.isBefore(LocalDateTime.now())) {

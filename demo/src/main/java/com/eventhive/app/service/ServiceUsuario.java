@@ -1,8 +1,14 @@
 package com.eventhive.app.service;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.eventhive.app.dto.PagedResponse;
 import com.eventhive.app.dto.request.ActualizarPerfilRequest;
-import com.eventhive.app.dto.response.OrganizacionDTO;
+import com.eventhive.app.dto.response.OrganizacionPublicaDTO;
 import com.eventhive.app.dto.response.UsuarioDTO;
 import com.eventhive.app.dto.response.UsuarioSesionDTO;
 import com.eventhive.app.exception.BusinessException;
@@ -14,14 +20,8 @@ import com.eventhive.app.repository.OrganizacionRepository;
 import com.eventhive.app.repository.RolesRepository;
 import com.eventhive.app.repository.UsuarioRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -35,31 +35,23 @@ public class ServiceUsuario {
     private final ServiceNotification serviceNotification;
 
     //CONSULTAS Y FILTROS
-    @Transactional(readOnly = true)
     public Usuario obtenerUsuarioPorId(Long id) {
         return usuarioRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
     }
 
-    @Transactional(readOnly = true)
-    public Usuario obtenerUsuarioPorCorreo(String correo) {
-        return usuarioRepository.findByCorreoConRol(correo)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
-    }
-
-    @Transactional(readOnly = true)
     public Page<UsuarioDTO> obtenerModeradoresDTO(Pageable pageable) {
         return usuarioRepository.findByRolNombre("MODERADOR", pageable).map(this::toDTO);
     }
 
     @Transactional(readOnly = true)
-    public Page<OrganizacionDTO> obtenerOrganizaciones(Pageable pageable) {
-        return organizacionRepository.findAll(pageable).map(this::toOrganizacionDTO);
+    public Page<OrganizacionPublicaDTO> obtenerOrganizaciones(Pageable pageable) {
+        return organizacionRepository.findAll(pageable).map(this::toOrganizacionPublicaDTO);
     }
 
     @Transactional(readOnly = true)
-    public Page<OrganizacionDTO> obtenerTopOrganizaciones(Pageable pageable) {
-        return organizacionRepository.findTopOrganizaciones(pageable).map(this::toOrganizacionDTO);
+    public Page<OrganizacionPublicaDTO> obtenerTopOrganizaciones(Pageable pageable) {
+        return organizacionRepository.findTopOrganizaciones(pageable).map(this::toOrganizacionPublicaDTO);
     }
 
     @Transactional(readOnly = true)
@@ -109,25 +101,33 @@ public class ServiceUsuario {
     }
 
     @Transactional
-    public Usuario asignarRol(Long usuarioId, Long rolId) {
-        Usuario usuario = obtenerUsuarioPorId(usuarioId);
-        Rol rol = rolesRepository.findById(rolId)
-                .orElseThrow(() -> new ResourceNotFoundException("Rol no existe"));
-
-        usuario.setRol(rol);
-        return usuarioRepository.save(usuario);
+    public void eliminarUsuario(Long id) {
+        if (!usuarioRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Usuario no encontrado");
+        }
+        usuarioRepository.deleteById(id);
     }
 
     @Transactional
-    public Usuario asignarModerador(Long usuarioId) {
+    public void asignarModerador(Long usuarioId) {
+        Usuario usuario = obtenerUsuarioPorId(usuarioId);
+
+        if (usuario.getRol() == null || !"CLIENTE".equalsIgnoreCase(usuario.getRol().getNombre())) {
+            throw new BusinessException("Solo se puede asignar MODERADOR a usuarios con rol CLIENTE");
+        }
+        if (usuario.getOrganizacion() != null) {
+            throw new BusinessException("No se puede asignar MODERADOR a un usuario vinculado a una organización");
+        }
+
         Rol moderador = rolesRepository.findByNombre("MODERADOR")
                 .orElseThrow(() -> new ResourceNotFoundException("Rol MODERADOR no existe"));
 
-        return asignarRol(usuarioId, moderador.getId());
+        usuario.setRol(moderador);
+        usuarioRepository.save(usuario);
     }
 
     @Transactional
-    public Usuario revocarModerador(Long usuarioId) {
+    public void revocarModerador(Long usuarioId) {
         Usuario usuario = obtenerUsuarioPorId(usuarioId);
         if (usuario.getRol() == null || !"MODERADOR".equalsIgnoreCase(usuario.getRol().getNombre())) {
             throw new BusinessException("El usuario no tiene rol MODERADOR");
@@ -139,37 +139,6 @@ public class ServiceUsuario {
         usuario.setRol(cliente);
         Usuario actualizado = usuarioRepository.save(usuario);
         serviceNotification.notificarRevocacionRol(actualizado);
-        return actualizado;
-    }
-
-    @Transactional
-    public void crearUsuario(String nombre, String correo, String telefono, String clave, Long rolId) {
-        if (usuarioRepository.existsByCorreo(correo)) {
-            throw new BusinessException("Correo ya registrado");
-        }
-
-        if (rolId == null) {
-            throw new BusinessException("Debe especificar un rol");
-        }
-
-        Rol rol = rolesRepository.findById(rolId)
-                .orElseThrow(() -> new ResourceNotFoundException("Rol no existe"));
-
-        Usuario u = new Usuario();
-        u.setNombreCompleto(nombre);
-        u.setCorreo(correo);
-        u.setTelefono(telefono);
-        u.setClave(passwordEncoder.encode(clave));
-        u.setRol(rol);
-        usuarioRepository.save(u);
-    }
-
-    @Transactional
-    public void eliminarUsuario(Long id) {
-        if (!usuarioRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Usuario no encontrado");
-        }
-        usuarioRepository.deleteById(id);
     }
 
     //cambio de clave
@@ -190,6 +159,11 @@ public class ServiceUsuario {
     }
 
     // METODOS AUXILIARES Y MAPEO
+    private Usuario obtenerUsuarioPorCorreo(String correo) {
+        return usuarioRepository.findByCorreoConRol(correo)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+    }
+
     public UsuarioDTO toDTO(Usuario u) {
         UsuarioDTO dto = new UsuarioDTO();
         dto.setId(u.getId());
@@ -217,25 +191,21 @@ public class ServiceUsuario {
                 page.getTotalElements(), page.getTotalPages());
     }
 
-    public PagedResponse<OrganizacionDTO> toPagedOrganizacion(Page<OrganizacionDTO> page) {
+    public PagedResponse<OrganizacionPublicaDTO> toPagedOrganizacion(Page<OrganizacionPublicaDTO> page) {
         return new PagedResponse<>(page.getContent(), page.getNumber(), page.getSize(),
                 page.getTotalElements(), page.getTotalPages());
     }
 
-    private OrganizacionDTO toOrganizacionDTO(Organizacion o) {
-        OrganizacionDTO dto = new OrganizacionDTO();
+    private OrganizacionPublicaDTO toOrganizacionPublicaDTO(Organizacion o) {
+        OrganizacionPublicaDTO dto = new OrganizacionPublicaDTO();
         dto.setId(o.getId());
         dto.setRazonSocial(o.getRazonSocial());
-        dto.setNit(o.getNit());
         dto.setRepresentante(o.getRepresentante().getNombreCompleto());
-        dto.setUrlRut(o.getUrlRut());
         dto.setFechaCreacion(o.getFechaCreacion());
         dto.setPromedioRating(o.getPromedioRating());
         dto.setTotalValoraciones(o.getTotalValoraciones());
         dto.setTotalSeguidores(o.getTotalSeguidores());
         dto.setTotalEventosCreados(o.getTotalEventosCreados());
-        dto.setEventosFinalizados(o.getEventosFinalizados());
-        dto.setEventosRechazados(o.getEventosRechazados());
         dto.setNivel(o.getNivel());
         return dto;
     }

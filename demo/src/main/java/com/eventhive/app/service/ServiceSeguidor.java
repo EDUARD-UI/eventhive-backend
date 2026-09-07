@@ -5,7 +5,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.eventhive.app.dto.response.OrganizacionDTO;
+import com.eventhive.app.dto.response.OrganizacionPublicaDTO;
 import com.eventhive.app.dto.response.SeguidorDTO;
 import com.eventhive.app.dto.response.UsuarioDTO;
 import com.eventhive.app.exception.BusinessException;
@@ -29,6 +29,22 @@ public class ServiceSeguidor {
     private final AuthenticatedUserHelper authHelper;
 
     //CONSULTAS
+
+    // listar seguidores de una organizacion
+    public Page<UsuarioDTO> listarSeguidores(Long organizacionId, Pageable pageable) {
+        return seguidorRepository
+                .findSeguidoresByOrganizacionId(organizacionId, pageable)
+                .map(this::toUsuarioDTO);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<OrganizacionPublicaDTO> listarOrganizacionesSeguidas(Pageable pageable) {
+        Usuario seguidor = authHelper.usuarioAutenticado();
+        return seguidorRepository.findOrganizacionesBySeguidorId(seguidor.getId(), pageable)
+                .map(this::toOrganizacionPublicaDTO);
+    }
+
+    //OPERACIONES DE SEGUIMIENTO
     @Transactional
     public void seguir(Long organizacionId) {
         Usuario seguidor = authHelper.usuarioAutenticado();
@@ -59,20 +75,6 @@ public class ServiceSeguidor {
         serviceOrganizacion.actualizarTotalSeguidores(organizacionId);
     }
 
-    // listar seguidores de una organizacion
-    public Page<UsuarioDTO> listarSeguidores(Long organizacionId, Pageable pageable) {
-        return seguidorRepository
-                .findSeguidoresByOrganizacionId(organizacionId, pageable)
-                .map(this::toUsuarioDTO);
-    }
-
-    @Transactional(readOnly = true)
-    public Page<OrganizacionDTO> listarOrganizacionesSeguidas(Pageable pageable) {
-        Usuario seguidor = authHelper.usuarioAutenticado();
-        return seguidorRepository.findOrganizacionesBySeguidorId(seguidor.getId(), pageable)
-                .map(serviceOrganizacion::toDTO);
-    }
-
     //METODOS AUXILIARES Y MAPEO
     private Organizacion buscarOrganizacion(Long organizacionId) {
         return organizacionRepository.findById(organizacionId)
@@ -96,6 +98,20 @@ public class ServiceSeguidor {
         if (usuario.getRol() != null) {
             dto.setRolNombre(usuario.getRol().getNombre());
         }
+        return dto;
+    }
+
+    private OrganizacionPublicaDTO toOrganizacionPublicaDTO(Organizacion organizacion) {
+        OrganizacionPublicaDTO dto = new OrganizacionPublicaDTO();
+        dto.setId(organizacion.getId());
+        dto.setRazonSocial(organizacion.getRazonSocial());
+        dto.setRepresentante(organizacion.getRepresentante().getNombreCompleto());
+        dto.setFechaCreacion(organizacion.getFechaCreacion());
+        dto.setPromedioRating(organizacion.getPromedioRating());
+        dto.setTotalValoraciones(organizacion.getTotalValoraciones());
+        dto.setTotalSeguidores(organizacion.getTotalSeguidores());
+        dto.setTotalEventosCreados(organizacion.getTotalEventosCreados());
+        dto.setNivel(organizacion.getNivel());
         return dto;
     }
 }

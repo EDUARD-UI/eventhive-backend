@@ -32,36 +32,7 @@ public class ServiceSolicitudVerificacion {
     private final AuthenticatedUserHelper authHelper;
     private final SupabaseStorageService storageService;
 
-    @Transactional
-    public void crearSolicitud(SolicitudVerificacionRequest request, MultipartFile archivoRut) {
-        Usuario representante = authHelper.usuarioAutenticado();
-
-        if (representante.getOrganizacion() != null)
-            throw new BusinessException("Esta cuenta ya pertenece a una organización");
-
-        if (solicitudRepository.existsByRepresentanteIdAndEstado(representante.getId(), EstadoSolicitud.PENDIENTE))
-            throw new BusinessException("Ya tiene una solicitud pendiente de revisión");
-
-        // Se valida que no esté ya usado como contacto de otra organización.
-        if (organizacionRepository.existsByCorreoContacto(request.getCorreoEmpresarial()))
-            throw new BusinessException("Ese correo empresarial ya está en uso");
-
-        String urlRut = null;
-        if (archivoRut != null && !archivoRut.isEmpty())
-            urlRut = storageService.subirDocumentoVerificacion(archivoRut);
-
-        SolicitudVerificacion solicitud = new SolicitudVerificacion();
-        solicitud.setRepresentanteLegal(representante);
-        solicitud.setRazonSocial(request.getRazonSocial());
-        solicitud.setNit(request.getNit());
-        solicitud.setCorreoEmpresarial(request.getCorreoEmpresarial());
-        solicitud.setUrlRut(urlRut);
-        solicitud.setEstado(EstadoSolicitud.PENDIENTE);
-        solicitud.setFechaSolicitud(LocalDateTime.now());
-
-        solicitudRepository.save(solicitud);
-    }
-
+    //CONSULTAS
     @Transactional(readOnly = true)
     public SolicitudVerificacionDTO miSolicitud() {
         Usuario representante = authHelper.usuarioAutenticado();
@@ -80,6 +51,41 @@ public class ServiceSolicitudVerificacion {
         return solicitudRepository.findById(solicitudId)
                 .map(this::toDTO)
                 .orElseThrow(() -> new BusinessException("Solicitud no encontrada"));
+    }
+
+    //OPERACIONES GESTION DE SOLICITUDES
+    @Transactional
+    public void crearSolicitud(SolicitudVerificacionRequest request, MultipartFile archivoRut) {
+        Usuario representante = authHelper.usuarioAutenticado();
+
+        if (representante.getOrganizacion() != null)
+            throw new BusinessException("Esta cuenta ya pertenece a una organización");
+
+        if (solicitudRepository.existsByRepresentanteIdAndEstado(representante.getId(), EstadoSolicitud.PENDIENTE))
+            throw new BusinessException("Ya tiene una solicitud pendiente de revisión");
+
+        // Se valida que no esté ya usado como contacto de otra organización.
+        if (organizacionRepository.existsByCorreoContacto(request.getCorreoEmpresarial()))
+            throw new BusinessException("Ese correo empresarial ya está en uso");
+
+        if (organizacionRepository.existsByNit(request.getNit())) {
+            throw new BusinessException("Ese NIT ya está registrado");
+        }
+
+        String urlRut = null;
+        if (archivoRut != null && !archivoRut.isEmpty())
+            urlRut = storageService.subirDocumentoVerificacion(archivoRut);
+
+        SolicitudVerificacion solicitud = new SolicitudVerificacion();
+        solicitud.setRepresentanteLegal(representante);
+        solicitud.setRazonSocial(request.getRazonSocial());
+        solicitud.setNit(request.getNit());
+        solicitud.setCorreoEmpresarial(request.getCorreoEmpresarial());
+        solicitud.setUrlRut(urlRut);
+        solicitud.setEstado(EstadoSolicitud.PENDIENTE);
+        solicitud.setFechaSolicitud(LocalDateTime.now());
+
+        solicitudRepository.save(solicitud);
     }
 
     @Transactional
@@ -122,6 +128,33 @@ public class ServiceSolicitudVerificacion {
         solicitudRepository.save(solicitud);
     }
 
+    public void solicitarCorreccion(Long solicitudId, String motivo) {
+        SolicitudVerificacion solicitud = obtenerPendiente(solicitudId);
+        solicitud.setEstado(EstadoSolicitud.CORRECCION_SOLICITADA);
+        solicitud.setMotivoRechazo(motivo);
+        solicitud.setFechaResolucion(LocalDateTime.now());
+        solicitud.setAdministradorQueResolvi(authHelper.usuarioAutenticado());
+        solicitudRepository.save(solicitud);
+    }
+
+    @Transactional
+    public void reenviarSolicitud(Long solicitudId) {
+        Usuario representante = authHelper.usuarioAutenticado();
+        SolicitudVerificacion solicitud = solicitudRepository.findById(solicitudId)
+                .orElseThrow(() -> new BusinessException("Solicitud no encontrada"));
+
+        if (!solicitud.getRepresentanteLegal().getId().equals(representante.getId()))
+            throw new BusinessException("No autorizado para modificar esta solicitud");
+
+        if (solicitud.getEstado() != EstadoSolicitud.CORRECCION_SOLICITADA)
+            throw new BusinessException("Solo se pueden reenviar solicitudes en CORRECCION_SOLICITADA");
+
+        solicitud.setEstado(EstadoSolicitud.PENDIENTE);
+        solicitud.setFechaSolicitud(LocalDateTime.now());
+        solicitudRepository.save(solicitud);
+    }
+
+    //METODOS AUXILIARES Y DE MAPEO
     private SolicitudVerificacion obtenerPendiente(Long id) {
         SolicitudVerificacion s = solicitudRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Solicitud no encontrada"));
@@ -142,6 +175,7 @@ public class ServiceSolicitudVerificacion {
         dto.setFechaSolicitud(s.getFechaSolicitud());
         dto.setFechaResolucion(s.getFechaResolucion());
         dto.setMotivoRechazo(s.getMotivoRechazo());
+
         if (s.getRepresentanteLegal() != null) {
             dto.setRepresentanteId(s.getRepresentanteLegal().getId());
             dto.setRepresentanteNombre(s.getRepresentanteLegal().getNombreCompleto());
@@ -150,14 +184,5 @@ public class ServiceSolicitudVerificacion {
         if (s.getAdministradorQueResolvi() != null)
             dto.setAdministradorNombre(s.getAdministradorQueResolvi().getNombreCompleto());
         return dto;
-    }
-
-    public void solicitarCorreccion(Long solicitudId, String motivo) {
-        SolicitudVerificacion solicitud = obtenerPendiente(solicitudId);
-        solicitud.setEstado(EstadoSolicitud.CORRECCION_SOLICITADA);
-        solicitud.setMotivoRechazo(motivo);
-        solicitud.setFechaResolucion(LocalDateTime.now());
-        solicitud.setAdministradorQueResolvi(authHelper.usuarioAutenticado());
-        solicitudRepository.save(solicitud);
     }
 }

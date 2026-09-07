@@ -12,12 +12,18 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Set;
+
 @Service
 @RequiredArgsConstructor
 public class ServiceRoles {
 
     private final RolesRepository rolesRepository;
     private final UsuarioRepository usuarioRepository;
+
+    private static final Set<String> ROLES_SISTEMA = Set.of(
+            "ADMINISTRADOR", "MODERADOR", "REPRESENTANTE", "OPERADOR", "CLIENTE"
+    );
 
     //CONSULTAS
     @Transactional(readOnly = true)
@@ -49,8 +55,13 @@ public class ServiceRoles {
     }
 
     @Transactional
-    public void actualizarRol(Long id, String nombre) {
-        Rol existente = findById(id);
+    public void actualizarRol(Long rolId, String nombre) {
+        Rol existente = findById(rolId);
+
+        if (ROLES_SISTEMA.contains(existente.getNombre().toUpperCase())) {
+            throw new BusinessException(
+                    "El rol '" + existente.getNombre() + "' es un rol del sistema y no puede modificarse");
+        }
 
         if (!existente.getNombre().equalsIgnoreCase(nombre) && rolesRepository.existsByNombre(nombre))
             throw new BusinessException("Ya existe otro rol con ese nombre");
@@ -60,15 +71,20 @@ public class ServiceRoles {
     }
 
     @Transactional
-    public void eliminarRol(Long id) {
-        Rol rol = findById(id);
+    public void eliminarRol(Long rolId) {
+        Rol rol = findById(rolId);
 
-        long usuarios = usuarioRepository.countByRolId(id);
+        if (ROLES_SISTEMA.contains(rol.getNombre().toUpperCase())) {
+            throw new BusinessException(
+                    "El rol '" + rol.getNombre() + "' es un rol del sistema y no puede eliminarse");
+        }
+
+        long usuarios = usuarioRepository.countByRolId(rolId);
         if (usuarios > 0)
             throw new BusinessException(
                     "No se puede eliminar el rol '" + rol.getNombre() + "' porque tiene "
                             + usuarios + " usuario(s) asociado(s)");
-        rolesRepository.deleteById(id);
+        rolesRepository.deleteById(rolId);
     }
 
     //METODOS AUXILIARES Y DE MAPEO

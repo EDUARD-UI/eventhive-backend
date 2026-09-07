@@ -1,5 +1,7 @@
 package com.eventhive.app.repository;
 
+import java.util.Optional;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -7,8 +9,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.eventhive.app.model.Compra;
-
-import java.util.Optional;
 
 public interface CompraRepository extends JpaRepository<Compra, Long> {
 
@@ -24,5 +24,6 @@ public interface CompraRepository extends JpaRepository<Compra, Long> {
         """)
     Page<Compra> findByClienteIdConItems(@Param("clienteId") Long clienteId, Pageable pageable);
 
+    // Busca una compra del cliente por su clave de idempotencia.
     Optional<Compra> findByClienteIdAndIdempotencyKey(Long clienteId, String idempotencyKey);
 }

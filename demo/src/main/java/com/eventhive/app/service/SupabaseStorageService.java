@@ -36,11 +36,6 @@ public class SupabaseStorageService {
         return subirArchivo(archivo, config.getBucketCategorias(), "categoria_");
     }
 
-    public String subirPermisoEvento(MultipartFile archivo) {
-        validarDocumento(archivo);
-        return subirArchivo(archivo, config.getBucketPermisos(), "permiso_");
-    }
-
     public void eliminarArchivo(String bucket, String nombreArchivo) {
         if (nombreArchivo == null || nombreArchivo.isBlank()) return;
 

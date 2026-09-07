@@ -19,6 +19,5 @@ public class SupabaseStorageProperties {
         private String verificaciones;
         private String eventos;
         private String categorias;
-        private String permisos;
     }
 }

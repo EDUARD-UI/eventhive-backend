@@ -12,18 +12,22 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import com.eventhive.app.repository.projection.EventoMapaProjection;
 import com.eventhive.app.enums.EstadoEvento;
 import com.eventhive.app.model.Evento;
+import com.eventhive.app.repository.projection.EventoMapaProjection;
 
 public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecificationExecutor<Evento> {
 
+  // Cuenta los eventos asociados a una categoría.
     long countByCategoriaId(Long categoriaId);
 
+  // Cuenta los eventos que tienen un estado específico.
     long countByEstado(EstadoEvento estado);
 
+  // Cuenta los eventos de una organización.
     long countByOrganizacionId(Long organizacionId);
 
+  // Lista eventos publicados con categoría y organización cargadas.
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
@@ -32,6 +36,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         """)
     Page<Evento> findPublicadosVisibles(Pageable pageable);
 
+    // Lista eventos publicados filtrados por categoría.
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria c
@@ -41,6 +46,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         """)
     Page<Evento> findByCategoriaVisibles(@Param("categoriaId") Long categoriaId, Pageable pageable);
 
+    // Busca eventos publicados por título y fecha.
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
@@ -53,6 +59,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
                                              @Param("fecha") LocalDate fecha,
                                              Pageable pageable);
 
+    // Obtiene eventos publicados para mostrarlos en el mapa.
     @Query(value = """
         SELECT e.id AS id, e.titulo AS titulo, e.descripcion AS descripcion,
                c.nombre AS categoriaNombre,
@@ -78,6 +85,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
                                             @Param("lng") Double lng,
                                             @Param("radioMetros") Double radioMetros);
 
+    // Busca un evento por id con sus referencias cargadas.
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
@@ -87,6 +95,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
     Optional<Evento> findByIdConReferencias(@Param("id") Long id);
 
     // Usado por el endpoint público: solo expone el evento si está PUBLICADO (bug #2.2)
+    // Lista eventos de una organización con sus referencias cargadas.
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
@@ -96,6 +105,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         """)
     Optional<Evento> findByIdAndEstadoConReferencias(@Param("id") Long id, @Param("estado") EstadoEvento estado);
 
+    // Busca eventos de una organización por título.
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
@@ -105,6 +115,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         """)
     Page<Evento> findByOrganizacionIdConReferencias(@Param("organizacionId") Long organizacionId, Pageable pageable);
 
+    // Lista eventos filtrados por estado con sus referencias cargadas.
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
@@ -116,6 +127,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
                                                              @Param("titulo") String titulo,
                                                              Pageable pageable);
 
+    // Busca eventos de una fecha y estado determinados.
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
@@ -124,6 +136,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         """)
     Page<Evento> findByEstadoConReferencias(@Param("estado") EstadoEvento estado, Pageable pageable);
 
+    // Cuenta eventos activos de una organización.
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.organizacion o
@@ -132,6 +145,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         """)
     List<Evento> findByFechaAndEstado(@Param("fecha") LocalDate fecha, @Param("estado") EstadoEvento estado);
 
+    // Lista eventos vencidos que conservan el estado indicado.
     @Query("""
         SELECT COUNT(e) FROM Evento e
         WHERE e.organizacion.id = :organizacionId
@@ -142,6 +156,18 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         """)
     long countActivosByOrganizacionId(@Param("organizacionId") Long organizacionId);
 
+    // Lista próximos eventos publicados ordenados por fecha y hora.
+    @Query("""
+    SELECT e FROM Evento e
+    JOIN FETCH e.organizacion
+    WHERE e.estado = :estado
+      AND (e.fecha < :hoy OR (e.fecha = :hoy AND e.hora < :horaActual))
+    """)
+    List<Evento> findVencidosYEstado(@Param("hoy") LocalDate hoy,
+                                     @Param("horaActual") LocalTime horaActual,
+                                     @Param("estado") EstadoEvento estado);
+
+    // Lista eventos anteriores a una fecha con el estado indicado.
     @Query("""
     SELECT e FROM Evento e
     JOIN FETCH e.categoria
@@ -166,5 +192,6 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         """)
     List<Evento> findByFechaAnteriorYEstado(@Param("fecha") LocalDate fecha, @Param("estado") EstadoEvento estado);
 
+    // Lista eventos posteriores a una fecha con el estado indicado.
     List<Evento> findByFechaAfterAndEstado(LocalDate fechaActual, EstadoEvento estadoEvento);
 }

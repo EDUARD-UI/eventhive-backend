@@ -30,7 +30,7 @@ import org.locationtech.jts.geom.Point;
 @Entity
 @Table(
         name = "eventos", indexes = {
-        @Index(name = "idx_evento_organizador", columnList = "organizador_id"),
+        @Index(name = "idx_evento_organizacion", columnList = "organizacion_id"),
         @Index(name = "idx_evento_categoria", columnList = "categoria_id"),
         @Index(name = "idx_evento_estado", columnList = "estado"),
         @Index(name = "idx_evento_fecha", columnList = "fecha"),

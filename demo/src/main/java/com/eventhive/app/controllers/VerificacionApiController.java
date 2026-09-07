@@ -16,6 +16,8 @@ import com.eventhive.app.service.ServiceSolicitudVerificacion;
 
 import lombok.RequiredArgsConstructor;
 
+//Gestiona las solicitudes de verificaion de organizaciones
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/verificacion")
@@ -23,17 +25,7 @@ public class VerificacionApiController {
 
     private final ServiceSolicitudVerificacion serviceSolicitud;
 
-    @PostMapping(value = "/solicitar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('REPRESENTANTE')")
-    public ResponseEntity<ApiResponse<Void>> crearSolicitud(
-            @RequestPart("datos") SolicitudVerificacionRequest request,
-            @RequestPart(value = "rut", required = false) MultipartFile archivoRut) {
-
-        serviceSolicitud.crearSolicitud(request, archivoRut);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.ok("Solicitud de verificación enviada correctamente"));
-    }
-
+    //CONSULTAS
     @GetMapping("/mis-solicitudes")
     @PreAuthorize("hasRole('REPRESENTANTE')")
     public ResponseEntity<ApiResponse<SolicitudVerificacionDTO>> miSolicitud() {
@@ -52,7 +44,19 @@ public class VerificacionApiController {
     public ResponseEntity<ApiResponse<SolicitudVerificacionDTO>> obtenerDetalles(
             @PathVariable Long solicitudId) {
         return ResponseEntity.ok(ApiResponse.ok("Solicitud obtenida",
-            serviceSolicitud.obtenerSolicitud(solicitudId)));
+                serviceSolicitud.obtenerSolicitud(solicitudId)));
+    }
+
+    //OPERACIONES GESTION DE SOLICITUDES DE VERIFICACION DE ORGANIZACIONES
+    @PostMapping(value = "/solicitar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('REPRESENTANTE')")
+    public ResponseEntity<ApiResponse<Void>> crearSolicitud(
+            @RequestPart("datos") SolicitudVerificacionRequest request,
+            @RequestPart(value = "rut", required = false) MultipartFile archivoRut) {
+
+        serviceSolicitud.crearSolicitud(request, archivoRut);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok("Solicitud de verificación enviada correctamente"));
     }
 
     @PutMapping("/{solicitudId}/aprobar")
@@ -63,6 +67,15 @@ public class VerificacionApiController {
                 "Solicitud aprobada. Comparte esta contraseña con el organizador"));
     }
 
+    @PutMapping("/{solicitudId}/rechazar")
+    @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('MODERADOR')")
+    public ResponseEntity<ApiResponse<Void>> rechazarSolicitud(
+            @PathVariable Long solicitudId,
+            @RequestParam String motivo) {
+        serviceSolicitud.rechazarSolicitud(solicitudId, motivo);
+        return ResponseEntity.ok(ApiResponse.ok("Solicitud rechazada"));
+    }
+
     @PatchMapping("/{solicitudId}/solicitar-correccion")
     @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('MODERADOR')")
     public ResponseEntity<ApiResponse<SolicitudVerificacionDTO>> solicitarCorreccion(
@@ -71,12 +84,10 @@ public class VerificacionApiController {
         return ResponseEntity.ok(ApiResponse.ok("Solicitud marcada para correccion"));
     }
 
-    @PutMapping("/{solicitudId}/rechazar")
-    @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('MODERADOR')")
-    public ResponseEntity<ApiResponse<Void>> rechazarSolicitud(
-            @PathVariable Long solicitudId,
-            @RequestParam String motivo) {
-        serviceSolicitud.rechazarSolicitud(solicitudId, motivo);
-        return ResponseEntity.ok(ApiResponse.ok("Solicitud rechazada"));
+    @PatchMapping("/{solicitudId}/reenviar")
+    @PreAuthorize("hasRole('REPRESENTANTE')")
+    public ResponseEntity<ApiResponse<Void>> reenviar(@PathVariable Long solicitudId) {
+        serviceSolicitud.reenviarSolicitud(solicitudId);
+        return ResponseEntity.ok(ApiResponse.ok("Solicitud reenviada a revisión"));
     }
 }

@@ -1,22 +1,30 @@
 package com.eventhive.app.controllers;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.eventhive.app.dto.ApiResponse;
 import com.eventhive.app.dto.PagedResponse;
 import com.eventhive.app.dto.request.ActualizarPerfilRequest;
 import com.eventhive.app.dto.request.EditarClaveRequest;
-import com.eventhive.app.dto.response.OrganizacionDTO;
+import com.eventhive.app.dto.response.OrganizacionPublicaDTO;
 import com.eventhive.app.dto.response.UsuarioDTO;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.service.ServiceSeguidor;
 import com.eventhive.app.service.ServiceUsuario;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/usuarios")
@@ -66,10 +74,10 @@ public class UsuariosApiController {
 
     @GetMapping("/misOrganizaciones-seguidas")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<PagedResponse<OrganizacionDTO>>> misOrganizacionesSeguidas(Pageable pageable) {
-        Page<OrganizacionDTO> page = seguidorService.listarOrganizacionesSeguidas(pageable);
+    public ResponseEntity<ApiResponse<PagedResponse<OrganizacionPublicaDTO>>> misOrganizacionesSeguidas(Pageable pageable) {
+        Page<OrganizacionPublicaDTO> page = seguidorService.listarOrganizacionesSeguidas(pageable);
 
-        PagedResponse<OrganizacionDTO> response = new PagedResponse<>(page.getContent(), page.getNumber(),
+        PagedResponse<OrganizacionPublicaDTO> response = new PagedResponse<>(page.getContent(), page.getNumber(),
                 page.getSize(), page.getTotalElements(), page.getTotalPages());
 
         return ResponseEntity.ok(ApiResponse.ok("Organizaciones seguidas obtenidas", response));

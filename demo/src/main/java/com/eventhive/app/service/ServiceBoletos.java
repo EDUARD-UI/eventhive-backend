@@ -26,17 +26,14 @@ public class ServiceBoletos {
     private final TiqueteRepository tiqueteRepository;
     private final AuthenticatedUserHelper authHelper;
 
-    //validar el ingreso de un tiquete por codigo qr
+    //operaciones de check-in
     @Transactional
     public void realizarCheckIn(String codigoQR) {
         Tiquete tiquete = tiqueteRepository.findByCodigoQR(codigoQR)
                 .orElseThrow(() -> new ResourceNotFoundException("Tiquete no encontrado o inválido"));
 
         validarPermisoCheckIn(tiquete);
-
-        if (tiquete.getCompra().getEstado() == EstadoCompra.CANCELADA) {
-            throw new BusinessException("El tiquete pertenece a una compra cancelada");
-        }
+        validarEstadoCompraParaCheckIn(tiquete);
 
         int filasActualizadas = tiqueteRepository.marcarComoUsadoSiNoUsado(codigoQR);
         if (filasActualizadas == 0) {
@@ -62,7 +59,7 @@ public class ServiceBoletos {
         return dto;
     }
 
-    //validar IDOR
+    //METODOS DE VALIDACION Y MAPEO
     private void validarPermisoCheckIn(Tiquete tiquete) {
         Usuario operador = authHelper.usuarioAutenticado();
         if (operador.getOrganizacion() == null) {
@@ -77,6 +74,15 @@ public class ServiceBoletos {
         boolean esRepresentante = operador.getOrganizacion().getRepresentante().getId().equals(operador.getId());
         if (!esRepresentante && !operador.getPermisosEvento().contains(PermisoEvento.CHECK_IN)) {
             throw new BusinessException("No tienes permiso de check-in en esta organización");
+        }
+    }
+
+    // El check-in solo es válido para tiquetes asociados a compras confirmadas.
+    private void validarEstadoCompraParaCheckIn(Tiquete tiquete) {
+        EstadoCompra estado = tiquete.getCompra().getEstado();
+        if (estado != EstadoCompra.CONFIRMADA) {
+            throw new BusinessException(
+                    "No se puede hacer check-in: la compra se encuentra en estado " + estado);
         }
     }
 

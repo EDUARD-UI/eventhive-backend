@@ -26,7 +26,9 @@ public class ServiceLocalidad {
     //CONSULTAS
     @Transactional(readOnly = true)
     public List<Localidad> listarPorEvento(Long eventoId) {
-        serviceEvento.obtenerEventoPorId(eventoId); // validar que el evento exista
+        Evento evento = serviceEvento.obtenerEventoPorId(eventoId);//validar que el evento existe
+        serviceEvento.verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
+
         return localidadRepository.findByEventoId(eventoId);
     }
 

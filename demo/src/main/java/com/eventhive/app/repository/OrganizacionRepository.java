@@ -1,12 +1,11 @@
 package com.eventhive.app.repository;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-
-import com.eventhive.app.model.Organizacion;
 import org.springframework.data.jpa.repository.Query;
 
-import org.springframework.data.domain.Pageable;
+import com.eventhive.app.model.Organizacion;
 
 public interface OrganizacionRepository extends JpaRepository<Organizacion, Long> {
 
@@ -17,5 +16,6 @@ public interface OrganizacionRepository extends JpaRepository<Organizacion, Long
     @Query("SELECT o FROM Organizacion o ORDER BY o.nivel DESC, o.totalSeguidores DESC")
     Page<Organizacion> findTopOrganizaciones(Pageable pageable);
 
+    // Verifica si ya existe una organización con ese correo de contacto.
     boolean existsByCorreoContacto(String correoContacto);
 }

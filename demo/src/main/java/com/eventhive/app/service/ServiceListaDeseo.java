@@ -23,11 +23,11 @@ public class ServiceListaDeseo {
     private final ServiceEvento serviceEvento;
     private final AuthenticatedUserHelper authHelper;
 
-    //operaciones crud
+    //OPERACIONES
     @Transactional
     public void agregar(Long eventoId) {
         Usuario usuario = authHelper.usuarioAutenticado();
-        Evento evento = serviceEvento.obtenerEventoPorId(eventoId);
+        Evento evento = serviceEvento.obtenerEventoPublicoPorId(eventoId);
 
         if (listaDeseoRepository.existsByUsuarioIdAndEventoId(usuario.getId(), eventoId)) {
             throw new BusinessException("El evento ya está en tu lista de deseados");
@@ -50,7 +50,7 @@ public class ServiceListaDeseo {
         listaDeseoRepository.deleteByUsuarioIdAndEventoId(usuario.getId(), eventoId);
     }
 
-    //consultas
+    //CONSULTAS
     @Transactional(readOnly = true)
     public PagedResponse<EventoDTO> listarMisDeseados(Pageable pageable) {
         Usuario usuario = authHelper.usuarioAutenticado();

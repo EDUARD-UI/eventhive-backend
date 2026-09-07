@@ -1,6 +1,7 @@
 package com.eventhive.app.auto;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 import org.springframework.scheduling.annotation.Scheduled;
@@ -46,9 +47,9 @@ public class RecordatorioDeEvento {
         });
     }
 
-    // Se ejecuta todos los días a la 1:00 AM: cierra eventos publicados cuya fecha ya pasó
-    @Scheduled(cron = "0 0 1 * * *")
+    // Se ejecuta todos cada hora: cierra eventos publicados cuya fecha ya pasó
+    @Scheduled(cron = "0 0 * * * *") //
     public void finalizarEventosVencidos() {
-        serviceEvento.finalizarEventosVencidos(LocalDate.now());
+        serviceEvento.finalizarEventosVencidos(LocalDate.now(), LocalTime.now());
     }
 }

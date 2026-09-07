@@ -22,6 +22,8 @@ public interface SolicitudVerificacionRepository extends JpaRepository<Solicitud
         """)
     Optional<SolicitudVerificacion> findFirstByRepresentanteId(@Param("representanteId") Long representanteId);
 
+
+    // Lista solicitudes de verificación por estado, de la más antigua a la más reciente.
     @Query("""
         SELECT s FROM SolicitudVerificacion s
         JOIN FETCH s.representanteLegal
@@ -30,6 +32,8 @@ public interface SolicitudVerificacionRepository extends JpaRepository<Solicitud
         """)
     Page<SolicitudVerificacion> findByEstado(@Param("estado") EstadoSolicitud estado, Pageable pageable);
 
+
+    // Verifica si un representante tiene una solicitud en un estado determinado.
     @Query("""
         SELECT COUNT(s) > 0 FROM SolicitudVerificacion s
         WHERE s.representanteLegal.id = :representanteId
@@ -37,11 +41,4 @@ public interface SolicitudVerificacionRepository extends JpaRepository<Solicitud
         """)
     boolean existsByRepresentanteIdAndEstado(@Param("representanteId") Long representanteId,
                                              @Param("estado") EstadoSolicitud estado);
-
-    @Query("""
-        SELECT COUNT(s) > 0 FROM SolicitudVerificacion s
-        WHERE s.correoEmpresarial = :correo
-          AND s.estado IN ('PENDIENTE', 'APROBADA')
-        """)
-    boolean existsByCorreoEmpresarial(@Param("correo") String correo);
 }

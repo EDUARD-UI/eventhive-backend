@@ -12,12 +12,14 @@ import com.eventhive.app.model.Tiquete;
 
 public interface TiqueteRepository extends JpaRepository<Tiquete, Long> {
 
+    // Busca un tiquete por su código QR.
     Optional<Tiquete> findByCodigoQR(String codigoQR);
 
+    // Verifica si un evento tiene tiquetes emitidos.
     boolean existsByEventoId(Long eventoId);
 
-    @Modifying
-    void deleteByCompraId(Long compraId);
+    // Verifica si una compra contiene un tiquete usado.
+    boolean existsByCompraIdAndUsadoTrue(Long compraId);
 
     //actualización atómica del check-in. Si dos peticiones llegan a la vez
     @Modifying

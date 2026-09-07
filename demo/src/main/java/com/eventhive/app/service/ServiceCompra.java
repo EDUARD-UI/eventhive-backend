@@ -14,10 +14,12 @@ import com.eventhive.app.repository.PromocionRepository;
 import com.eventhive.app.repository.TiqueteRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -38,6 +40,7 @@ public class ServiceCompra {
     private final TiqueteRepository tiqueteRepository;
     private final PromocionRepository promocionRepository;
     private final AuthenticatedUserHelper authHelper;
+    private final ObjectProvider<ServiceCompra> self;
 
     //CONSULTAS
     @Transactional(readOnly = true)
@@ -69,6 +72,18 @@ public class ServiceCompra {
             return compraToDTO(existente.get());
         }
 
+        try {
+            Compra guardada = self.getObject().intentarCrearCompra(request, usuario);
+            return compraToDTO(guardada);
+        } catch (DataIntegrityViolationException e) {
+            return compraRepository.findByClienteIdAndIdempotencyKey(usuario.getId(), request.getIdempotencyKey())
+                    .map(this::compraToDTO)
+                    .orElseThrow(() -> e);
+        }
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Compra intentarCrearCompra(CompraRequestDTO request, Usuario usuario) {
         List<ItemCompra> items = new ArrayList<>();
         BigDecimal total = BigDecimal.ZERO;
 
@@ -82,15 +97,9 @@ public class ServiceCompra {
             total = total.add(precio.multiply(BigDecimal.valueOf(itemReq.getCantidad())));
         }
 
-        try {
-            Compra guardada = guardarCompra(usuario, items, total, request.getIdempotencyKey());
-            generarTiquetes(items, guardada);
-            return compraToDTO(guardada);
-        } catch (DataIntegrityViolationException e) {
-            return compraRepository.findByClienteIdAndIdempotencyKey(usuario.getId(), request.getIdempotencyKey())
-                    .map(this::compraToDTO)
-                    .orElseThrow(() -> e);
-        }
+        Compra guardada = guardarCompra(usuario, items, total, request.getIdempotencyKey());
+        generarTiquetes(items, guardada);
+        return guardada;
     }
 
     @Transactional
@@ -118,9 +127,24 @@ public class ServiceCompra {
     }
 
     private void validarCancelable(Compra compra) {
-        if (compra.getEstado() == EstadoCompra.CANCELADA) {
-            throw new BusinessException("La compra ya se encuentra cancelada");
+        if (compra.getEstado() != EstadoCompra.PENDIENTE && compra.getEstado() != EstadoCompra.CONFIRMADA) {
+            throw new BusinessException("La compra no se encuentra en un estado cancelable");
         }
+
+        boolean eventoIniciado = compra.getItems().stream()
+                .map(ItemCompra::getEvento)
+                .anyMatch(this::yaComenzo);
+        if (eventoIniciado) {
+            throw new BusinessException("No es posible cancelar: el evento ya comenzó");
+        }
+
+        if (tiqueteRepository.existsByCompraIdAndUsadoTrue(compra.getId())) {
+            throw new BusinessException("No es posible cancelar: existen tiquetes ya utilizados");
+        }
+    }
+
+    private boolean yaComenzo(Evento evento) {
+        return LocalDateTime.of(evento.getFecha(), evento.getHora()).isBefore(LocalDateTime.now());
     }
 
     private void validarRequest(CompraRequestDTO request) {
@@ -165,6 +189,7 @@ public class ServiceCompra {
                 .orElse(localidad.getPrecio());
     }
 
+    //METODOS DE CREACION DE ENTIDADES
     private ItemCompra buildItem(Localidad localidad, Integer cantidad, BigDecimal precio) {
         ItemCompra item = new ItemCompra();
         item.setLocalidad(localidad);

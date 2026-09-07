@@ -39,17 +39,17 @@ public class ServiceModeracion {
         return eventoRepository.findByEstadoConReferencias(EstadoEvento.PENDIENTE_REVISION, pageable);
     }
 
-    @Transactional(readOnly = true)
-    public Page<ModeracionEventoDTO> HistorialModeraciones(Long eventoId, Pageable pageable) {
-        Evento evento = obtenerPorId(eventoId);//validar que el evento existe
+    public Page<ModeracionEventoDTO> historialDeModeraciones(Long eventoId, Pageable pageable) {
+        Evento evento = obtenerPorId(eventoId);
         Usuario usuario = authHelper.usuarioAutenticado();
+        String rol = usuario.getRol().getNombre();
 
-        Organizacion organizacion = evento.getOrganizacion();
-        boolean esRepresentante = organizacion != null
-                && organizacion.getRepresentante() != null
-                && usuario.getId().equals(organizacion.getRepresentante().getId());
+        boolean esAdminOModerador = "ADMINISTRADOR".equalsIgnoreCase(rol) || "MODERADOR".equalsIgnoreCase(rol);
+        boolean perteneceAOrganizacion = usuario.getOrganizacion() != null
+                && evento.getOrganizacion() != null
+                && usuario.getOrganizacion().getId().equals(evento.getOrganizacion().getId());
 
-        if (!esRepresentante) {
+        if (!esAdminOModerador && !perteneceAOrganizacion) {
             throw new BusinessException("No autorizado para ver el historial de este evento");
         }
 

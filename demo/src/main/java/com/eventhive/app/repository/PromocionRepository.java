@@ -14,9 +14,7 @@ import com.eventhive.app.model.Promocion;
 
 public interface PromocionRepository extends JpaRepository<Promocion, Long> {
 
-    // Obtiene las promociones asociadas a un evento
-    List<Promocion> findByEventoId(Long eventoId);
-
+    // Verifica si un evento tiene promociones asociadas.
     boolean existsByEventoId(Long eventoId);
 
     // Busca una promoción vigente para un evento en una fecha dada
@@ -26,6 +24,7 @@ public interface PromocionRepository extends JpaRepository<Promocion, Long> {
     WHERE e.id = :eventoId
       AND p.fechaInicio <= :hoy
       AND p.fechaFin >= :hoy
+      AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
     """)
     Optional<Promocion> findVigenteByEventoId(
             @Param("eventoId") Long eventoId,

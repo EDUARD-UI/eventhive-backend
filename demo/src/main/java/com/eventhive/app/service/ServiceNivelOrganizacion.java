@@ -61,8 +61,8 @@ public class ServiceNivelOrganizacion {
 
     //OPERACIONES DE ASCENSO
     @Transactional
-    public void aprobarAscenso(Long id) {
-        SugerenciaAscenso sugerencia = obtenerPendiente(id);
+    public void aprobarAscenso(Long organizacionId) {
+        SugerenciaAscenso sugerencia = obtenerPendiente(organizacionId);
 
         Organizacion organizacion = sugerencia.getOrganizacion();
         organizacion.setNivel(sugerencia.getNivelSugerido());
@@ -72,13 +72,13 @@ public class ServiceNivelOrganizacion {
     }
 
     @Transactional
-    public void rechazarAscenso(Long id) {
-        resolver(obtenerPendiente(id), EstadoSolicitud.RECHAZADA);
+    public void rechazarAscenso(Long organizacionId) {
+        resolver(obtenerPendiente(organizacionId), EstadoSolicitud.RECHAZADA);
     }
 
     //METODOS AUXILIARES Y DE MAPEO
-    private SugerenciaAscenso obtenerPendiente(Long id) {
-        SugerenciaAscenso s = sugerenciaRepository.findById(id)
+    private SugerenciaAscenso obtenerPendiente(Long organizacionId) {
+        SugerenciaAscenso s = sugerenciaRepository.findById(organizacionId)
                 .orElseThrow(() -> new BusinessException("Sugerencia no encontrada"));
         if (s.getEstado() != EstadoSolicitud.PENDIENTE)
             throw new BusinessException("Solo se pueden gestionar sugerencias en estado PENDIENTE");

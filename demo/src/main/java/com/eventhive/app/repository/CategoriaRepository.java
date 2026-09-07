@@ -5,12 +5,14 @@ import java.util.Optional;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import com.eventhive.app.model.Categoria;
-import org.springframework.data.jpa.repository.Query;
 
 public interface CategoriaRepository extends JpaRepository<Categoria, Long> {
 
+    // Busca una categoría por su identificador.
+    @Override
     Optional<Categoria> findById(Long id);
 
     // Busca una categoría por su nombre
@@ -31,6 +33,7 @@ public interface CategoriaRepository extends JpaRepository<Categoria, Long> {
     """)
     List<Categoria> findTop4PorEventos(Pageable pageable);
 
+    // Obtiene cada categoría con la cantidad de eventos publicados.
     @Query("""
     SELECT c.id, c.nombre, COUNT(e.id)
     FROM Categoria c

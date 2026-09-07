@@ -35,9 +35,7 @@ public class PromocionApiController {
             @PathVariable Long eventoId) {
 
         return ResponseEntity.ok(ApiResponse.ok(
-                "Promoción obtenida",
-                servicePromocion.obtenerPromocionVigente(eventoId)
-        ));
+                "Promoción obtenida", servicePromocion.obtenerPromocionVigente(eventoId)));
     }
 
     @GetMapping

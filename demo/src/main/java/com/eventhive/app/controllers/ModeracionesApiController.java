@@ -20,7 +20,7 @@ import com.eventhive.app.service.ServiceUsuario;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/moderadores")
+@RequestMapping("/api/moderaciones")
 @RequiredArgsConstructor
 public class ModeracionesApiController {
 
@@ -29,7 +29,7 @@ public class ModeracionesApiController {
     private final ServiceModeracion serviceModeracion;
 
     //GESTION DE MODERADORES
-    @GetMapping
+    @GetMapping("/moderadores")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<PagedResponse<UsuarioDTO>>> listarModeradores(Pageable pageable) {
         Page<UsuarioDTO> page = serviceUsuario.obtenerModeradoresDTO(pageable);
@@ -44,74 +44,74 @@ public class ModeracionesApiController {
         return ResponseEntity.ok(ApiResponse.ok("Moderadores obtenidos", response));
     }
 
-    @PutMapping("/{id}/revocar")
+    @PutMapping("moderadores/{moderadorId}/revocar")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<Void>> revocarModerador(@PathVariable Long id) {
-        serviceUsuario.revocarModerador(id);
+    public ResponseEntity<ApiResponse<Void>> revocarModerador(@PathVariable Long moderadorId) {
+        serviceUsuario.revocarModerador(moderadorId);
         return ResponseEntity.ok(ApiResponse.ok("Rol de moderador revocado correctamente"));
     }
 
-    @PutMapping("/{id}/asignar")
+    @PutMapping("moderadores/{moderadorId}/asignar")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<Void>> asignarModerador(@PathVariable Long id) {
-        serviceUsuario.asignarModerador(id);
+    public ResponseEntity<ApiResponse<Void>> asignarModerador(@PathVariable Long moderadorId) {
+        serviceUsuario.asignarModerador(moderadorId);
         return ResponseEntity.ok(ApiResponse.ok("Rol de moderador asigando correctamente"));
     }
 
     // MODERACION A EVENTOS
-    @GetMapping("/moderacion/pendientes")
+    @GetMapping("/eventos/pendientes")
     @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> pendientesRevision(Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.ok("Eventos pendientes de revisión",
                 serviceEvento.toPagedDTO(serviceModeracion.listarPendientesRevision(pageable))));
     }
 
-    @GetMapping("/{id}/moderaciones")
+    @GetMapping("/eventos/{eventoId}/moderaciones")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Page<ModeracionEventoDTO>>> historialModeracion(
-            @PathVariable Long id, Pageable pageable) {
+            @PathVariable Long eventoId, Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.ok("Historial de moderación",
-                serviceModeracion.HistorialModeraciones(id, pageable)));
+                serviceModeracion.historialDeModeraciones(eventoId, pageable)));
     }
 
-    @PatchMapping("/{id}/aprobar")
+    @PatchMapping("/eventos/{eventoId}/aprobar")
     @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<EventoDTO>> aprobar(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<EventoDTO>> aprobar(@PathVariable Long eventoId) {
         return ResponseEntity.ok(ApiResponse.ok("Evento aprobado y publicado",
-                serviceEvento.toDTO(serviceModeracion.aprobarEvento(id))));
+                serviceEvento.toDTO(serviceModeracion.aprobarEvento(eventoId))));
     }
 
-    @PatchMapping("/{id}/solicitar-correccion")
+    @PatchMapping("/eventos/{eventoId}/solicitar-correccion")
     @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<EventoDTO>> solicitarCorreccion(
-            @PathVariable Long id,
+            @PathVariable Long eventoId,
             @RequestBody @Valid ModeracionEventoRequest request) {
         return ResponseEntity.ok(ApiResponse.ok("Se solicitaron correcciones al organizador",
-                serviceEvento.toDTO(serviceModeracion.solicitarCorreccion(id, request.getMotivo(), request.getObservacion()))));
+                serviceEvento.toDTO(serviceModeracion.solicitarCorreccion(eventoId, request.getMotivo(), request.getObservacion()))));
     }
 
-    @PatchMapping("/{id}/rechazar")
+    @PatchMapping("/eventos/{eventoId}/rechazar")
     @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<EventoDTO>> rechazar(
-            @PathVariable Long id,
+            @PathVariable Long eventoId,
             @RequestBody @Valid ModeracionEventoRequest request) {
         return ResponseEntity.ok(ApiResponse.ok("Evento rechazado",
-                serviceEvento.toDTO(serviceModeracion.rechazarEvento(id, request.getMotivo(), request.getObservacion()))));
+                serviceEvento.toDTO(serviceModeracion.rechazarEvento(eventoId, request.getMotivo(), request.getObservacion()))));
     }
 
-    @PatchMapping("/{id}/suspender")
+    @PatchMapping("/eventos/{eventoId}/suspender")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<EventoDTO>> suspender(
-            @PathVariable Long id,
+            @PathVariable Long eventoId,
             @RequestBody @Valid ModeracionEventoRequest request) {
         return ResponseEntity.ok(ApiResponse.ok("Evento suspendido",
-                serviceEvento.toDTO(serviceModeracion.suspenderEvento(id, request.getMotivo(), request.getObservacion()))));
+                serviceEvento.toDTO(serviceModeracion.suspenderEvento(eventoId, request.getMotivo(), request.getObservacion()))));
     }
 
-    @PatchMapping("/{id}/reactivar")
+    @PatchMapping("/eventos/{eventoId}/reactivar")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<EventoDTO>> reactivar(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<EventoDTO>> reactivar(@PathVariable Long eventoId) {
         return ResponseEntity.ok(ApiResponse.ok("Evento ractivado y publicado exitosamente",
-                serviceEvento.toDTO(serviceModeracion.reactivarEvento(id))));
+                serviceEvento.toDTO(serviceModeracion.reactivarEvento(eventoId))));
     }
 }
