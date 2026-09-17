@@ -10,6 +10,7 @@ import java.util.List;
 public class CategoriaEventosDTO {
     private Long id;
     private String nombre;
+    private String urlFoto;
     private List<EventoDTO> eventos;
     private int totalEventos;
     

@@ -62,7 +62,8 @@ public class ServiceCategoria {
                     CategoriaEventosDTO dto = new CategoriaEventosDTO();
                     dto.setId((Long) row[0]);
                     dto.setNombre((String) row[1]);
-                    dto.setTotalEventos(((Long) row[2]).intValue());
+                    dto.setUrlFoto((String) row[2]);
+                    dto.setTotalEventos(((Long) row[3]).intValue());
                     return dto;
                 })
                 .toList();
