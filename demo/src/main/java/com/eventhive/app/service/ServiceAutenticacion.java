@@ -1,15 +1,7 @@
 package com.eventhive.app.service;
 
-import com.eventhive.app.dto.response.LoginResponseDTO;
-import com.eventhive.app.exception.BusinessException;
-import com.eventhive.app.exception.ResourceNotFoundException;
-import com.eventhive.app.model.Rol;
-import com.eventhive.app.model.Usuario;
-import com.eventhive.app.repository.RolesRepository;
-import com.eventhive.app.repository.UsuarioRepository;
-import com.eventhive.app.security.jwt.JwtUtils;
-import com.eventhive.app.security.users.UsuarioPrincipal;
-import lombok.RequiredArgsConstructor;
+import java.time.LocalDateTime;
+
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.LockedException;
@@ -20,7 +12,17 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import com.eventhive.app.dto.response.LoginResponseDTO;
+import com.eventhive.app.exception.BusinessException;
+import com.eventhive.app.exception.ResourceNotFoundException;
+import com.eventhive.app.model.Rol;
+import com.eventhive.app.model.Usuario;
+import com.eventhive.app.repository.RolesRepository;
+import com.eventhive.app.repository.UsuarioRepository;
+import com.eventhive.app.security.jwt.JwtUtils;
+import com.eventhive.app.security.users.UsuarioPrincipal;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -43,7 +45,7 @@ public class ServiceAutenticacion {
                     new UsernamePasswordAuthenticationToken(correo, clave));
         } catch (BadCredentialsException ex) {
             registrarIntentoFallido(correo);
-            throw ex;
+            throw new BadCredentialsException("Credenciales incorrectas");
         } catch (LockedException ex) {
             throw new BusinessException(
                     "Cuenta bloqueada temporalmente por múltiples intentos fallidos. Intenta de nuevo en unos minutos.");
@@ -89,16 +91,16 @@ public class ServiceAutenticacion {
     }
 
     private void registrarIntentoFallido(String correo) {
-        Usuario usuario = usuarioRepository.findByCorreo(correo)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con correo: " + correo));
+        usuarioRepository.findByCorreo(correo)
+                .ifPresent(usuario -> {
+                    usuario.setIntentosFallidos(usuario.getIntentosFallidos() + 1);
 
-        usuario.setIntentosFallidos(usuario.getIntentosFallidos() + 1);
+                    if (usuario.getIntentosFallidos() >= MAX_INTENTOS_FALLIDOS) {
+                        usuario.setBloqueadoHasta(LocalDateTime.now().plusMinutes(BLOQUEO_MINUTOS));
+                    }
 
-        if (usuario.getIntentosFallidos() >= MAX_INTENTOS_FALLIDOS) {
-            usuario.setBloqueadoHasta(LocalDateTime.now().plusMinutes(BLOQUEO_MINUTOS));
-        }
-
-        usuarioRepository.save(usuario);
+                    usuarioRepository.save(usuario);
+                });
     }
 
     private void resetearIntentosFallidos(Usuario usuario) {
@@ -131,6 +133,7 @@ public class ServiceAutenticacion {
         u.setCorreo(correo);
         u.setTelefono(telefono);
         u.setClave(passwordEncoder.encode(clave));
+        u.setActivo(true);
         u.setRol(rol);
         return u;
     }

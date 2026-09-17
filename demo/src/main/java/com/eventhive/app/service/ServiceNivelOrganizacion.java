@@ -1,5 +1,13 @@
 package com.eventhive.app.service;
 
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.eventhive.app.dto.response.SugerenciaAscensoDTO;
 import com.eventhive.app.enums.EstadoSolicitud;
 import com.eventhive.app.exception.BusinessException;
@@ -8,14 +16,8 @@ import com.eventhive.app.model.SugerenciaAscenso;
 import com.eventhive.app.repository.OrganizacionRepository;
 import com.eventhive.app.repository.SugerenciaAscensoRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
+import lombok.RequiredArgsConstructor;
 
 
 @Service
@@ -40,7 +42,6 @@ public class ServiceNivelOrganizacion {
     @Transactional
     public void evaluarAscenso(Organizacion organizacion) {
         if (organizacion.getNivel() == null || organizacion.getNivel().esMaximo()) return;
-        if (organizacion.getEventosRechazados() > 0) return;
         if (sugerenciaRepository.existsByOrganizacionIdAndEstado(organizacion.getId(), EstadoSolicitud.PENDIENTE))
             return;
 
@@ -61,8 +62,8 @@ public class ServiceNivelOrganizacion {
 
     //OPERACIONES DE ASCENSO
     @Transactional
-    public void aprobarAscenso(Long organizacionId) {
-        SugerenciaAscenso sugerencia = obtenerPendiente(organizacionId);
+    public void aprobarAscenso(Long sugerenciaId) {
+        SugerenciaAscenso sugerencia = obtenerPendiente(sugerenciaId);
 
         Organizacion organizacion = sugerencia.getOrganizacion();
         organizacion.setNivel(sugerencia.getNivelSugerido());
@@ -72,16 +73,17 @@ public class ServiceNivelOrganizacion {
     }
 
     @Transactional
-    public void rechazarAscenso(Long organizacionId) {
-        resolver(obtenerPendiente(organizacionId), EstadoSolicitud.RECHAZADA);
+    public void rechazarAscenso(Long sugerenciaId) {
+        resolver(obtenerPendiente(sugerenciaId), EstadoSolicitud.RECHAZADA);
     }
 
     //METODOS AUXILIARES Y DE MAPEO
-    private SugerenciaAscenso obtenerPendiente(Long organizacionId) {
-        SugerenciaAscenso s = sugerenciaRepository.findById(organizacionId)
+    private SugerenciaAscenso obtenerPendiente(Long sugerenciaId) {
+        SugerenciaAscenso s = sugerenciaRepository.findById(sugerenciaId)
                 .orElseThrow(() -> new BusinessException("Sugerencia no encontrada"));
-        if (s.getEstado() != EstadoSolicitud.PENDIENTE)
+        if (s.getEstado() != EstadoSolicitud.PENDIENTE) {
             throw new BusinessException("Solo se pueden gestionar sugerencias en estado PENDIENTE");
+        }
         return s;
     }
 

@@ -1,13 +1,14 @@
 package com.eventhive.app.security.users;
 
-import com.eventhive.app.model.Usuario;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collection;
+
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collection;
+import com.eventhive.app.model.Usuario;
 
 public class UsuarioPrincipal implements UserDetails {
     
@@ -53,7 +54,7 @@ public class UsuarioPrincipal implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return usuario.isActivo();
     }
 
     @Override

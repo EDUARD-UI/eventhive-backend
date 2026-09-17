@@ -12,13 +12,18 @@ import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
 @Table(name = "localidades", indexes = {
     @Index(name = "idx_localidad_evento", columnList = "evento_id")
-})
+},
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uq_localidad_evento_nombre", columnNames = {"evento_id", "nombre"})
+    }
+)
 @Getter @Setter
 public class Localidad {
 

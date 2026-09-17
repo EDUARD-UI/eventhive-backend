@@ -1,6 +1,5 @@
 package com.eventhive.app.security.users;
 
-import com.eventhive.app.exception.ResourceNotFoundException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -20,12 +19,16 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         Usuario usuario = usuarioRepository.findByCorreo(email)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con correo: " + email));
-        
-        if (usuario.getRol() == null) {
-            throw new UsernameNotFoundException("El usuario no tiene un rol asignado: " + email);
+                .orElseThrow(() -> new UsernameNotFoundException("Credenciales inválidas"));
+
+        if (!usuario.isActivo()) {
+            throw new UsernameNotFoundException("Credenciales inválidas");
         }
-        
+
+        if (usuario.getRol() == null) {
+            throw new UsernameNotFoundException("Credenciales inválidas");
+        }
+
         return new UsuarioPrincipal(usuario);
     }
 }

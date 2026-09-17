@@ -14,6 +14,8 @@ public interface LocalidadRepository extends JpaRepository<Localidad, Long> {
     // Busca todas las localidades asociadas a un evento
     List<Localidad> findByEventoId(Long eventoId);
 
+    long countByEventoId(Long eventoId);
+
     // Decrementa las localidades disponibles
     @Modifying
     @Query("UPDATE Localidad l SET l.disponibles = l.disponibles - :cantidad WHERE l.id = :id AND l.disponibles >= :cantidad")

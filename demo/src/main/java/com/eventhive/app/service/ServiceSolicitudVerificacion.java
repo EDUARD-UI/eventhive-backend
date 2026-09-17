@@ -1,7 +1,15 @@
 package com.eventhive.app.service;
 
-import com.eventhive.app.dto.response.SolicitudVerificacionDTO;
+import java.time.LocalDateTime;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.eventhive.app.dto.request.SolicitudVerificacionRequest;
+import com.eventhive.app.dto.response.SolicitudVerificacionDTO;
 import com.eventhive.app.enums.EstadoSolicitud;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.model.Organizacion;
@@ -12,14 +20,8 @@ import com.eventhive.app.repository.RolesRepository;
 import com.eventhive.app.repository.SolicitudVerificacionRepository;
 import com.eventhive.app.repository.UsuarioRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDateTime;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -58,6 +60,10 @@ public class ServiceSolicitudVerificacion {
     public void crearSolicitud(SolicitudVerificacionRequest request, MultipartFile archivoRut) {
         Usuario representante = authHelper.usuarioAutenticado();
 
+        if (archivoRut == null || archivoRut.isEmpty()) {
+            throw new BusinessException("El RUT es obligatorio");
+        }
+
         if (representante.getOrganizacion() != null)
             throw new BusinessException("Esta cuenta ya pertenece a una organización");
 
@@ -72,9 +78,7 @@ public class ServiceSolicitudVerificacion {
             throw new BusinessException("Ese NIT ya está registrado");
         }
 
-        String urlRut = null;
-        if (archivoRut != null && !archivoRut.isEmpty())
-            urlRut = storageService.subirDocumentoVerificacion(archivoRut);
+        String urlRut = storageService.subirDocumentoVerificacion(archivoRut);
 
         SolicitudVerificacion solicitud = new SolicitudVerificacion();
         solicitud.setRepresentanteLegal(representante);

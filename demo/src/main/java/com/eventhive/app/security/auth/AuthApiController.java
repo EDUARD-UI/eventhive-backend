@@ -1,21 +1,27 @@
 package com.eventhive.app.security.auth;
 
-import com.eventhive.app.dto.ApiResponse;
-import com.eventhive.app.dto.response.LoginResponseDTO;
-import com.eventhive.app.dto.response.UsuarioSesionDTO;
-import com.eventhive.app.dto.request.LoginRequest;
-import com.eventhive.app.dto.request.RefreshRequest;
-import com.eventhive.app.dto.request.RegistroRequest;
-import com.eventhive.app.service.ServiceAutenticacion;
-import com.eventhive.app.service.ServiceUsuario;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.eventhive.app.dto.ApiResponse;
+import com.eventhive.app.dto.request.LoginRequest;
+import com.eventhive.app.dto.request.RefreshRequest;
+import com.eventhive.app.dto.request.RegistroRequest;
+import com.eventhive.app.dto.response.LoginResponseDTO;
+import com.eventhive.app.dto.response.UsuarioSesionDTO;
+import com.eventhive.app.service.ServiceAutenticacion;
+import com.eventhive.app.service.ServiceUsuario;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequiredArgsConstructor
@@ -38,7 +44,7 @@ public class AuthApiController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<LoginResponseDTO>> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<ApiResponse<LoginResponseDTO>> login(@Valid @RequestBody LoginRequest request) {
         LoginResponseDTO response = serviceAutenticacion.autenticar(request.getCorreo(), request.getClave());
         return ResponseEntity.ok(ApiResponse.ok("Login exitoso", response));
     }
@@ -55,7 +61,7 @@ public class AuthApiController {
     }
 
     @PostMapping("/registrar-cliente")
-    public ResponseEntity<ApiResponse<Void>> registrarCliente(@RequestBody RegistroRequest request) {
+    public ResponseEntity<ApiResponse<Void>> registrarCliente(@Valid @RequestBody RegistroRequest request) {
         serviceAutenticacion.registrarCliente(
                 request.getNombre(), request.getCorreo(),
                 request.getTelefono(), request.getClave());
@@ -63,7 +69,7 @@ public class AuthApiController {
     }
 
     @PostMapping("/registrar-organizacion")
-    public ResponseEntity<ApiResponse<Void>> registrarOrganizacion(@RequestBody RegistroRequest request) {
+    public ResponseEntity<ApiResponse<Void>> registrarOrganizacion(@Valid @RequestBody RegistroRequest request) {
         serviceAutenticacion.registrarOrganizacion(
                 request.getNombre(), request.getCorreo(),
                 request.getTelefono(), request.getClave());

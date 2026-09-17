@@ -1,5 +1,10 @@
 package com.eventhive.app.service;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.eventhive.app.dto.response.ValoracionDTO;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
@@ -7,13 +12,9 @@ import com.eventhive.app.model.Organizacion;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.model.Valoracion;
 import com.eventhive.app.repository.OrganizacionRepository;
-import com.eventhive.app.repository.UsuarioRepository;
 import com.eventhive.app.repository.ValoracionRepository;
+
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -38,20 +39,21 @@ public class ServiceValoracion {
     @Transactional
     public void crearValoracion(Usuario usuario, Long organizacionId, String comentario, long calificacion) {
 
-        //validar que la organizacion exista
         Organizacion organizacion = organizacionRepository.findById(organizacionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organización no encontrada"));
 
         validarNoEsMiOrganizacion(usuario, organizacion);
         validarCalificacion(calificacion);
 
-        if (valoracionRepository.existsByClienteIdAndOrganizacionId(usuario.getId(), organizacionId)) {
-            throw new BusinessException("Ya valoraste a este organizador");
+        Valoracion v = valoracionRepository.findByClienteIdAndOrganizacionId(usuario.getId(), organizacionId)
+                .orElse(null);
+
+        if (v == null) {
+            v = new Valoracion();
+            v.setCliente(usuario);
+            v.setOrganizacion(organizacion);
         }
 
-        Valoracion v = new Valoracion();
-        v.setCliente(usuario);
-        v.setOrganizacion(organizacion);
         v.setComentario(comentario);
         v.setCalificacion((int) calificacion);
         valoracionRepository.save(v);
@@ -99,9 +101,15 @@ public class ServiceValoracion {
     }
 
     private void validarNoEsMiOrganizacion(Usuario usuario, Organizacion organizacion) {
-        if (organizacion.getRepresentante() != null
-                && organizacion.getRepresentante().getId().equals(usuario.getId())) {
-            throw new BusinessException("No puedes valorarte a ti mismo");
+        if (organizacion == null || usuario == null || usuario.getOrganizacion() == null) {
+            return;
+        }
+
+        boolean esMiOrganizacion = organizacion.getId() != null
+                && organizacion.getId().equals(usuario.getOrganizacion().getId());
+
+        if (esMiOrganizacion) {
+            throw new BusinessException("No puedes valorar a la organización a la que perteneces");
         }
     }
 

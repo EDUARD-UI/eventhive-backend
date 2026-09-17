@@ -34,10 +34,12 @@ import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Categoria;
 import com.eventhive.app.model.Evento;
+import com.eventhive.app.model.Localidad;
 import com.eventhive.app.model.Organizacion;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.repository.CategoriaRepository;
 import com.eventhive.app.repository.EventoRepository;
+import com.eventhive.app.repository.LocalidadRepository;
 import com.eventhive.app.repository.ModeracionEventoRepository;
 import com.eventhive.app.repository.OrganizacionRepository;
 import com.eventhive.app.repository.TiqueteRepository;
@@ -55,6 +57,7 @@ public class ServiceEvento {
     private final ServiceNotification serviceNotification;
     private final EventoRepository eventoRepository;
     private final CategoriaRepository categoriaRepository;
+    private final LocalidadRepository localidadRepository;
     private final TiqueteRepository tiqueteRepository;
     private final ModeracionEventoRepository moderacionEventoRepository;
     private final OrganizacionRepository organizacionRepository;
@@ -190,6 +193,7 @@ public class ServiceEvento {
         }
 
         Evento guardado = eventoRepository.save(evento);
+        asegurarLocalidadGeneral(guardado);
 
         if (guardado.getEstado() == EstadoEvento.PUBLICADO) {
             serviceNotification.notificarNuevoEvento(guardado);
@@ -336,6 +340,20 @@ public class ServiceEvento {
         }
         return categoriaRepository.findById(categoriaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Categoría no encontrada: " + categoriaId));
+    }
+
+    private void asegurarLocalidadGeneral(Evento evento) {
+        if (evento == null || localidadRepository.countByEventoId(evento.getId()) > 0) {
+            return;
+        }
+
+        Localidad general = new Localidad();
+        general.setEvento(evento);
+        general.setNombre("General");
+        general.setCapacidad(1);
+        general.setDisponibles(1);
+        general.setPrecio(java.math.BigDecimal.ZERO);
+        localidadRepository.save(general);
     }
 
     private void eliminarFotoAnterior(String urlFoto) {

@@ -26,7 +26,7 @@ public class ServiceLocalidad {
     //CONSULTAS
     @Transactional(readOnly = true)
     public List<Localidad> listarPorEvento(Long eventoId) {
-        Evento evento = serviceEvento.obtenerEventoPorId(eventoId);//validar que el evento existe
+        Evento evento = serviceEvento.obtenerReferenciasEvento(eventoId);//validar que el evento existe
         serviceEvento.verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
 
         return localidadRepository.findByEventoId(eventoId);
@@ -40,11 +40,22 @@ public class ServiceLocalidad {
     //OPERACIONES CRUD
     @Transactional
     public Localidad agregar(Long eventoId, LocalidadRequest request) {
-        Evento evento = serviceEvento.obtenerEventoPorId(eventoId);
+        Evento evento = serviceEvento.obtenerReferenciasEvento(eventoId);
         serviceEvento.verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
 
+        validarLocalidadRequest(request);
+
+        long total = localidadRepository.countByEventoId(eventoId);
+        String nombre = request.getNombre() == null || request.getNombre().isBlank()
+                ? "General"
+                : request.getNombre();
+
+        if (total == 0) {
+            nombre = "General";
+        }
+
         Localidad localidad = new Localidad();
-        localidad.setNombre(request.getNombre());
+        localidad.setNombre(nombre);
         localidad.setPrecio(request.getPrecio());
         localidad.setCapacidad(request.getCapacidad());
         localidad.setDisponibles(request.getCapacidad());
@@ -55,8 +66,10 @@ public class ServiceLocalidad {
 
     @Transactional
     public Localidad actualizar(Long eventoId, Long localidadId, LocalidadRequest datos) {
-        Evento evento = serviceEvento.obtenerEventoPorId(eventoId);
+        Evento evento = serviceEvento.obtenerReferenciasEvento(eventoId);
         serviceEvento.verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
+
+        validarLocalidadRequest(datos);
 
         Localidad localidad = obtenerPorId(localidadId);
 
@@ -64,8 +77,6 @@ public class ServiceLocalidad {
             throw new BusinessException("La localidad no pertenece al evento indicado");
         }
 
-        // disponibles se setea segun la direferencia de la capacidad antigua y la nueva
-        //para evitar errores con los ya vendidos
         int diferenciaCapacidad = datos.getCapacidad() - localidad.getCapacidad();
         int nuevosDisponibles = localidad.getDisponibles() + diferenciaCapacidad;
 
@@ -74,7 +85,11 @@ public class ServiceLocalidad {
                     "No es posible reducir la capacidad por debajo de los boletos ya vendidos");
         }
 
-        localidad.setNombre(datos.getNombre());
+        if (nuevosDisponibles > datos.getCapacidad()) {
+            throw new BusinessException("Los disponibles no pueden superar la capacidad");
+        }
+
+        localidad.setNombre(datos.getNombre() == null || datos.getNombre().isBlank() ? "General" : datos.getNombre());
         localidad.setPrecio(datos.getPrecio());
         localidad.setCapacidad(datos.getCapacidad());
         localidad.setDisponibles(nuevosDisponibles);
@@ -83,7 +98,7 @@ public class ServiceLocalidad {
 
     @Transactional
     public void eliminar(Long eventoId, Long localidadId) {
-        Evento evento = serviceEvento.obtenerEventoPorId(eventoId);
+        Evento evento = serviceEvento.obtenerReferenciasEvento(eventoId);
         serviceEvento.verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
 
         Localidad localidad = obtenerPorId(localidadId);
@@ -92,10 +107,27 @@ public class ServiceLocalidad {
             throw new BusinessException("La localidad no pertenece al evento indicado");
         }
 
+        long total = localidadRepository.countByEventoId(eventoId);
+        if (total <= 1) {
+            throw new BusinessException("El evento debe mantener al menos una localidad");
+        }
+
         localidadRepository.deleteById(localidadId);
     }
 
     // METODOS AUXILIARES Y DE MAPEO
+    private void validarLocalidadRequest(LocalidadRequest request) {
+        if (request == null) {
+            throw new BusinessException("La localidad es requerida");
+        }
+        if (request.getPrecio() == null || request.getPrecio().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("El precio debe ser mayor a 0");
+        }
+        if (request.getCapacidad() == null || request.getCapacidad() <= 0) {
+            throw new BusinessException("La capacidad debe ser mayor a 0");
+        }
+    }
+
     public LocalidadDTO toDTO(Localidad localidad) {
         LocalidadDTO dto = new LocalidadDTO();
         dto.setId(localidad.getId());

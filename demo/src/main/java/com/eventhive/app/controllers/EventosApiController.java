@@ -84,7 +84,7 @@ public class EventosApiController {
     @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<EventoDTO>> obtenerAdmin(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok("Evento obtenido",
-                serviceEvento.toDTO(serviceEvento.obtenerEventoAdminPorId(id))));
+                serviceEvento.toDTO(serviceEvento.obtenerEventoAdministrativo(id))));
     }
 
     @GetMapping("/mapa")

@@ -1,16 +1,23 @@
 package com.eventhive.app.service;
 
-import com.eventhive.app.config.SupabaseStorageConfig;
-import com.eventhive.app.exception.BusinessException;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.*;
+import java.io.IOException;
+import java.util.UUID;
+
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.InvalidMediaTypeException;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.util.UUID;
+import com.eventhive.app.config.SupabaseStorageConfig;
+import com.eventhive.app.exception.BusinessException;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -23,17 +30,17 @@ public class SupabaseStorageService {
     //CARGA DE IMAGENES Y DOCUMENTOS AL STORAGE
     public String subirDocumentoVerificacion(MultipartFile archivo) {
         validarDocumento(archivo);
-        return subirArchivo(archivo, config.getBucketVerificaciones(), "verificacion_");
+        return subirArchivo(archivo, config.getBucketVerificaciones(), "verificacion_", false);
     }
 
     public String subirImagenEvento(MultipartFile archivo) {
         validarImagen(archivo);
-        return subirArchivo(archivo, config.getBucketEventos(), "evento_");
+        return subirArchivo(archivo, config.getBucketEventos(), "evento_", true);
     }
 
     public String subirImagenCategoria(MultipartFile archivo) {
         validarImagen(archivo);
-        return subirArchivo(archivo, config.getBucketCategorias(), "categoria_");
+        return subirArchivo(archivo, config.getBucketCategorias(), "categoria_", true);
     }
 
     public void eliminarArchivo(String bucket, String nombreArchivo) {
@@ -44,7 +51,7 @@ public class SupabaseStorageService {
 
         try {
             restTemplate.exchange(url, HttpMethod.DELETE, new HttpEntity<>(headers), Void.class);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.warn("No se pudo eliminar archivo en Supabase: {}", e.getMessage(), e);
         }
     }
@@ -55,7 +62,7 @@ public class SupabaseStorageService {
     }
 
     //METODOS AUXILIARES Y VALIDACION
-    private String subirArchivo(MultipartFile archivo, String bucket, String prefijo) {
+    private String subirArchivo(MultipartFile archivo, String bucket, String prefijo, boolean publico) {
         try {
             String extension = obtenerExtension(archivo.getOriginalFilename());
             String nombreArchivo = prefijo + UUID.randomUUID() + extension;
@@ -68,7 +75,10 @@ public class SupabaseStorageService {
             if (!res.getStatusCode().is2xxSuccessful())
                 throw new BusinessException("Supabase respondió con error: " + res.getStatusCode());
 
-            return config.getUrl() + "/storage/v1/object/public/" + bucket + "/" + nombreArchivo;
+            if (publico) {
+                return config.getUrl() + "/storage/v1/object/public/" + bucket + "/" + nombreArchivo;
+            }
+            return bucket + "/" + nombreArchivo;
 
         } catch (IOException e) {
             throw new BusinessException("No se pudo leer el archivo: " + e.getMessage());

@@ -108,13 +108,24 @@ public class ServiceCompra {
         Compra compra = buscarCompra(id);
         validarOwnership(compra, usuario);
         validarCancelable(compra);
-        compra.setEstado(EstadoCompra.CANCELADA);
+
+        int filasActualizadas = compraRepository.cancelarSiCancelable(
+            compra.getId(),
+            usuario.getId(),
+            EstadoCompra.CANCELADA,
+            List.of(EstadoCompra.PENDIENTE, EstadoCompra.CONFIRMADA));
+
+        if (filasActualizadas == 0) {
+            throw new BusinessException("La compra ya no puede cancelarse");
+        }
+
         compra.getItems().forEach(item
-                -> localidadRepository.incrementarDisponibles(
-                item.getLocalidad().getId(), item.getCantidad()));
+            -> localidadRepository.incrementarDisponibles(
+            item.getLocalidad().getId(), item.getCantidad()));
 
         // No se borra la compra ni los tiquetes: deben conservarse para
         // auditoría e histórico. Los tiquetes quedan asociados a una compra CANCELADA.
+        compra.setEstado(EstadoCompra.CANCELADA);
         compraRepository.save(compra);
     }
 

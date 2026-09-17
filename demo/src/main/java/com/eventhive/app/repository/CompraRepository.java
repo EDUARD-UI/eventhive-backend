@@ -5,9 +5,11 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.eventhive.app.enums.EstadoCompra;
 import com.eventhive.app.model.Compra;
 
 public interface CompraRepository extends JpaRepository<Compra, Long> {
@@ -23,6 +25,19 @@ public interface CompraRepository extends JpaRepository<Compra, Long> {
         ORDER BY c.fechaCompra DESC
         """)
     Page<Compra> findByClienteIdConItems(@Param("clienteId") Long clienteId, Pageable pageable);
+
+        @Modifying
+        @Query("""
+                UPDATE Compra c
+                SET c.estado = :nuevoEstado
+                WHERE c.id = :compraId
+                    AND c.cliente.id = :clienteId
+                    AND c.estado IN (:estados)
+                """)
+        int cancelarSiCancelable(@Param("compraId") Long compraId,
+                                                         @Param("clienteId") Long clienteId,
+                                                         @Param("nuevoEstado") EstadoCompra nuevoEstado,
+                                                         @Param("estados") java.util.List<EstadoCompra> estados);
 
     // Busca una compra del cliente por su clave de idempotencia.
     Optional<Compra> findByClienteIdAndIdempotencyKey(Long clienteId, String idempotencyKey);

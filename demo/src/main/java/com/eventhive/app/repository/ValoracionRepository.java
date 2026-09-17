@@ -1,5 +1,7 @@
 package com.eventhive.app.repository;
 
+import java.util.Optional;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -19,6 +21,8 @@ public interface ValoracionRepository extends JpaRepository<Valoracion, Long> {
 
     // Verifica si un cliente ya valoró una organización.
     boolean existsByClienteIdAndOrganizacionId(Long clienteId, Long organizacionId);
+
+    Optional<Valoracion> findByClienteIdAndOrganizacionId(Long clienteId, Long organizacionId);
 
     // Lista valoraciones de un cliente con la organización cargada.
     @Query("""
