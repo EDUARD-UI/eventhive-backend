@@ -16,11 +16,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.eventhive.app.dto.ApiResponse;
 import com.eventhive.app.dto.PagedResponse;
+import com.eventhive.app.dto.request.BuscarOrganizacionRequest;
 import com.eventhive.app.dto.request.PermisosOperadorRequest;
 import com.eventhive.app.dto.response.InvitacionOrganizacionDTO;
 import com.eventhive.app.dto.response.OperadorDTO;
 import com.eventhive.app.dto.response.OrganizacionDTO;
 import com.eventhive.app.dto.response.OrganizacionPublicaDTO;
+import com.eventhive.app.dto.response.RutUrlDTO;
 import com.eventhive.app.dto.response.SugerenciaAscensoDTO;
 import com.eventhive.app.dto.response.UsuarioDTO;
 import com.eventhive.app.exception.BusinessException;
@@ -54,10 +56,26 @@ public class OrganizacionApiController {
                 serviceUsuario.toPagedOrganizacion(serviceUsuario.obtenerOrganizaciones(pageable))));
     }
 
+        @PostMapping("/buscar")
+        public ResponseEntity<ApiResponse<PagedResponse<OrganizacionPublicaDTO>>> buscarPorRazonSocial(
+            @Valid @RequestBody BuscarOrganizacionRequest request, Pageable pageable) {
+        Page<OrganizacionPublicaDTO> page = serviceUsuario.buscarOrganizacionesPorRazonSocial(
+            request.getRazonSocial(), pageable);
+        return ResponseEntity.ok(ApiResponse.ok("Organizaciones encontradas",
+            serviceUsuario.toPagedOrganizacion(page)));
+        }
+
     @GetMapping("/{organizacionId}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<OrganizacionDTO>> obtener(@PathVariable Long organizacionId) {
         return ResponseEntity.ok(ApiResponse.ok("Organización obtenida", serviceOrganizacion.obtenerPorId(organizacionId)));
+    }
+
+    @GetMapping("/{organizacionId}/rut-url")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<RutUrlDTO>> obtenerUrlRut(@PathVariable Long organizacionId) {
+        return ResponseEntity.ok(ApiResponse.ok("URL temporal del RUT obtenida",
+                serviceOrganizacion.obtenerUrlRut(organizacionId)));
     }
 
     @GetMapping("/top")

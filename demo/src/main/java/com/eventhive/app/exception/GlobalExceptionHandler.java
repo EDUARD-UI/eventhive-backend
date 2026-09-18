@@ -1,7 +1,7 @@
 package com.eventhive.app.exception;
 
-import com.eventhive.app.dto.ApiResponse;
-import lombok.extern.slf4j.Slf4j;
+import java.util.stream.Collectors;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -10,8 +10,11 @@ import org.springframework.security.authentication.LockedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
-import java.util.stream.Collectors;
+import com.eventhive.app.dto.ApiResponse;
+
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RestControllerAdvice
@@ -55,6 +58,12 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining(", "));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.error(errores));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(ApiResponse.error("El archivo no puede superar los 5MB"));
     }
 
     @ExceptionHandler(Exception.class)

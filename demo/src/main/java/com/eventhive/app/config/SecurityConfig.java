@@ -3,6 +3,7 @@ package com.eventhive.app.config;
 import java.util.Arrays;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -38,6 +39,9 @@ public class SecurityConfig {
 
     private final CustomUserDetailsService customUserDetailsService;
     private final JwtAuthFilter jwtAuthFilter;
+
+    @Value("${cors.allowed-origins:${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000,http://localhost:4173,https://eventhive-ruby-zeta.vercel.app}}")
+    private String allowedOrigins;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -80,6 +84,11 @@ public class SecurityConfig {
             .exceptionHandling(exception -> exception
                 .authenticationEntryPoint(jsonAuthenticationEntryPoint())
                 .accessDeniedHandler(jsonAccessDeniedHandler()))
+            .headers(headers -> headers
+                .contentSecurityPolicy(csp -> csp.policyDirectives(
+                    "default-src 'self'; base-uri 'self'; object-src 'none'; "
+                    + "frame-ancestors 'none'; form-action 'self'; "
+                    + "connect-src 'self' https://eventhive-ruby-zeta.vercel.app https://*.supabase.co")))
             .formLogin(AbstractHttpConfigurer::disable)
             .httpBasic(AbstractHttpConfigurer::disable)
             .authenticationProvider(authenticationProvider())
@@ -111,11 +120,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(
-            "http://localhost:5173",
-            "http://localhost:3000",
-            "http://localhost:4173"
-        ));
+        configuration.setAllowedOrigins(Arrays.stream(allowedOrigins.split(","))
+            .map(String::trim)
+            .filter(origin -> !origin.isBlank())
+            .toList());
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
         configuration.setAllowCredentials(true);

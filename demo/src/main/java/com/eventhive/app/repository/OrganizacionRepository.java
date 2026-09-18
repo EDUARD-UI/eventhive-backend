@@ -18,4 +18,6 @@ public interface OrganizacionRepository extends JpaRepository<Organizacion, Long
 
     // Verifica si ya existe una organización con ese correo de contacto.
     boolean existsByCorreoContacto(String correoContacto);
+
+    Page<Organizacion> findByRazonSocial(String razonSocial, Pageable pageable);
 }

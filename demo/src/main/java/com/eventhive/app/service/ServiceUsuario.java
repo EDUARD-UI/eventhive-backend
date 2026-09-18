@@ -50,6 +50,12 @@ public class ServiceUsuario {
     }
 
     @Transactional(readOnly = true)
+    public Page<OrganizacionPublicaDTO> buscarOrganizacionesPorRazonSocial(String razonSocial, Pageable pageable) {
+        return organizacionRepository.findByRazonSocial(razonSocial.trim(), pageable)
+                .map(this::toOrganizacionPublicaDTO);
+    }
+
+    @Transactional(readOnly = true)
     public Page<OrganizacionPublicaDTO> obtenerTopOrganizaciones(Pageable pageable) {
         return organizacionRepository.findTopOrganizaciones(pageable).map(this::toOrganizacionPublicaDTO);
     }

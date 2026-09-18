@@ -1,21 +1,29 @@
 package com.eventhive.app.service;
 
-import com.eventhive.app.dto.request.PermisosOperadorRequest;
-import com.eventhive.app.dto.response.OperadorDTO;
-import com.eventhive.app.dto.response.OrganizacionDTO;
-import com.eventhive.app.exception.BusinessException;
-import com.eventhive.app.exception.ResourceNotFoundException;
-import com.eventhive.app.model.Organizacion;
-import com.eventhive.app.model.Usuario;
-import com.eventhive.app.repository.*;
-import com.eventhive.app.utils.AuthenticatedUserHelper;
-import lombok.RequiredArgsConstructor;
+import java.util.Set;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Set;
+import com.eventhive.app.dto.request.PermisosOperadorRequest;
+import com.eventhive.app.dto.response.OperadorDTO;
+import com.eventhive.app.dto.response.OrganizacionDTO;
+import com.eventhive.app.dto.response.RutUrlDTO;
+import com.eventhive.app.exception.BusinessException;
+import com.eventhive.app.exception.ResourceNotFoundException;
+import com.eventhive.app.model.Organizacion;
+import com.eventhive.app.model.Usuario;
+import com.eventhive.app.repository.EventoRepository;
+import com.eventhive.app.repository.OrganizacionRepository;
+import com.eventhive.app.repository.RolesRepository;
+import com.eventhive.app.repository.SeguidorRepository;
+import com.eventhive.app.repository.UsuarioRepository;
+import com.eventhive.app.repository.ValoracionRepository;
+import com.eventhive.app.utils.AuthenticatedUserHelper;
+
+import lombok.RequiredArgsConstructor;
 
 // Solo expone datos de organizaciones ya APROBADAS
 //se actualizan los datos cada q haya un cambio en las valoraciones, seguidores o eventos creados por la organizacion
@@ -31,6 +39,7 @@ public class ServiceOrganizacion {
     private final EventoRepository eventoRepository;
     private final RolesRepository rolesRepository;
     private final AuthenticatedUserHelper authHelper;
+    private final SupabaseStorageService storageService;
 
     //CONSULTAS
     @Transactional(readOnly = true)
@@ -46,6 +55,31 @@ public class ServiceOrganizacion {
         if (usuario.getOrganizacion() == null)
             throw new BusinessException("Aún no tiene un perfil de organización aprobado");
         return toDTO(usuario.getOrganizacion());
+    }
+
+    @Transactional(readOnly = true)
+    public RutUrlDTO obtenerUrlRut(Long organizacionId) {
+        Usuario usuario = authHelper.usuarioAutenticado();
+        Organizacion organizacion = organizacionRepository.findById(organizacionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organización no encontrada"));
+
+        boolean esAdministrador = usuario.getRol() != null
+                && ("ADMINISTRADOR".equalsIgnoreCase(usuario.getRol().getNombre())
+                || "MODERADOR".equalsIgnoreCase(usuario.getRol().getNombre()));
+        boolean esRepresentante = usuario.getOrganizacion() != null
+            && usuario.getOrganizacion().getId().equals(organizacionId)
+            && usuario.getOrganizacion().getRepresentante() != null
+            && usuario.getOrganizacion().getRepresentante().getId().equals(usuario.getId());
+        if (!esAdministrador && !esRepresentante) {
+            throw new BusinessException("No autorizado para consultar este RUT");
+        }
+        if (organizacion.getUrlRut() == null || organizacion.getUrlRut().isBlank()) {
+            throw new BusinessException("La organización no tiene un RUT almacenado");
+        }
+
+        long expiresInSeconds = 3600L;
+        return new RutUrlDTO(storageService.generarUrlFirmada(organizacion.getUrlRut(), expiresInSeconds),
+                expiresInSeconds);
     }
 
     // Lista los trabajadores de la organizacion
@@ -158,7 +192,6 @@ public class ServiceOrganizacion {
         dto.setRazonSocial(o.getRazonSocial());
         dto.setNit(o.getNit());
         dto.setCorreoContacto(o.getCorreoContacto());
-        dto.setUrlRut(o.getUrlRut());
         dto.setFechaCreacion(o.getFechaCreacion());
         dto.setPromedioRating(o.getPromedioRating());
         dto.setTotalValoraciones(o.getTotalValoraciones());

@@ -142,7 +142,7 @@ public class ServiceSolicitudVerificacion {
     }
 
     @Transactional
-    public void reenviarSolicitud(Long solicitudId) {
+    public void reenviarSolicitud(Long solicitudId, SolicitudVerificacionRequest request, MultipartFile archivoRut) {
         Usuario representante = authHelper.usuarioAutenticado();
         SolicitudVerificacion solicitud = solicitudRepository.findById(solicitudId)
                 .orElseThrow(() -> new BusinessException("Solicitud no encontrada"));
@@ -153,9 +153,34 @@ public class ServiceSolicitudVerificacion {
         if (solicitud.getEstado() != EstadoSolicitud.CORRECCION_SOLICITADA)
             throw new BusinessException("Solo se pueden reenviar solicitudes en CORRECCION_SOLICITADA");
 
+        if (request == null) {
+            throw new BusinessException("Los datos corregidos son obligatorios");
+        }
+        validarDatosUnicos(request);
+        if (archivoRut != null && !archivoRut.isEmpty()) {
+            String rutAnterior = solicitud.getUrlRut();
+            solicitud.setUrlRut(storageService.subirDocumentoVerificacion(archivoRut));
+            if (rutAnterior != null) {
+                storageService.eliminarDocumentoVerificacion(rutAnterior);
+            }
+        }
+        solicitud.setRazonSocial(request.getRazonSocial());
+        solicitud.setNit(request.getNit());
+        solicitud.setCorreoEmpresarial(request.getCorreoEmpresarial());
+        solicitud.setMotivoRechazo(null);
+
         solicitud.setEstado(EstadoSolicitud.PENDIENTE);
         solicitud.setFechaSolicitud(LocalDateTime.now());
         solicitudRepository.save(solicitud);
+    }
+
+    private void validarDatosUnicos(SolicitudVerificacionRequest request) {
+        if (organizacionRepository.existsByNit(request.getNit())) {
+            throw new BusinessException("Ese NIT ya está registrado");
+        }
+        if (organizacionRepository.existsByCorreoContacto(request.getCorreoEmpresarial())) {
+            throw new BusinessException("Ese correo empresarial ya está en uso");
+        }
     }
 
     //METODOS AUXILIARES Y DE MAPEO
@@ -175,7 +200,6 @@ public class ServiceSolicitudVerificacion {
         dto.setRazonSocial(s.getRazonSocial());
         dto.setNit(s.getNit());
         dto.setRepresentanteLegal(s.getRepresentanteLegal().getId());
-        dto.setUrlRut(s.getUrlRut());
         dto.setFechaSolicitud(s.getFechaSolicitud());
         dto.setFechaResolucion(s.getFechaResolucion());
         dto.setMotivoRechazo(s.getMotivoRechazo());

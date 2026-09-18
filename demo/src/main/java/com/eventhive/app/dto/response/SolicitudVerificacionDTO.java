@@ -1,10 +1,11 @@
 package com.eventhive.app.dto.response;
 
+import java.time.LocalDateTime;
+
 import com.eventhive.app.enums.EstadoSolicitud;
+
 import lombok.Getter;
 import lombok.Setter;
-
-import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -21,9 +22,6 @@ public class SolicitudVerificacionDTO {
     private String nit;
     private Long representanteLegal;
     private String correoEmpresarial;
-
-    // URL pública del RUT en Supabase Storage
-    private String urlRut;
 
     private String mensaje;
     private EstadoSolicitud estado;

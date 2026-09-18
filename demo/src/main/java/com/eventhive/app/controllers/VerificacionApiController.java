@@ -93,10 +93,13 @@ public class VerificacionApiController {
         return ResponseEntity.ok(ApiResponse.ok("Solicitud marcada para correccion"));
     }
 
-    @PatchMapping("/{solicitudId}/reenviar")
+    @PatchMapping(value = "/{solicitudId}/reenviar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('REPRESENTANTE')")
-    public ResponseEntity<ApiResponse<Void>> reenviar(@PathVariable Long solicitudId) {
-        serviceSolicitud.reenviarSolicitud(solicitudId);
+    public ResponseEntity<ApiResponse<Void>> reenviar(
+            @PathVariable Long solicitudId,
+            @RequestPart("datos") @Valid SolicitudVerificacionRequest request,
+            @RequestPart(value = "rut", required = false) MultipartFile archivoRut) {
+        serviceSolicitud.reenviarSolicitud(solicitudId, request, archivoRut);
         return ResponseEntity.ok(ApiResponse.ok("Solicitud reenviada a revisión"));
     }
 }

@@ -217,10 +217,6 @@ public class ServiceEvento {
         Categoria categoria = resolverCategoria(request.getCategoriaId());
         mapearCamposRequest(evento, request, categoria);
 
-        if (estadoAnterior == EstadoEvento.EN_CORRECCION) {
-            transicionarEstado(evento, EstadoEvento.PENDIENTE_REVISION);
-        }
-
         if (foto != null && !foto.isEmpty()) {
             eliminarFotoAnterior(evento.getFoto());
             evento.setFoto(storageService.subirImagenEvento(foto));
@@ -229,6 +225,18 @@ public class ServiceEvento {
         Evento guardado = eventoRepository.save(evento);
         notificarCambioSiCorresponde(guardado, estadoAnterior);
         return guardado;
+    }
+
+    @Transactional
+    public void enviarRevision(Long id) {
+        Evento evento = obtenerEventoAdministrativo(id);
+        verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
+        if (evento.getEstado() != EstadoEvento.BORRADOR
+                && evento.getEstado() != EstadoEvento.EN_CORRECCION) {
+            throw new BusinessException("Solo se pueden enviar a revisión eventos en BORRADOR o EN_CORRECCION");
+        }
+        transicionarEstado(evento, EstadoEvento.PENDIENTE_REVISION);
+        eventoRepository.save(evento);
     }
 
     @Transactional

@@ -1,5 +1,27 @@
 package com.eventhive.app.controllers;
 
+import java.time.LocalDate;
+import java.util.List;
+
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.eventhive.app.dto.ApiResponse;
 import com.eventhive.app.dto.PagedResponse;
 import com.eventhive.app.dto.request.EventoRequest;
@@ -9,20 +31,9 @@ import com.eventhive.app.dto.response.EventoMapaDTO;
 import com.eventhive.app.service.ServiceEvento;
 import com.eventhive.app.service.ServiceModeracion;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.time.LocalDate;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/eventos")
@@ -167,6 +178,13 @@ public class EventosApiController {
         return ResponseEntity.ok(ApiResponse.ok("Evento actualizado",
                 serviceEvento.toDTO(serviceEvento.actualizarEvento(id, request, foto))));
     }
+
+        @PatchMapping("/{id}/enviar-revision")
+        @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
+        public ResponseEntity<ApiResponse<Void>> enviarRevision(@PathVariable Long id) {
+                serviceEvento.enviarRevision(id);
+                return ResponseEntity.ok(ApiResponse.ok("Evento enviado a revisión"));
+        }
 
     @PatchMapping("/{id}/cancelar")
     @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
