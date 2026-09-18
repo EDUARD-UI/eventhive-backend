@@ -1,8 +1,8 @@
-FROM maven:3.9.6-eclipse-temurin-23 AS build
+FROM maven:3.9-eclipse-temurin-23 AS build
 
 WORKDIR /workspace
 
-# Cache de dependencias (acelera rebuilds)
+# Cache de dependencias
 COPY pom.xml .
 RUN mvn -B dependency:go-offline
 
