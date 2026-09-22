@@ -3,6 +3,7 @@ package com.eventhive.app.repository;
 import java.util.List;
 import java.util.Optional;
 
+import com.eventhive.app.model.Usuario;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -35,4 +36,8 @@ public interface TiqueteRepository extends JpaRepository<Tiquete, Long> {
         WHERE t.compra.id = :compraId
         """)
     List<Tiquete> findByCompraIdConDetalles(@Param("compraId") Long compraId);
+
+    // Clientes distintos que compraron boleto para un evento (para recordatorios/cancelaciones)
+    @Query("SELECT DISTINCT t.compra.cliente FROM Tiquete t WHERE t.evento.id = :eventoId")
+    List<Usuario> findClientesDistinctByEventoId(@Param("eventoId") Long eventoId);
 }

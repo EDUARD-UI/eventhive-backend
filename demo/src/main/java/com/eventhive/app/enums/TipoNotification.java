@@ -1,10 +1,30 @@
 package com.eventhive.app.enums;
 
 public enum TipoNotification {
+    // Eventos
     NUEVO_EVENTO,
     EVENTO_MODIFICADO,
     EVENTO_CANCELADO,
     RECORDATORIO_EVENTO,
+    EVENTO_ENVIADO_REVISION,
+    EVENTO_APROBADO,
+    EVENTO_RECHAZADO,
+
+    // Organización y roles
+    ORGANIZACION_INVITACION,
+    ORGANIZACION_INVITACION_ACEPTADA,
+    ORGANIZACION_INVITACION_RECHAZADA,
+    ROL_ASIGNADO,
     ROL_REVOCADO,
-    ROL_ASIGNADO
+
+    // Moderación de organización
+    SOLICITUD_ORGANIZACION_APROBADA,
+    SOLICITUD_ORGANIZACION_RECHAZADA,
+
+    // Compras
+    COMPRA_CONFIRMADA,
+    COMPRA_CANCELADA,
+
+    // Seguidores
+    RESUMEN_SEGUIDORES
 }

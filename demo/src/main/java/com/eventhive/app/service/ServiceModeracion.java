@@ -65,6 +65,8 @@ public class ServiceModeracion {
 
         Evento guardado = eventoRepository.save(evento);
         serviceNotification.notificarNuevoEvento(guardado);
+        serviceNotification.notificarResultadoModeracionEvento(
+                guardado.getOrganizacion().getRepresentante(), guardado, true, null);
         return guardado;
     }
 
@@ -86,7 +88,12 @@ public class ServiceModeracion {
 
         Organizacion organizacion = evento.getOrganizacion();
         organizacion.setEventosRechazados(organizacion.getEventosRechazados() + 1);
-        return eventoRepository.save(evento);
+        Evento guardado = eventoRepository.save(evento);
+
+        String motivoTexto = motivo == MotivosRechazos.OTRO ? observacion : motivo.name();
+        serviceNotification.notificarResultadoModeracionEvento(
+                organizacion.getRepresentante(), guardado, false, motivoTexto);
+        return guardado;
     }
 
     @Transactional

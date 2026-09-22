@@ -237,6 +237,8 @@ public class ServiceEvento {
         }
         transicionarEstado(evento, EstadoEvento.PENDIENTE_REVISION);
         eventoRepository.save(evento);
+
+        serviceNotification.notificarEventoEnviadoRevision(evento);
     }
 
     @Transactional

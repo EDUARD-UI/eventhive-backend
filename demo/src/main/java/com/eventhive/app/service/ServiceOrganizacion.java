@@ -40,6 +40,7 @@ public class ServiceOrganizacion {
     private final RolesRepository rolesRepository;
     private final AuthenticatedUserHelper authHelper;
     private final SupabaseStorageService storageService;
+    private final ServiceNotification serviceNotification;
 
     //CONSULTAS
     @Transactional(readOnly = true)
@@ -111,6 +112,8 @@ public class ServiceOrganizacion {
         operador.setRol(rolesRepository.findByNombre("CLIENTE")
                 .orElseThrow(() -> new ResourceNotFoundException("Rol CLIENTE no configurado")));
         usuarioRepository.save(operador);
+
+        serviceNotification.notificarRevocacionOperador(operador, organizacion.getRazonSocial());
     }
 
     //METRICAS DE LA ORGANIZACION

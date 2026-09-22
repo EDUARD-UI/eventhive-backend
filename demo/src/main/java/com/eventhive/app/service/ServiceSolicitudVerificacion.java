@@ -33,6 +33,7 @@ public class ServiceSolicitudVerificacion {
     private final RolesRepository rolesRepository;
     private final AuthenticatedUserHelper authHelper;
     private final SupabaseStorageService storageService;
+    private final ServiceNotification serviceNotification;
 
     //CONSULTAS
     @Transactional(readOnly = true)
@@ -120,6 +121,8 @@ public class ServiceSolicitudVerificacion {
         solicitud.setFechaResolucion(LocalDateTime.now());
         solicitud.setAdministradorQueResolvi(authHelper.usuarioAutenticado());
         solicitudRepository.save(solicitud);
+
+        serviceNotification.notificarSolicitudOrganizacion(representante, true, null);
     }
 
     @Transactional
@@ -130,6 +133,8 @@ public class ServiceSolicitudVerificacion {
         solicitud.setAdministradorQueResolvi(authHelper.usuarioAutenticado());
         solicitud.setMotivoRechazo(motivo);
         solicitudRepository.save(solicitud);
+
+        serviceNotification.notificarSolicitudOrganizacion(solicitud.getRepresentanteLegal(), false, motivo);
     }
 
     public void solicitarCorreccion(Long solicitudId, String motivo) {

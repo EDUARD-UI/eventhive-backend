@@ -55,7 +55,7 @@ public class SolicitudVerificacion {
 
     // Enum persistido como String en base de datos
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 30)
     private EstadoSolicitud estado = EstadoSolicitud.PENDIENTE;
 
     @Column(name = "fecha_solicitud")

@@ -27,6 +27,7 @@ public class ServiceInvitacionOrganizacion {
     private final UsuarioRepository usuarioRepository;
     private final RolesRepository rolesRepository;
     private final AuthenticatedUserHelper authHelper;
+    private final ServiceNotification serviceNotification;
 
     //CONSULTAS
     @Transactional(readOnly = true)
@@ -69,6 +70,8 @@ public class ServiceInvitacionOrganizacion {
         invitacion.setCorreoInvitado(correoInvitado);
         invitacion.setInvitadoPor(representante);
         invitacionRepository.save(invitacion);
+
+        serviceNotification.notificarInvitacionOrganizacion(candidato, organizacion.getRazonSocial());
     }
 
     @Transactional
@@ -87,6 +90,10 @@ public class ServiceInvitacionOrganizacion {
         invitacion.setEstado(EstadoInvitacion.ACEPTADA);
         invitacion.setFechaRespuesta(LocalDateTime.now());
         invitacionRepository.save(invitacion);
+
+        serviceNotification.notificarInvitacionAceptada(invitacion.getInvitadoPor(), operador.getNombreCompleto());
+        serviceNotification.notificarRolAsignado(
+                operador, "OPERADOR", invitacion.getOrganizacion().getRazonSocial());
     }
 
     @Transactional
@@ -96,6 +103,8 @@ public class ServiceInvitacionOrganizacion {
         invitacion.setEstado(EstadoInvitacion.RECHAZADA);
         invitacion.setFechaRespuesta(LocalDateTime.now());
         invitacionRepository.save(invitacion);
+
+        serviceNotification.notificarInvitacionRechazada(invitacion.getInvitadoPor(), usuario.getNombreCompleto());
     }
 
     //METODOS AUXILIARES Y DE MAPEO

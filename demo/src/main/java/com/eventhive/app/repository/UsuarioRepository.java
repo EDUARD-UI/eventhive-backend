@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
@@ -17,8 +18,11 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     // Verifica si existe un usuario con ese correo
     boolean existsByCorreo(String correo);
 
-    // Busca usuarios por nombre de rol
+    // Busca usuarios por nombre de rol (paginado, para pantallas administrativas)
     Page<Usuario> findByRolNombre(String nombre, Pageable pageable);
+
+    // Lista COMPLETA de usuarios por rol, sin paginar (uso interno: notificaciones a moderadores)
+    List<Usuario> findAllByRolNombre(String nombre);
 
     // Busca un usuario por correo con su rol cargado
     @Query("SELECT u FROM Usuario u JOIN FETCH u.rol WHERE u.correo = :correo")

@@ -40,6 +40,7 @@ public class ServiceCompra {
     private final TiqueteRepository tiqueteRepository;
     private final PromocionRepository promocionRepository;
     private final AuthenticatedUserHelper authHelper;
+    private final ServiceNotification serviceNotification;
     private final ObjectProvider<ServiceCompra> self;
 
     //CONSULTAS
@@ -74,6 +75,7 @@ public class ServiceCompra {
 
         try {
             Compra guardada = self.getObject().intentarCrearCompra(request, usuario);
+            serviceNotification.notificarCompraConfirmada(guardada);
             return compraToDTO(guardada);
         } catch (DataIntegrityViolationException e) {
             return compraRepository.findByClienteIdAndIdempotencyKey(usuario.getId(), request.getIdempotencyKey())
@@ -110,23 +112,25 @@ public class ServiceCompra {
         validarCancelable(compra);
 
         int filasActualizadas = compraRepository.cancelarSiCancelable(
-            compra.getId(),
-            usuario.getId(),
-            EstadoCompra.CANCELADA,
-            List.of(EstadoCompra.PENDIENTE, EstadoCompra.CONFIRMADA));
+                compra.getId(),
+                usuario.getId(),
+                EstadoCompra.CANCELADA,
+                List.of(EstadoCompra.PENDIENTE, EstadoCompra.CONFIRMADA));
 
         if (filasActualizadas == 0) {
             throw new BusinessException("La compra ya no puede cancelarse");
         }
 
         compra.getItems().forEach(item
-            -> localidadRepository.incrementarDisponibles(
-            item.getLocalidad().getId(), item.getCantidad()));
+                -> localidadRepository.incrementarDisponibles(
+                item.getLocalidad().getId(), item.getCantidad()));
 
         // No se borra la compra ni los tiquetes: deben conservarse para
         // auditoría e histórico. Los tiquetes quedan asociados a una compra CANCELADA.
         compra.setEstado(EstadoCompra.CANCELADA);
-        compraRepository.save(compra);
+        Compra guardada = compraRepository.save(compra);
+
+        serviceNotification.notificarCompraCancelada(guardada);
     }
 
     // METODOS DE VALIDACION DE NEGOCIO
