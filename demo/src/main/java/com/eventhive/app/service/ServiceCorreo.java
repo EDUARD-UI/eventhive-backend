@@ -26,7 +26,7 @@ public class ServiceCorreo {
 
     private final JavaMailSender mailSender;
 
-    @Value("${eventhive.mail.remitente}")
+    @Value("${eventhive.mail.remitente:no-reply@eventhive.local}")
     private String remitente;
 
     @Value("${eventhive.mail.nombre-remitente}")
