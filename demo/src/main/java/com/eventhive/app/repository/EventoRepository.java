@@ -28,19 +28,21 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
     long countByOrganizacionId(Long organizacionId);
 
   // Lista eventos publicados con categoría y organización cargadas.
-    @Query("""
+  @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
         JOIN FETCH e.organizacion o
+        LEFT JOIN FETCH e.localidades
         WHERE e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
         """)
-    Page<Evento> findPublicadosVisibles(Pageable pageable);
+  Page<Evento> findPublicadosVisibles(Pageable pageable);
 
     // Lista eventos publicados filtrados por categoría.
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria c
         JOIN FETCH e.organizacion o
+        LEFT JOIN FETCH e.localidades
         WHERE c.id = :categoriaId
           AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
         """)
@@ -172,6 +174,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
     SELECT e FROM Evento e
     JOIN FETCH e.categoria
     JOIN FETCH e.organizacion
+    LEFT JOIN FETCH e.localidades
     WHERE e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
       AND (
             e.fecha > :hoy
