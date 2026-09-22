@@ -68,6 +68,7 @@ public class ServiceEvento {
     private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory(new PrecisionModel(), 4326);
 
     // CONSULTAS
+    @Transactional(readOnly = true)
     public Page<Evento> listarTodos(Pageable pageable) {
         return eventoRepository.findPublicadosVisibles(pageable);
     }
