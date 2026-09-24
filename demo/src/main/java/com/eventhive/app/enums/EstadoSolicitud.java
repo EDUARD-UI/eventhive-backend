@@ -1,8 +1,9 @@
 package com.eventhive.app.enums;
 
 public enum EstadoSolicitud {
-    PENDIENTE,
+    INCOMPLETA,          // Datos guardados, falta subir el RUT
+    PENDIENTE,           // RUT subido, esperando revisión del Admin
+    CORRECCION_SOLICITADA,
     APROBADA,
-    RECHAZADA,
-    CORRECCION_SOLICITADA
+    RECHAZADA
 }

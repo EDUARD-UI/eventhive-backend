@@ -9,15 +9,26 @@ import lombok.Setter;
 @Getter
 @Setter
 public class SolicitudVerificacionRequest {
+    // Datos de la Cuenta de Usuario
+    @NotBlank(message = "El nombre es obligatorio")
+    private String nombreCompleto;
+
+    @NotBlank(message = "El correo de la cuenta es obligatorio")
+    @Email(message = "Correo de cuenta inválido")
+    private String correoUsuario;
+
+    @NotBlank(message = "La contraseña es obligatoria")
+    @Size(min = 6, message = "La contraseña debe tener al menos 6 caracteres")
+    private String password;
+
+    // Datos Iniciales de la Organización (Solo Texto)
     @NotBlank(message = "La razón social es obligatoria")
-    @Size(max = 200, message = "La razón social no puede superar los 200 caracteres")
     private String razonSocial;
 
     @NotBlank(message = "El NIT es obligatorio")
-    @Size(max = 20, message = "El NIT no puede superar los 20 caracteres")
     private String nit;
 
     @NotBlank(message = "El correo empresarial es obligatorio")
-    @Email(message = "El correo empresarial no tiene un formato válido")
+    @Email(message = "Correo empresarial inválido")
     private String correoEmpresarial;
 }

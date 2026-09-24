@@ -2,6 +2,7 @@ package com.eventhive.app.model;
 
 import java.time.LocalDateTime;
 
+import com.eventhive.app.enums.EstadoOrganizacion;
 import com.eventhive.app.enums.NivelOrganizador;
 
 import jakarta.persistence.*;
@@ -26,6 +27,9 @@ public class Organizacion {
     @Column(name = "razon_social", nullable = false, length = 200)
     private String razonSocial;
 
+    @Column(columnDefinition = "TEXT")
+    private String descripcion;
+
     @Column(name = "nit", nullable = false, length = 20)
     private String nit;
 
@@ -34,6 +38,9 @@ public class Organizacion {
 
     @Column(name = "url_rut", length = 500)
     private String urlRut;
+
+    @Column(name = "url_logo", length = 500)
+    private String urlLogo;
 
     @Column(name = "fecha_creacion", nullable = false, updatable = false)
     private LocalDateTime fechaCreacion;
@@ -54,6 +61,10 @@ public class Organizacion {
     @Column(name = "nivel", nullable = false, length = 20)
     private NivelOrganizador nivel = NivelOrganizador.NIVEL_1;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "estado", nullable = false, length = 30)
+    private EstadoOrganizacion estado = EstadoOrganizacion.PRE_REGISTRO;
+
     @Column(name = "eventos_finalizados", nullable = false)
     private Integer eventosFinalizados = 0;
 
@@ -64,6 +75,6 @@ public class Organizacion {
     private void prePersist() {
         if (fechaCreacion == null) fechaCreacion = LocalDateTime.now();
         if (nivel == null) nivel = NivelOrganizador.NIVEL_1;
+        if (estado == null) estado = EstadoOrganizacion.PRE_REGISTRO;
     }
 }
-

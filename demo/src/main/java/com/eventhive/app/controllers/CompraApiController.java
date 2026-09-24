@@ -29,6 +29,7 @@ public class CompraApiController {
 
     private final ServiceCompra compraService;
 
+    //CONSULTAS
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<PagedResponse<CompraResponseDTO>>> listar(Pageable pageable) {
@@ -44,6 +45,7 @@ public class CompraApiController {
         return ResponseEntity.ok(ApiResponse.ok("Compra obtenida", compraService.obtenerPorId(id)));
     }
 
+    //ACCIONES DE COMPRA
     @PostMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<CompraResponseDTO>> crear(

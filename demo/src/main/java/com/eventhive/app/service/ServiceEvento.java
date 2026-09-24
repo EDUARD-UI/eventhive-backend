@@ -84,7 +84,7 @@ public class ServiceEvento {
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con id: " + id));
     }
 
-  // devuelve evento con cualquier estado (solo administración usa este método)
+    // devuelve evento con cualquier estado (solo administración usa este método)
     @Transactional(readOnly = true)
     public Evento obtenerEventoAdminPorId(Long id) {
         return obtenerEventoPorId(id);

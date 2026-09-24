@@ -1,5 +1,7 @@
 package com.eventhive.app.security.auth;
 
+import com.eventhive.app.dto.request.SolicitudVerificacionRequest;
+import com.eventhive.app.service.ServiceSolicitudVerificacion;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -29,7 +31,8 @@ import lombok.RequiredArgsConstructor;
 public class AuthApiController {
 
     private final ServiceAutenticacion serviceAutenticacion;
-    private final ServiceUsuario       serviceUsuario;
+    private final ServiceSolicitudVerificacion serviceSolicitud;
+    private final ServiceUsuario serviceUsuario;
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UsuarioSesionDTO>> me() {
@@ -68,11 +71,13 @@ public class AuthApiController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Registro exitoso"));
     }
 
-    @PostMapping("/registrar-organizacion")
-    public ResponseEntity<ApiResponse<Void>> registrarOrganizacion(@Valid @RequestBody RegistroRequest request) {
-        serviceAutenticacion.registrarOrganizacion(
-                request.getNombre(), request.getCorreo(),
-                request.getTelefono(), request.getClave());
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Registro exitoso"));
+    @PostMapping("/registro-organizador")
+    public ResponseEntity<ApiResponse<Void>> registrarOrganizadorExpress(
+            @RequestBody @Valid SolicitudVerificacionRequest request) {
+
+        serviceSolicitud.registrarOrganizador(request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok("Usuario y pre-registro de organización creados con éxito. Ya puedes ingresar al Dashboard."));
     }
+
 }

@@ -32,16 +32,28 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String token = extraerToken(request);
 
-        // un refresh token ya NO sirve como Bearer: solo type=access autentica
-        if (token != null && jwtUtils.validarAccessToken(token)) {
-            String correo = jwtUtils.getCorreoDesdeToken(token);
-            UserDetails userDetails = userDetailsService.loadUserByUsername(correo);
+        if (token != null) {
+            try {
+                // un refresh token ya NO sirve como Bearer: solo type=access autentica
+                if (jwtUtils.validarAccessToken(token)) {
+                    String correo = jwtUtils.getCorreoDesdeToken(token);
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(correo);
 
-            UsernamePasswordAuthenticationToken auth =
-                    new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-            auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    UsernamePasswordAuthenticationToken auth =
+                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-            SecurityContextHolder.getContext().setAuthentication(auth);
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+                }
+            } catch (Exception ex) {
+                // Token roto, vencido, de un usuario borrado/inactivo, con rol
+                // nulo, etc. NUNCA debe tumbar la petición: se limpia el
+                // contexto y se continúa como anónimo. Que la ruta sea
+                // pública o requiera sesión lo decide únicamente
+                // authorizeHttpRequests() en SecurityConfig, no este filtro.
+                log.debug("Token Bearer inválido, se ignora y se continúa como anónimo: {}", ex.getMessage());
+                SecurityContextHolder.clearContext();
+            }
         }
 
         filterChain.doFilter(request, response);

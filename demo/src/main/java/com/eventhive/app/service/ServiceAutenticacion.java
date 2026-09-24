@@ -118,14 +118,7 @@ public class ServiceAutenticacion {
         usuarioRepository.save(crearUsuario(nombre, correo, telefono, clave, rol));
     }
 
-    @Transactional
-    public void registrarOrganizacion(String nombre, String correo, String telefono, String clave) {
-        validarRegistro(correo);
-        Rol rol = rolesRepository.findByNombre("REPRESENTANTE")
-                .orElseThrow(() -> new BusinessException("Rol REPRESENTANTE no existe"));
-        usuarioRepository.save(crearUsuario(nombre, correo, telefono, clave, rol));
-    }
-
+    //METODOS AUXILIARES Y MAPEO
     private Usuario crearUsuario(String nombre, String correo,
                                  String telefono, String clave, Rol rol) {
         Usuario u = new Usuario();
