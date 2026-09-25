@@ -2,6 +2,7 @@ package com.eventhive.app.repository;
 
 import java.util.List;
 
+import com.eventhive.app.enums.TipoNotification;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 import com.eventhive.app.model.Notification;
@@ -16,4 +17,9 @@ public interface NotificationRepository extends MongoRepository<Notification, St
 
     // Elimina las notificaciones leídas de un usuario
     void deleteByUsuarioIdAndLeidaTrue(Long usuarioId);
+
+    boolean existsByUsuarioIdAndEventoIdAndTipoNotificacion(
+            Long usuarioId,
+            Long eventoId,
+            TipoNotification tipoNotificacion);
 }

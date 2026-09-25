@@ -32,14 +32,14 @@ public class VerificacionApiController {
     }
 
     @GetMapping("/pendientes")
-    @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('MODERADOR')")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Page<SolicitudVerificacionDTO>>> obtenerSolicitudes(Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.ok("Solicitudes obtenidas",
                 serviceSolicitud.obtenerSolicitudesPendientes(pageable)));
     }
 
     @GetMapping("/{solicitudId}")
-    @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('MODERADOR')")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<SolicitudVerificacionDTO>> obtenerDetalles(@PathVariable Long solicitudId) {
         return ResponseEntity.ok(ApiResponse.ok("Solicitud obtenida",
                 serviceSolicitud.obtenerSolicitud(solicitudId)));
@@ -67,14 +67,14 @@ public class VerificacionApiController {
 
     //OPERACIONES DE MODERACION
     @PutMapping("/{solicitudId}/aprobar")
-    @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('MODERADOR')")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<String>> aprobarSolicitud(@PathVariable Long solicitudId) {
         serviceSolicitud.aprobarSolicitud(solicitudId);
         return ResponseEntity.ok(ApiResponse.ok("Organización verificada."));
     }
 
     @PutMapping("/{solicitudId}/rechazar")
-    @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('MODERADOR')")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> rechazarSolicitud(
             @PathVariable Long solicitudId, @RequestParam String motivo) {
         serviceSolicitud.rechazarSolicitud(solicitudId, motivo);
@@ -82,7 +82,7 @@ public class VerificacionApiController {
     }
 
     @PatchMapping("/{solicitudId}/solicitar-correccion")
-    @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('MODERADOR')")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<SolicitudVerificacionDTO>> solicitarCorreccion(
             @PathVariable Long solicitudId, @RequestParam String motivo) {
         serviceSolicitud.solicitarCorreccion(solicitudId, motivo);

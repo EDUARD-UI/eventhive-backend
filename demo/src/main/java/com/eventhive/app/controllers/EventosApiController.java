@@ -200,6 +200,13 @@ public class EventosApiController {
         return ResponseEntity.ok(ApiResponse.ok("Evento retirado a borrador"));
     }
 
+    @PatchMapping("/{id}/reabrir")
+    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
+    public ResponseEntity<ApiResponse<Void>> reabrirEvento(@PathVariable Long id) {
+        serviceEvento.reabrirEvento(id);
+        return ResponseEntity.ok(ApiResponse.ok("Evento reabierto a borrador"));
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
     public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long id) {

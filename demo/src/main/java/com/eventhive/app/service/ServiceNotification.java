@@ -44,10 +44,23 @@ public class ServiceNotification {
         List<Usuario> compradores = tiqueteRepository.findClientesDistinctByEventoId(evento.getId());
 
         for (Usuario comprador : compradores) {
-            guardarNotificacion(comprador.getId(), evento.getOrganizacion().getId(), evento.getId(),
-                    evento.getTitulo(), TipoNotification.RECORDATORIO_EVENTO,
+            boolean yaEnviado = notificationRepository.existsByUsuarioIdAndEventoIdAndTipoNotificacion(
+                    comprador.getId(), evento.getId(), TipoNotification.RECORDATORIO_EVENTO);
+
+            if (yaEnviado) {
+                continue;
+            }
+
+            guardarNotificacion(
+                    comprador.getId(),
+                    evento.getOrganizacion().getId(),
+                    evento.getId(),
+                    evento.getTitulo(),
+                    TipoNotification.RECORDATORIO_EVENTO,
                     "Recordatorio de evento",
-                    "El evento \"" + evento.getTitulo() + "\" es mañana. ¡No lo olvides!");
+                    "El evento \"" + evento.getTitulo() + "\" es mañana. ¡No lo olvides!"
+            );
+
             serviceCorreo.enviarRecordatorioEventoHoy(evento, comprador);
         }
     }

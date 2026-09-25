@@ -32,6 +32,16 @@ public enum MotivosRechazos {
             "El evento incumple las políticas de la plataforma."
     ),
 
+    FECHA_INVALIDA(
+            "FECHA_INVALIDA",
+            "La fecha u hora del evento no es válida."
+    ),
+
+    LOCALIDADES_INVALIDAS(
+            "LOCALIDADES_INVALIDAS",
+            "El evento no tiene localidades válidas."
+    ),
+
     OTRO(
             "OTRO",
             "Otro motivo."

@@ -38,7 +38,7 @@ public class ModeracionEvento {
     private Evento evento;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "moderador_id", nullable = false)
+    @JoinColumn(name = "moderador_id", nullable = true)
     private Usuario moderador;
 
     // Estado que queda el evento después de la acción de moderación.

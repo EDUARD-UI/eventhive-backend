@@ -78,6 +78,21 @@ public class ServiceAutenticacion {
         Usuario usuario = usuarioRepository.findByCorreo(correo)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con correo: " + correo));
 
+        if (!usuario.isActivo()) {
+            throw new BusinessException("La cuenta no está activa");
+        }
+
+        if (usuario.getRol() == null || usuario.getRol().getNombre() == null
+                || usuario.getRol().getNombre().isBlank()) {
+            throw new BusinessException("El usuario no tiene un rol válido");
+        }
+
+        if (usuario.getBloqueadoHasta() != null
+                && usuario.getBloqueadoHasta().isAfter(LocalDateTime.now())) {
+            throw new BusinessException(
+                    "La cuenta está bloqueada temporalmente. Intenta de nuevo más tarde.");
+        }
+
         UsuarioPrincipal principal = new UsuarioPrincipal(usuario);
         String nuevoAccessToken = jwtUtils.generarAccessToken(principal);
 

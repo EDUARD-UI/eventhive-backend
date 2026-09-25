@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.eventhive.app.dto.response.ModeracionEventoDTO;
+import com.eventhive.app.dto.response.ModeracionEstadisticasDTO;
 import com.eventhive.app.enums.EstadoEvento;
 import com.eventhive.app.enums.MotivosRechazos;
 import com.eventhive.app.enums.TipoNotification;
@@ -54,6 +55,22 @@ public class ServiceModeracion {
         }
 
         return moderacionRepository.findByEventoId(eventoId, pageable).map(this::toModeracionDTO);
+    }
+
+    @Transactional(readOnly = true)
+    public ModeracionEstadisticasDTO estadisticasDelModerador() {
+        Usuario moderador = authHelper.usuarioAutenticado();
+        Long moderadorId = moderador.getId();
+
+        long revisados = moderacionRepository.countByModeradorId(moderadorId);
+        long aprobados = moderacionRepository.countByModeradorIdAndEstadoResultante(
+                moderadorId, EstadoEvento.PUBLICADO);
+        long rechazados = moderacionRepository.countByModeradorIdAndEstadoResultante(
+                moderadorId, EstadoEvento.RECHAZADO);
+        long correcciones = moderacionRepository.countByModeradorIdAndEstadoResultante(
+                moderadorId, EstadoEvento.EN_CORRECCION);
+
+        return new ModeracionEstadisticasDTO(revisados, aprobados, rechazados, correcciones);
     }
 
     //OPERACIONES DE MODERACION
@@ -107,7 +124,7 @@ public class ServiceModeracion {
         registrarModeracion(evento, EstadoEvento.SUSPENDIDO, motivo, observacion);
 
         Evento guardado = eventoRepository.save(evento);
-        serviceNotification.notificarCambioEvento(guardado, TipoNotification.EVENTO_CANCELADO);
+        serviceNotification.notificarCambioEvento(guardado, TipoNotification.EVENTO_SUSPENDIDO);
         return guardado;
     }
 

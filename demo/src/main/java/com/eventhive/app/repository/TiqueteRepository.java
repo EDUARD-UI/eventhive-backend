@@ -37,6 +37,19 @@ public interface TiqueteRepository extends JpaRepository<Tiquete, Long> {
         """)
     List<Tiquete> findByCompraIdConDetalles(@Param("compraId") Long compraId);
 
+    @Query("""
+    SELECT COUNT(t) > 0
+    FROM Tiquete t
+    JOIN t.compra c
+    JOIN t.evento e
+    WHERE c.cliente.id = :clienteId
+      AND c.estado = com.eventhive.app.enums.EstadoCompra.CONFIRMADA
+      AND e.organizacion.id = :organizacionId
+""")
+    boolean existsCompraConfirmadaPorClienteYOrganizacion(
+            @Param("clienteId") Long clienteId,
+            @Param("organizacionId") Long organizacionId);
+
     // Clientes distintos que compraron boleto para un evento (para recordatorios/cancelaciones)
     @Query("SELECT DISTINCT t.compra.cliente FROM Tiquete t WHERE t.evento.id = :eventoId")
     List<Usuario> findClientesDistinctByEventoId(@Param("eventoId") Long eventoId);

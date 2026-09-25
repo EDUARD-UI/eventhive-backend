@@ -27,7 +27,6 @@ public class RecordatorioDeEvento {
 
     // Se ejecuta todos los días a las 9:00 AM
     // recordar a los usuarios que su evento sucedera en un dia
-    // Actualmente se ejecuta en una sola instancia; si se escala horizontalmente, implementar un mecanismo de bloqueo distribuido.
     @Scheduled(cron = "0 0 9 * * *")
     public void enviarRecordatorios() {
         LocalDate manana = LocalDate.now().plusDays(1);

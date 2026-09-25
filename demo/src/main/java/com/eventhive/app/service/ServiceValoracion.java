@@ -1,5 +1,6 @@
 package com.eventhive.app.service;
 
+import com.eventhive.app.repository.TiqueteRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ public class ServiceValoracion {
 
     private final ValoracionRepository valoracionRepository;
     private final OrganizacionRepository organizacionRepository;
+    private final TiqueteRepository tiqueteRepository;
     private final ServiceOrganizacion serviceOrganizacion;
 
     //CONSULTAS
@@ -44,6 +46,14 @@ public class ServiceValoracion {
 
         validarNoEsMiOrganizacion(usuario, organizacion);
         validarCalificacion(calificacion);
+
+        if (!tiqueteRepository.existsCompraConfirmadaPorClienteYOrganizacion(
+                usuario.getId(),
+                organizacionId)) {
+
+            throw new BusinessException(
+                    "Solo puedes valorar una organización, si has comprado al menos un boleto de ella");
+        }
 
         Valoracion v = valoracionRepository.findByClienteIdAndOrganizacionId(usuario.getId(), organizacionId)
                 .orElse(null);

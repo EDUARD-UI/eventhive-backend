@@ -1,8 +1,10 @@
 package com.eventhive.app.service;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -28,6 +30,8 @@ import com.eventhive.app.dto.response.EventoMapaDTO;
 import com.eventhive.app.dto.response.EventoOrganizacionDTO;
 import com.eventhive.app.dto.response.LocalidadDTO;
 import com.eventhive.app.enums.EstadoEvento;
+import com.eventhive.app.enums.EstadoOrganizacion;
+import com.eventhive.app.enums.MotivosRechazos;
 import com.eventhive.app.enums.PermisoEvento;
 import com.eventhive.app.enums.TipoNotification;
 import com.eventhive.app.exception.BusinessException;
@@ -35,8 +39,12 @@ import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Categoria;
 import com.eventhive.app.model.Evento;
 import com.eventhive.app.model.Localidad;
+import com.eventhive.app.model.ModeracionEvento;
 import com.eventhive.app.model.Organizacion;
 import com.eventhive.app.model.Usuario;
+import com.eventhive.app.auto.ResultadoReglaModeracion;
+import com.eventhive.app.auto.ServiceModeracionAutomatica;
+import com.eventhive.app.auto.VeredictoModeracion;
 import com.eventhive.app.repository.CategoriaRepository;
 import com.eventhive.app.repository.EventoRepository;
 import com.eventhive.app.repository.LocalidadRepository;
@@ -55,6 +63,7 @@ public class ServiceEvento {
     private final ServiceOrganizacion serviceOrganizacion;
     private final ServiceNivelOrganizacion serviceNivelOrganizacion;
     private final ServiceNotification serviceNotification;
+    private final ServiceModeracionAutomatica serviceModeracionAutomatica;
     private final EventoRepository eventoRepository;
     private final CategoriaRepository categoriaRepository;
     private final LocalidadRepository localidadRepository;
@@ -181,13 +190,12 @@ public class ServiceEvento {
         validarPermisoSobreEvento(usuario, PermisoEvento.CREAR_EVENTO);
 
         Organizacion organizacion = usuario.getOrganizacion();
-        verificarLimiteDeNivel(organizacion);
 
         Evento evento = new Evento();
         mapearCamposRequest(evento, request, categoria);
         evento.setOrganizacion(organizacion);
         evento.setCreadoPor(usuario);
-        evento.setEstado(permitePublicacionAutomatica(organizacion));
+        evento.setEstado(EstadoEvento.BORRADOR);
 
         if (foto != null && !foto.isEmpty()) {
             evento.setFoto(storageService.subirImagenEvento(foto));
@@ -195,10 +203,6 @@ public class ServiceEvento {
 
         Evento guardado = eventoRepository.save(evento);
         asegurarLocalidadGeneral(guardado);
-
-        if (guardado.getEstado() == EstadoEvento.PUBLICADO) {
-            serviceNotification.notificarNuevoEvento(guardado);
-        }
 
         serviceOrganizacion.actualizarTotalEventos(organizacion.getId());
 
@@ -232,14 +236,39 @@ public class ServiceEvento {
     public void enviarRevision(Long id) {
         Evento evento = obtenerEventoAdministrativo(id);
         verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
+
         if (evento.getEstado() != EstadoEvento.BORRADOR
                 && evento.getEstado() != EstadoEvento.EN_CORRECCION) {
             throw new BusinessException("Solo se pueden enviar a revisión eventos en BORRADOR o EN_CORRECCION");
         }
-        transicionarEstado(evento, EstadoEvento.PENDIENTE_REVISION);
-        eventoRepository.save(evento);
 
-        serviceNotification.notificarEventoEnviadoRevision(evento);
+        Organizacion organizacion = evento.getOrganizacion();
+        verificarLimiteDeNivel(organizacion);
+
+        if (organizacion.getEstado() != EstadoOrganizacion.VERIFICADA) {
+            throw new BusinessException(
+                    "Debes verificar el RUT de tu organización antes de publicar un evento");
+        }
+
+        transicionarEstado(evento, EstadoEvento.PENDIENTE_REVISION);
+
+        ResultadoReglaModeracion resultado = serviceModeracionAutomatica.evaluarEvento(evento);
+        aplicarResultadoModeracionAutomatica(evento, resultado);
+
+        eventoRepository.save(evento);
+    }
+
+    @Transactional
+    public void reabrirEvento(Long id) {
+        Evento evento = obtenerEventoAdministrativo(id);
+        verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
+
+        if (evento.getEstado() != EstadoEvento.RECHAZADO) {
+            throw new BusinessException("Solo se pueden reabrir eventos en estado RECHAZADO");
+        }
+
+        transicionarEstado(evento, EstadoEvento.BORRADOR);
+        eventoRepository.save(evento);
     }
 
     @Transactional
@@ -302,6 +331,69 @@ public class ServiceEvento {
         serviceNivelOrganizacion.evaluarAscenso(organizacion);
     }
 
+    //METODOS DE MODERACION AUTOMATICA
+
+    private void aplicarResultadoModeracionAutomatica(Evento evento, ResultadoReglaModeracion resultado) {
+        Organizacion organizacion = evento.getOrganizacion();
+
+        if (resultado.veredicto() == VeredictoModeracion.REVISION) {
+            registrarModeracionAutomatica(evento, EstadoEvento.PENDIENTE_REVISION, resultado.motivo(), resultado.detalle());
+
+            serviceNotification.notificarEventoEnviadoRevision(evento);
+            return;
+        }
+
+        if (resultado.veredicto() == VeredictoModeracion.RECHAZADO) {
+            transicionarEstado(evento, EstadoEvento.RECHAZADO);
+            registrarModeracionAutomatica(evento, EstadoEvento.RECHAZADO, resultado.motivo(), resultado.detalle());
+            incrementarRechazos(organizacion);
+
+            serviceNotification.notificarResultadoModeracionEvento(organizacion.getRepresentante(),
+                    evento, false, resultado.detalle());
+            return;
+        }
+
+        // OK: solamente Nivel 3 puede publicar automáticamente.
+        if (organizacion.getNivel().permitePublicacionAutomatica()) {
+            transicionarEstado(evento, EstadoEvento.PUBLICADO);
+
+            registrarModeracionAutomatica(evento, EstadoEvento.PUBLICADO,
+                    null, "Aprobado automáticamente por nivel de organización ("
+                            + organizacion.getNivel() + ").");
+
+            serviceNotification.notificarNuevoEvento(evento);
+
+            serviceNotification.notificarResultadoModeracionEvento(organizacion.getRepresentante(), evento,
+                    true, null);
+            return;
+        }
+
+        // Nivel 1 y 2 requieren moderación humana.
+        registrarModeracionAutomatica(evento, EstadoEvento.PENDIENTE_REVISION,
+                null, "Evento limpio según las reglas automáticas; "
+                        + "requiere revisión humana por nivel de organización.");
+
+        serviceNotification.notificarEventoEnviadoRevision(evento);
+    }
+
+    private void incrementarRechazos(Organizacion organizacion) {
+        organizacion.setEventosRechazados(organizacion.getEventosRechazados() + 1);
+        organizacionRepository.save(organizacion);
+    }
+
+    // Registra la decisión del motor de reglas.
+    private void registrarModeracionAutomatica(Evento evento, EstadoEvento estadoResultante,
+                                               MotivosRechazos motivo, String observacion) {
+        ModeracionEvento moderacion = new ModeracionEvento();
+        moderacion.setEvento(evento);
+        moderacion.setModerador(null);
+        moderacion.setEstadoResultante(estadoResultante);
+        moderacion.setMotivo(motivo);
+        moderacion.setObservacion(observacion);
+        moderacion.setFecha(LocalDateTime.now());
+        moderacionEventoRepository.save(moderacion);
+    }
+
     //METODOS DE AUXILIARES Y IDOR
     private void verificarLimiteDeNivel(Organizacion organizacion) {
         int maximo = organizacion.getNivel().maxEventosActivos();
@@ -310,13 +402,6 @@ public class ServiceEvento {
             throw new BusinessException(
                     "Alcanzaste el límite de " + maximo + " eventos activos para tu nivel " + organizacion.getNivel());
         }
-    }
-
-    private EstadoEvento permitePublicacionAutomatica(Organizacion organizacion) {
-        if (organizacion.getNivel().permitePublicacionAutomatica()) {
-            return EstadoEvento.PUBLICADO;
-        }
-        return EstadoEvento.PENDIENTE_REVISION;
     }
 
     //validar IDOR que el usuario pertenezca a la organizacion del evento
@@ -361,10 +446,16 @@ public class ServiceEvento {
         Localidad general = new Localidad();
         general.setEvento(evento);
         general.setNombre("General");
-        general.setCapacidad(1);
-        general.setDisponibles(1);
-        general.setPrecio(java.math.BigDecimal.ZERO);
+        general.setCapacidad(200);
+        general.setDisponibles(200);
+        general.setPrecio(new BigDecimal("10000"));
         localidadRepository.save(general);
+
+        if (evento.getLocalidades() == null) {
+            evento.setLocalidades(new ArrayList<>());
+        }
+
+        evento.getLocalidades().add(general);
     }
 
     private void eliminarFotoAnterior(String urlFoto) {
@@ -509,7 +600,7 @@ public class ServiceEvento {
             Set.of(),
 
             EstadoEvento.RECHAZADO,
-            Set.of()
+            Set.of(EstadoEvento.BORRADOR)
     );
 
     public void transicionarEstado(Evento evento, EstadoEvento nuevoEstado) {

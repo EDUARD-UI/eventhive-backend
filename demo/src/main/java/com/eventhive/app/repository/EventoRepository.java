@@ -89,11 +89,12 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
 
     // Busca un evento por id con sus referencias cargadas.
     @Query("""
-        SELECT e FROM Evento e
-        JOIN FETCH e.categoria
-        JOIN FETCH e.organizacion o
-        WHERE e.id = :id
-        """)
+    SELECT e FROM Evento e
+    JOIN FETCH e.categoria
+    JOIN FETCH e.organizacion o
+    LEFT JOIN FETCH e.localidades
+    WHERE e.id = :id
+    """)
     Optional<Evento> findByIdConReferencias(@Param("id") Long id);
 
     // Usado por el endpoint público: solo expone el evento si está PUBLICADO (bug #2.2)
