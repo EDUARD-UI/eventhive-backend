@@ -19,9 +19,13 @@ public interface SugerenciaAscensoRepository extends JpaRepository<SugerenciaAsc
     boolean existsByOrganizacionIdAndEstado(Long organizacionId, EstadoSolicitud estado);
 
     // Cola de sugerencias con la organización cargada, para el panel del administrador
-    @Query("""
+    @Query(value = """
         SELECT s FROM SugerenciaAscenso s
         JOIN FETCH s.organizacion
+        WHERE s.estado = :estado
+        """,
+        countQuery = """
+        SELECT COUNT(s) FROM SugerenciaAscenso s
         WHERE s.estado = :estado
         """)
     Page<SugerenciaAscenso> findByEstadoConOrganizacion(@Param("estado") EstadoSolicitud estado, Pageable pageable);

@@ -11,8 +11,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.eventhive.app.config.SupabaseStorageConfig;
 import com.eventhive.app.dto.response.CategoriaDTO;
-import com.eventhive.app.dto.response.CategoriaEventosDTO;
+import com.eventhive.app.dto.response.CategoriaNombreDTO;
+import com.eventhive.app.enums.EstadoEvento;
 import com.eventhive.app.exception.BusinessException;
+import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Categoria;
 import com.eventhive.app.repository.CategoriaRepository;
 import com.eventhive.app.repository.EventoRepository;
@@ -30,42 +32,38 @@ public class ServiceCategoria {
 
     //CONSULTAS
     @Transactional(readOnly = true)
-    public Page<Categoria> obtenerTodasCategorias(Pageable pageable) {
-        return categoriaRepository.findAll(pageable);
+    public Page<CategoriaDTO> obtenerTodasCategorias(Pageable pageable) {
+        return categoriaRepository.findAllConCantidadEventos(pageable)
+                .map(this::rowToDTO);
     }
 
+    @Transactional(readOnly = true)
     public Categoria obtenerCategoriaPorId(Long id) {
         return categoriaRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Categoría no encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("Categoría no encontrada con id: " + id));
     }
 
-    //devuelve id, nombre y foto de todas las categorias
     @Transactional(readOnly = true)
-    public List<CategoriaDTO> obtenerCategoriaDTO() {
+    public CategoriaDTO obtenerCategoriaDTOPorId(Long id) {
+        Categoria categoria = obtenerCategoriaPorId(id);
+        CategoriaDTO dto = toDTO(categoria);
+        dto.setTotalEventos(eventoRepository.countByCategoriaIdAndEstado(id, EstadoEvento.PUBLICADO));
+        return dto;
+    }
+
+    //devuelve solo id y nombre de todas las categorias
+    @Transactional(readOnly = true)
+    public List<CategoriaNombreDTO> obtenerNombresCategorias() {
         return categoriaRepository.findAll().stream()
-                .map(this::toDTO)
-                .toList();
-    }
-
-    public List<CategoriaDTO> obtenerTop4Categorias() {
-        return categoriaRepository.findTop4PorEventos(PageRequest.of(0, 4))
-                .stream()
-                .map(this::toDTO)
+                .map(c -> new CategoriaNombreDTO(c.getId(), c.getNombre()))
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public List<CategoriaEventosDTO> obtenerCategoriasConEventos() {
-        return categoriaRepository.obtenerCategoriasConCantidadEventos()
+    public List<CategoriaDTO> obtenerTop4Categorias() {
+        return categoriaRepository.findTop4ConCantidadEventos(PageRequest.of(0, 4))
                 .stream()
-                .map(row -> {
-                    CategoriaEventosDTO dto = new CategoriaEventosDTO();
-                    dto.setId((Long) row[0]);
-                    dto.setNombre((String) row[1]);
-                    dto.setUrlFoto((String) row[2]);
-                    dto.setTotalEventos(((Long) row[3]).intValue());
-                    return dto;
-                })
+                .map(this::rowToDTO)
                 .toList();
     }
 
@@ -131,6 +129,15 @@ public class ServiceCategoria {
         dto.setId(categoria.getId());
         dto.setNombre(categoria.getNombre());
         dto.setUrlFoto(categoria.getFoto());
+        return dto;
+    }
+
+    public CategoriaDTO rowToDTO(Object[] row) {
+        CategoriaDTO dto = new CategoriaDTO();
+        dto.setId((Long) row[0]);
+        dto.setNombre((String) row[1]);
+        dto.setUrlFoto((String) row[2]);
+        dto.setTotalEventos(row[3] != null ? ((Number) row[3]).longValue() : 0L);
         return dto;
     }
 }

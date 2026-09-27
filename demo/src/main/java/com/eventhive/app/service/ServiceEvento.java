@@ -13,6 +13,8 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.PrecisionModel;
+import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -82,12 +84,14 @@ public class ServiceEvento {
         return eventoRepository.findPublicadosVisibles(pageable);
     }
 
+    @Transactional(readOnly = true)
     public Evento obtenerEventoAdministrativo(Long id) {
         return eventoRepository.findByIdConReferencias(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado"));
     }
 
     // solo devuelve evento en estado.PUBLICADO
+    @Transactional(readOnly = true)
     public Evento obtenerEventoPublicoPorId(Long id) {
         return eventoRepository.findByIdAndEstadoConReferencias(id, EstadoEvento.PUBLICADO)
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con id: " + id));
@@ -105,6 +109,7 @@ public class ServiceEvento {
     }
 
     //el evento debe pertenecer a la organización del usuario autenticado
+    @Transactional(readOnly = true)
     public Evento obtenerEventoDeOrganizacionPorId(Long organizacionId, Long id) {
         Evento evento = obtenerReferenciasEvento(id);
         boolean perteneceALaOrganizacion = evento.getOrganizacion() != null
@@ -115,6 +120,7 @@ public class ServiceEvento {
         return evento;
     }
 
+    @Transactional(readOnly = true)
     public Evento obtenerReferenciasEvento(Long id) {
         return eventoRepository.findByIdConReferencias(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con id: " + id));
@@ -143,9 +149,23 @@ public class ServiceEvento {
     public Page<EventoBusquedaDTO> buscarEventos(String titulo, LocalDate fecha, Pageable pageable) {
         String tituloNormalizado = (titulo != null && !titulo.isBlank()) ? titulo.trim() : null;
 
-        return eventoRepository
-                .findByTituloAndFechaVisibles(tituloNormalizado, fecha, pageable)
-                .map(this::toEventoBusquedaDTO);
+        Specification<Evento> spec = (root, query, cb) -> {
+            if (Long.class != query.getResultType() && long.class != query.getResultType()) {
+                root.fetch("categoria", JoinType.INNER);
+            }
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("estado"), EstadoEvento.PUBLICADO));
+
+            if (tituloNormalizado != null) {
+                predicates.add(cb.like(cb.lower(root.get("titulo")), "%" + tituloNormalizado.toLowerCase() + "%"));
+            }
+            if (fecha != null) {
+                predicates.add(cb.equal(root.get("fecha"), fecha));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return eventoRepository.findAll(spec, pageable).map(this::toEventoBusquedaDTO);
     }
 
     // Eventos para el mapa: filtra por categoría y/o radio de distancia
@@ -493,19 +513,7 @@ public class ServiceEvento {
         dto.setFecha(e.getFecha());
         dto.setHora(e.getHora());
         dto.setEstado(e.getEstado());
-        dto.setLocalidades(
-                e.getLocalidades() == null
-                        ? List.of()
-                        : e.getLocalidades().stream().map(localidad -> {
-                    LocalidadDTO l = new LocalidadDTO();
-                    l.setId(localidad.getId());
-                    l.setNombre(localidad.getNombre());
-                    l.setPrecio(localidad.getPrecio());
-                    l.setCapacidad(localidad.getCapacidad());
-                    l.setDisponibles(localidad.getDisponibles());
-                    return l;
-                }).toList()
-        );
+        // localidades se deja en null para listados (no se expone en listas)
 
         if (e.getUbicacion() != null) {
             dto.setLatitud(e.getUbicacion().getY());
@@ -525,6 +533,24 @@ public class ServiceEvento {
         return dto;
     }
 
+    public EventoDTO toDetalleDTO(Evento e) {
+        EventoDTO dto = toDTO(e);
+        dto.setLocalidades(
+                e.getLocalidades() == null
+                        ? List.of()
+                        : e.getLocalidades().stream().map(localidad -> {
+                    LocalidadDTO l = new LocalidadDTO();
+                    l.setId(localidad.getId());
+                    l.setNombre(localidad.getNombre());
+                    l.setPrecio(localidad.getPrecio());
+                    l.setCapacidad(localidad.getCapacidad());
+                    l.setDisponibles(localidad.getDisponibles());
+                    return l;
+                }).toList()
+        );
+        return dto;
+    }
+
     public PagedResponse<EventoDTO> toPagedDTO(Page<Evento> page) {
         return new PagedResponse<>(
                 page.getContent().stream().map(this::toDTO).toList(),
@@ -534,11 +560,14 @@ public class ServiceEvento {
                 page.getTotalPages());
     }
 
-    private EventoBusquedaDTO toEventoBusquedaDTO(Evento evento){
+    private EventoBusquedaDTO toEventoBusquedaDTO(Evento evento) {
         EventoBusquedaDTO dto = new EventoBusquedaDTO();
         dto.setId(evento.getId());
-        dto.setNombreCategoria(evento.getCategoria().getNombre());
         dto.setTitulo(evento.getTitulo());
+        dto.setFecha(evento.getFecha());
+        if (evento.getCategoria() != null) {
+            dto.setNombreCategoria(evento.getCategoria().getNombre());
+        }
         return dto;
     }
 

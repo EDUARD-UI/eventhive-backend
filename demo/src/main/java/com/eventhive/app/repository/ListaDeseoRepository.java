@@ -18,6 +18,17 @@ public interface ListaDeseoRepository extends JpaRepository<ListaDeseo, Long> {
     void deleteByUsuarioIdAndEventoId(Long usuarioId, Long eventoId);
 
     // Lista los eventos deseados por un usuario, del más reciente al más antiguo.
-    @Query("SELECT d.evento FROM ListaDeseo d WHERE d.usuario.id = :usuarioId ORDER BY d.id DESC")
+    @Query(value = """
+        SELECT e FROM ListaDeseo d
+        JOIN d.evento e
+        JOIN FETCH e.categoria
+        JOIN FETCH e.organizacion
+        WHERE d.usuario.id = :usuarioId
+        ORDER BY d.id DESC
+        """,
+        countQuery = """
+        SELECT COUNT(d) FROM ListaDeseo d
+        WHERE d.usuario.id = :usuarioId
+        """)
     Page<Evento> findEventosDeseadosByUsuarioId(@Param("usuarioId") Long usuarioId, Pageable pageable);
 }

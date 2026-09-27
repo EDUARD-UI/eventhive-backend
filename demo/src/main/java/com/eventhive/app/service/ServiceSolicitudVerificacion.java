@@ -55,7 +55,7 @@ public class ServiceSolicitudVerificacion {
 
     @Transactional(readOnly = true)
     public SolicitudVerificacionDTO obtenerSolicitud(Long solicitudId) {
-        return solicitudRepository.findById(solicitudId)
+        return solicitudRepository.findByIdConDetalles(solicitudId)
                 .map(this::toDTO)
                 .orElseThrow(() -> new BusinessException("Solicitud no encontrada"));
     }

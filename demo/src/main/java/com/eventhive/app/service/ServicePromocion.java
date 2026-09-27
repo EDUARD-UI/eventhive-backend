@@ -35,7 +35,7 @@ public class ServicePromocion {
     //CONSULTAS
     @Transactional(readOnly = true)
     public Page<PromocionDTO> obtenerTodasPromociones(Pageable pageable) {
-        return promocionRepository.findAll(pageable).map(this::toDTO);
+        return promocionRepository.findAllConEvento(pageable).map(this::toDTO);
     }
 
     @Transactional(readOnly = true)
@@ -125,7 +125,7 @@ public class ServicePromocion {
 
     //METODOS AUXILIARES Y MAPEO
     private Promocion obtenerPromocionPorId(Long id) {
-        return promocionRepository.findById(id)
+        return promocionRepository.findByIdConEvento(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Promoción no encontrada: " + id));
     }
 

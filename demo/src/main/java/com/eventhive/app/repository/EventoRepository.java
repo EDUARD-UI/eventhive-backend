@@ -21,6 +21,9 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
   // Cuenta los eventos asociados a una categoría.
     long countByCategoriaId(Long categoriaId);
 
+  // Cuenta los eventos asociados a una categoría con estado específico
+    long countByCategoriaIdAndEstado(Long categoriaId, EstadoEvento estado);
+
   // Cuenta los eventos que tienen un estado específico.
     long countByEstado(EstadoEvento estado);
 
@@ -28,31 +31,44 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
     long countByOrganizacionId(Long organizacionId);
 
   // Lista eventos publicados con categoría y organización cargadas.
-  @Query("""
+  @Query(value = """
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
         JOIN FETCH e.organizacion o
-        LEFT JOIN FETCH e.localidades
+        WHERE e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
+        """,
+        countQuery = """
+        SELECT COUNT(e) FROM Evento e
         WHERE e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
         """)
   Page<Evento> findPublicadosVisibles(Pageable pageable);
 
     // Lista eventos publicados filtrados por categoría.
-    @Query("""
+    @Query(value = """
         SELECT e FROM Evento e
         JOIN FETCH e.categoria c
         JOIN FETCH e.organizacion o
-        LEFT JOIN FETCH e.localidades
         WHERE c.id = :categoriaId
+          AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
+        """,
+        countQuery = """
+        SELECT COUNT(e) FROM Evento e
+        WHERE e.categoria.id = :categoriaId
           AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
         """)
     Page<Evento> findByCategoriaVisibles(@Param("categoriaId") Long categoriaId, Pageable pageable);
 
     // Busca eventos publicados por título y fecha.
-    @Query("""
+    @Query(value = """
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
         JOIN FETCH e.organizacion o
+        WHERE e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
+          AND (:titulo IS NULL OR LOWER(e.titulo) LIKE LOWER(CONCAT('%', :titulo, '%')))
+          AND (:fecha IS NULL OR e.fecha = :fecha)
+        """,
+        countQuery = """
+        SELECT COUNT(e) FROM Evento e
         WHERE e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
           AND (:titulo IS NULL OR LOWER(e.titulo) LIKE LOWER(CONCAT('%', :titulo, '%')))
           AND (:fecha IS NULL OR e.fecha = :fecha)
@@ -97,33 +113,42 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
     """)
     Optional<Evento> findByIdConReferencias(@Param("id") Long id);
 
-    // Usado por el endpoint público: solo expone el evento si está PUBLICADO (bug #2.2)
-    // Lista eventos de una organización con sus referencias cargadas.
+    // Usado por el endpoint público: solo expone el evento si está PUBLICADO (con localidades)
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
         JOIN FETCH e.organizacion o
+        LEFT JOIN FETCH e.localidades
         WHERE e.id = :id
           AND e.estado = :estado
         """)
     Optional<Evento> findByIdAndEstadoConReferencias(@Param("id") Long id, @Param("estado") EstadoEvento estado);
 
     // Busca eventos de una organización por título.
-    @Query("""
+    @Query(value = """
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
         JOIN FETCH e.organizacion o
         WHERE o.id = :organizacionId
         ORDER BY e.fechaCreacion DESC
+        """,
+        countQuery = """
+        SELECT COUNT(e) FROM Evento e
+        WHERE e.organizacion.id = :organizacionId
         """)
     Page<Evento> findByOrganizacionIdConReferencias(@Param("organizacionId") Long organizacionId, Pageable pageable);
 
     // Lista eventos filtrados por estado con sus referencias cargadas.
-    @Query("""
+    @Query(value = """
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
         JOIN FETCH e.organizacion o
         WHERE o.id = :organizacionId
+          AND LOWER(e.titulo) LIKE LOWER(CONCAT('%', :titulo, '%'))
+        """,
+        countQuery = """
+        SELECT COUNT(e) FROM Evento e
+        WHERE e.organizacion.id = :organizacionId
           AND LOWER(e.titulo) LIKE LOWER(CONCAT('%', :titulo, '%'))
         """)
     Page<Evento> findByOrganizacionIdAndTituloConReferencias(@Param("organizacionId") Long organizacionId,
@@ -131,10 +156,14 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
                                                              Pageable pageable);
 
     // Busca eventos de una fecha y estado determinados.
-    @Query("""
+    @Query(value = """
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
         JOIN FETCH e.organizacion o
+        WHERE e.estado = :estado
+        """,
+        countQuery = """
+        SELECT COUNT(e) FROM Evento e
         WHERE e.estado = :estado
         """)
     Page<Evento> findByEstadoConReferencias(@Param("estado") EstadoEvento estado, Pageable pageable);
@@ -170,18 +199,25 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
                                      @Param("horaActual") LocalTime horaActual,
                                      @Param("estado") EstadoEvento estado);
 
-    // Lista eventos anteriores a una fecha con el estado indicado.
-    @Query("""
+    // Lista eventos próximos publicados ordenados por fecha y hora.
+    @Query(value = """
     SELECT e FROM Evento e
     JOIN FETCH e.categoria
     JOIN FETCH e.organizacion
-    LEFT JOIN FETCH e.localidades
     WHERE e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
       AND (
             e.fecha > :hoy
             OR (e.fecha = :hoy AND e.hora >= :hora)
           )
     ORDER BY e.fecha ASC, e.hora ASC, e.id ASC
+    """,
+    countQuery = """
+    SELECT COUNT(e) FROM Evento e
+    WHERE e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
+      AND (
+            e.fecha > :hoy
+            OR (e.fecha = :hoy AND e.hora >= :hora)
+          )
     """)
     Page<Evento> findProximosPublicados(
             @Param("hoy") LocalDate hoy,

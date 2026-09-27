@@ -1,13 +1,15 @@
 package com.eventhive.app.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 
 @Getter
 @Setter
-public class CategoriaDTO{
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class CategoriaDTO {
     private Long id;
     private String nombre;
     private String urlFoto;
+    private Long totalEventos;
 }

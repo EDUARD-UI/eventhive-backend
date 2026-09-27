@@ -15,7 +15,7 @@ import com.eventhive.app.model.Compra;
 public interface CompraRepository extends JpaRepository<Compra, Long> {
 
     // Obtiene compras de un cliente con sus ítems y detalles cargados
-    @Query("""
+    @Query(value = """
         SELECT DISTINCT c FROM Compra c
         JOIN FETCH c.cliente
         LEFT JOIN FETCH c.items i
@@ -23,8 +23,22 @@ public interface CompraRepository extends JpaRepository<Compra, Long> {
         LEFT JOIN FETCH i.localidad
         WHERE c.cliente.id = :clienteId
         ORDER BY c.fechaCompra DESC
+        """,
+        countQuery = """
+        SELECT COUNT(DISTINCT c) FROM Compra c
+        WHERE c.cliente.id = :clienteId
         """)
     Page<Compra> findByClienteIdConItems(@Param("clienteId") Long clienteId, Pageable pageable);
+
+    @Query("""
+        SELECT DISTINCT c FROM Compra c
+        JOIN FETCH c.cliente
+        LEFT JOIN FETCH c.items i
+        LEFT JOIN FETCH i.evento
+        LEFT JOIN FETCH i.localidad
+        WHERE c.id = :id
+        """)
+    Optional<Compra> findByIdConItems(@Param("id") Long id);
 
         @Modifying
         @Query("""

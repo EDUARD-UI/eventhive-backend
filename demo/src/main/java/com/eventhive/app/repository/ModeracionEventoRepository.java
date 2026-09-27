@@ -12,11 +12,15 @@ import com.eventhive.app.model.ModeracionEvento;
 public interface ModeracionEventoRepository extends JpaRepository<ModeracionEvento, Long> {
 
     // Historial de un evento con el moderador cargado, más reciente primero
-    @Query("""
+    @Query(value = """
     SELECT m FROM ModeracionEvento m
     LEFT JOIN FETCH m.moderador
     WHERE m.evento.id = :eventoId
     ORDER BY m.fecha DESC
+    """,
+    countQuery = """
+    SELECT COUNT(m) FROM ModeracionEvento m
+    WHERE m.evento.id = :eventoId
     """)
     Page<ModeracionEvento> findByEventoId(@Param("eventoId") Long eventoId, Pageable pageable);
 

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import com.eventhive.app.dto.ApiResponse;
 import com.eventhive.app.dto.PagedResponse;
+import com.eventhive.app.dto.response.RolDTO;
 import com.eventhive.app.model.Rol;
 import com.eventhive.app.service.ServiceRoles;
 
@@ -24,9 +25,9 @@ public class RolesApiController {
     private final ServiceRoles serviceRoles;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<PagedResponse<Rol>>> listarRoles(Pageable pageable) {
-        Page<Rol> page = serviceRoles.obtenerTodosRoles(pageable);
-        PagedResponse<Rol> response = new PagedResponse<>(
+    public ResponseEntity<ApiResponse<PagedResponse<RolDTO>>> listarRoles(Pageable pageable) {
+        Page<RolDTO> page = serviceRoles.obtenerTodosRoles(pageable).map(serviceRoles::toDTO);
+        PagedResponse<RolDTO> response = new PagedResponse<>(
             page.getContent(),
             page.getNumber(),
             page.getSize(),

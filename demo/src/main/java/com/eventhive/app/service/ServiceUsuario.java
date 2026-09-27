@@ -35,9 +35,10 @@ public class ServiceUsuario {
     private final ServiceNotification serviceNotification;
 
     //CONSULTAS Y FILTROS
+    @Transactional(readOnly = true)
     public Usuario obtenerUsuarioPorId(Long id) {
-        return usuarioRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+        return usuarioRepository.findByIdConRol(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con id: " + id));
     }
 
     public Page<UsuarioDTO> obtenerModeradoresDTO(Pageable pageable) {
@@ -46,7 +47,7 @@ public class ServiceUsuario {
 
     @Transactional(readOnly = true)
     public Page<OrganizacionPublicaDTO> obtenerOrganizaciones(Pageable pageable) {
-        return organizacionRepository.findAll(pageable).map(this::toOrganizacionPublicaDTO);
+        return organizacionRepository.findAllConRepresentante(pageable).map(this::toOrganizacionPublicaDTO);
     }
 
     @Transactional(readOnly = true)
@@ -72,7 +73,7 @@ public class ServiceUsuario {
 
     @Transactional(readOnly = true)
     public Page<Usuario> obtenerTodos(Pageable pageable) {
-        return usuarioRepository.findAll(pageable);
+        return usuarioRepository.findAllConRol(pageable);
     }
 
     @Transactional(readOnly = true)
@@ -206,7 +207,7 @@ public class ServiceUsuario {
         OrganizacionPublicaDTO dto = new OrganizacionPublicaDTO();
         dto.setId(o.getId());
         dto.setRazonSocial(o.getRazonSocial());
-        dto.setRepresentante(o.getRepresentante().getNombreCompleto());
+        dto.setRepresentante(o.getRepresentante() != null ? o.getRepresentante().getNombreCompleto() : null);
         dto.setFechaCreacion(o.getFechaCreacion());
         dto.setPromedioRating(o.getPromedioRating());
         dto.setTotalValoraciones(o.getTotalValoraciones());

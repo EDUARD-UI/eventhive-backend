@@ -25,20 +25,30 @@ public interface ValoracionRepository extends JpaRepository<Valoracion, Long> {
     Optional<Valoracion> findByClienteIdAndOrganizacionId(Long clienteId, Long organizacionId);
 
     // Lista valoraciones de un cliente con la organización cargada.
-    @Query("""
+    @Query(value = """
         SELECT v FROM Valoracion v
         JOIN FETCH v.organizacion
+        JOIN FETCH v.cliente
         WHERE v.cliente.id = :clienteId
         ORDER BY v.id DESC
+        """,
+        countQuery = """
+        SELECT COUNT(v) FROM Valoracion v
+        WHERE v.cliente.id = :clienteId
         """)
     Page<Valoracion> findByClienteIdConOrganizacion(@Param("clienteId") Long clienteId, Pageable pageable);
 
     // Lista valoraciones de una organización con el cliente cargado.
-    @Query("""
+    @Query(value = """
         SELECT v FROM Valoracion v
         JOIN FETCH v.cliente
+        JOIN FETCH v.organizacion
         WHERE v.organizacion.id = :organizacionId
         ORDER BY v.id DESC
+        """,
+        countQuery = """
+        SELECT COUNT(v) FROM Valoracion v
+        WHERE v.organizacion.id = :organizacionId
         """)
     Page<Valoracion> findByOrganizacionIdConCliente(@Param("organizacionId") Long organizacionId, Pageable pageable);
 }

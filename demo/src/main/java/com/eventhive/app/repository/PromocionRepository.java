@@ -45,11 +45,22 @@ public interface PromocionRepository extends JpaRepository<Promocion, Long> {
             @Param("fin") LocalDate fin,
             @Param("excludeId") Long excludeId);
 
+    @Query(value = "SELECT p FROM Promocion p JOIN FETCH p.evento e",
+           countQuery = "SELECT COUNT(p) FROM Promocion p")
+    Page<Promocion> findAllConEvento(Pageable pageable);
+
+    @Query("SELECT p FROM Promocion p JOIN FETCH p.evento e LEFT JOIN FETCH e.organizacion o LEFT JOIN FETCH o.representante WHERE p.id = :id")
+    Optional<Promocion> findByIdConEvento(@Param("id") Long id);
+
     // Obtiene promociones de un organizador para el panel
-    @Query("""
+    @Query(value = """
     SELECT p FROM Promocion p
     JOIN FETCH p.evento e
     WHERE e.organizacion.id = :organizacionId
+    """,
+    countQuery = """
+    SELECT COUNT(p) FROM Promocion p
+    WHERE p.evento.organizacion.id = :organizacionId
     """)
     Page<Promocion> findByOrganizacionId(@Param("organizacionId") Long organizacionId, Pageable pageable);
 }

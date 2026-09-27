@@ -22,7 +22,7 @@ import com.eventhive.app.dto.ApiResponse;
 import com.eventhive.app.dto.PagedResponse;
 import com.eventhive.app.dto.request.CategoriaRequest;
 import com.eventhive.app.dto.response.CategoriaDTO;
-import com.eventhive.app.dto.response.CategoriaEventosDTO;
+import com.eventhive.app.dto.response.CategoriaNombreDTO;
 import com.eventhive.app.service.ServiceCategoria;
 
 import jakarta.validation.Valid;
@@ -38,8 +38,7 @@ public class CategoriasApiController {
     //CONSULTAS
     @GetMapping
     public ResponseEntity<ApiResponse<PagedResponse<CategoriaDTO>>> listar(Pageable pageable) {
-        Page<CategoriaDTO> page = serviceCategoria.obtenerTodasCategorias(pageable)
-                .map(categoria -> serviceCategoria.toDTO(categoria));
+        Page<CategoriaDTO> page = serviceCategoria.obtenerTodasCategorias(pageable);
 
         return ResponseEntity.ok(ApiResponse.ok("Categorías obtenidas",
                 new PagedResponse<>(
@@ -52,9 +51,9 @@ public class CategoriasApiController {
     }
 
     @GetMapping("/nombres")
-    public ResponseEntity<ApiResponse<List<CategoriaDTO>>> listarDTO() {
+    public ResponseEntity<ApiResponse<List<CategoriaNombreDTO>>> listarDTO() {
         return ResponseEntity.ok(ApiResponse.ok("Categorías obtenidas",
-                serviceCategoria.obtenerCategoriaDTO()));
+                serviceCategoria.obtenerNombresCategorias()));
     }
 
     @GetMapping("/destacadas")
@@ -63,16 +62,10 @@ public class CategoriasApiController {
                 serviceCategoria.obtenerTop4Categorias()));
     }
 
-    @GetMapping("/con-eventos")
-    public ResponseEntity<ApiResponse<List<CategoriaEventosDTO>>> conEventos() {
-        return ResponseEntity.ok(ApiResponse.ok("Categorías con eventos",
-                serviceCategoria.obtenerCategoriasConEventos()));
-    }
-
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<CategoriaDTO>> obtenerPorId(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok("Categoría obtenida",
-                serviceCategoria.toDTO(serviceCategoria.obtenerCategoriaPorId(id))));
+                serviceCategoria.obtenerCategoriaDTOPorId(id)));
     }
 
     //OPERACIONES CRUD

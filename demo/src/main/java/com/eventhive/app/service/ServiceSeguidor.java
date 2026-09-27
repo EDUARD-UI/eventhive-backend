@@ -31,6 +31,7 @@ public class ServiceSeguidor {
     //CONSULTAS
 
     // listar seguidores de una organizacion
+    @Transactional(readOnly = true)
     public Page<UsuarioDTO> listarSeguidores(Long organizacionId, Pageable pageable) {
         return seguidorRepository
                 .findSeguidoresByOrganizacionId(organizacionId, pageable)
@@ -105,7 +106,7 @@ public class ServiceSeguidor {
         OrganizacionPublicaDTO dto = new OrganizacionPublicaDTO();
         dto.setId(organizacion.getId());
         dto.setRazonSocial(organizacion.getRazonSocial());
-        dto.setRepresentante(organizacion.getRepresentante().getNombreCompleto());
+        dto.setRepresentante(organizacion.getRepresentante() != null ? organizacion.getRepresentante().getNombreCompleto() : null);
         dto.setFechaCreacion(organizacion.getFechaCreacion());
         dto.setPromedioRating(organizacion.getPromedioRating());
         dto.setTotalValoraciones(organizacion.getTotalValoraciones());

@@ -24,13 +24,25 @@ public interface SolicitudVerificacionRepository extends JpaRepository<Solicitud
 
 
     // Lista solicitudes de verificación por estado, de la más antigua a la más reciente.
-    @Query("""
+    @Query(value = """
         SELECT s FROM SolicitudVerificacion s
         JOIN FETCH s.representanteLegal
         WHERE s.estado = :estado
         ORDER BY s.fechaSolicitud ASC
+        """,
+        countQuery = """
+        SELECT COUNT(s) FROM SolicitudVerificacion s
+        WHERE s.estado = :estado
         """)
     Page<SolicitudVerificacion> findByEstado(@Param("estado") EstadoSolicitud estado, Pageable pageable);
+
+    @Query("""
+        SELECT s FROM SolicitudVerificacion s
+        LEFT JOIN FETCH s.representanteLegal
+        LEFT JOIN FETCH s.administradorQueResolvi
+        WHERE s.id = :id
+        """)
+    Optional<SolicitudVerificacion> findByIdConDetalles(@Param("id") Long id);
 
 
     // Verifica si un representante tiene una solicitud en un estado determinado.

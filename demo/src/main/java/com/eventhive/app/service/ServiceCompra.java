@@ -176,7 +176,7 @@ public class ServiceCompra {
     }
 
     private Compra buscarCompra(Long id) {
-        return compraRepository.findById(id)
+        return compraRepository.findByIdConItems(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Compra no encontrada con id: " + id));
     }
 

@@ -21,7 +21,8 @@ public interface SeguidorRepository extends JpaRepository<Seguidor, Long> {
     void deleteByOrganizacionIdAndSeguidorId(Long organizacionId, Long seguidorId);
 
     // Retorna paginados los seguidores de una organización
-    @Query("SELECT s.seguidor FROM Seguidor s WHERE s.organizacion.id = :organizacionId")
+    @Query(value = "SELECT s.seguidor FROM Seguidor s JOIN FETCH s.seguidor.rol WHERE s.organizacion.id = :organizacionId",
+           countQuery = "SELECT COUNT(s) FROM Seguidor s WHERE s.organizacion.id = :organizacionId")
     Page<Usuario> findSeguidoresByOrganizacionId(@Param("organizacionId") Long organizacionId, Pageable pageable);
 
     // Retorna todos los seguidores de una organización sin paginacion
@@ -29,7 +30,8 @@ public interface SeguidorRepository extends JpaRepository<Seguidor, Long> {
     List<Usuario> findAllSeguidoresByOrganizacionId(@Param("organizacionId") Long organizacionId);
 
     // Retorna paginadas las organizaciones que sigue un usuario
-    @Query("SELECT s.organizacion FROM Seguidor s WHERE s.seguidor.id = :seguidorId")
+    @Query(value = "SELECT s.organizacion FROM Seguidor s LEFT JOIN FETCH s.organizacion.representante WHERE s.seguidor.id = :seguidorId",
+           countQuery = "SELECT COUNT(s) FROM Seguidor s WHERE s.seguidor.id = :seguidorId")
     Page<Organizacion> findOrganizacionesBySeguidorId(@Param("seguidorId") Long seguidorId, Pageable pageable);
 
     // Cuenta el total de seguidores de una organización.

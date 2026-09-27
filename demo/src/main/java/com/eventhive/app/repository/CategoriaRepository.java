@@ -3,11 +3,12 @@ package com.eventhive.app.repository;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import com.eventhive.app.model.Categoria;
-import org.springframework.data.jpa.repository.Query;
 
 public interface CategoriaRepository extends JpaRepository<Categoria, Long> {
 
@@ -19,18 +20,22 @@ public interface CategoriaRepository extends JpaRepository<Categoria, Long> {
     // Verifica si existe una categoría con ese nombre
     boolean existsByNombreIgnoreCase(String nombre);
 
-    // Devuelve las primeras 4 categorías con el mayor numero total de eventos
-    @Query("""
-    SELECT c
+    // Devuelve todas las categorías con el número de eventos publicados relacionados
+    @Query(value = """
+    SELECT c.id, c.nombre, c.foto, COUNT(e.id)
     FROM Categoria c
     LEFT JOIN Evento e
         ON e.categoria.id = c.id
        AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
-    GROUP BY c.id
-    ORDER BY COUNT(e.id) DESC, c.nombre ASC
+    GROUP BY c.id, c.nombre, c.foto
+    ORDER BY c.nombre ASC
+    """,
+    countQuery = """
+    SELECT COUNT(c) FROM Categoria c
     """)
-    List<Categoria> findTop4PorEventos(Pageable pageable);
+    Page<Object[]> findAllConCantidadEventos(Pageable pageable);
 
+    // Devuelve las 4 categorías destacadas con el mayor número total de eventos publicados
     @Query("""
     SELECT c.id, c.nombre, c.foto, COUNT(e.id)
     FROM Categoria c
@@ -40,5 +45,5 @@ public interface CategoriaRepository extends JpaRepository<Categoria, Long> {
     GROUP BY c.id, c.nombre, c.foto
     ORDER BY COUNT(e.id) DESC, c.nombre ASC
     """)
-    List<Object[]> obtenerCategoriasConCantidadEventos();
+    List<Object[]> findTop4ConCantidadEventos(Pageable pageable);
 }

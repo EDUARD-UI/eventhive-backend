@@ -24,16 +24,27 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     // Lista COMPLETA de usuarios por rol, sin paginar (uso interno: notificaciones a moderadores)
     List<Usuario> findAllByRolNombre(String nombre);
 
+    // Busca un usuario por id con su rol cargado
+    @Query("SELECT u FROM Usuario u JOIN FETCH u.rol WHERE u.id = :id")
+    Optional<Usuario> findByIdConRol(@Param("id") Long id);
+
+    // Obtiene todos los usuarios con su rol cargado
+    @Query(value = "SELECT u FROM Usuario u JOIN FETCH u.rol",
+           countQuery = "SELECT COUNT(u) FROM Usuario u")
+    Page<Usuario> findAllConRol(Pageable pageable);
+
     // Busca un usuario por correo con su rol cargado
     @Query("SELECT u FROM Usuario u JOIN FETCH u.rol WHERE u.correo = :correo")
     Optional<Usuario> findByCorreoConRol(@Param("correo") String correo);
 
     // Busca usuarios por rol
-    @Query("SELECT u FROM Usuario u JOIN FETCH u.rol r WHERE r.id = :rolId")
+    @Query(value = "SELECT u FROM Usuario u JOIN FETCH u.rol r WHERE r.id = :rolId",
+           countQuery = "SELECT COUNT(u) FROM Usuario u WHERE u.rol.id = :rolId")
     Page<Usuario> findByRolId(@Param("rolId") Long rolId, Pageable pageable);
 
     // Busca usuarios cuyo nombre contiene el texto indicado
-    @Query("SELECT u FROM Usuario u JOIN FETCH u.rol WHERE LOWER(u.nombreCompleto) LIKE LOWER(CONCAT('%', :nombre, '%'))")
+    @Query(value = "SELECT u FROM Usuario u JOIN FETCH u.rol WHERE LOWER(u.nombreCompleto) LIKE LOWER(CONCAT('%', :nombre, '%'))",
+           countQuery = "SELECT COUNT(u) FROM Usuario u WHERE LOWER(u.nombreCompleto) LIKE LOWER(CONCAT('%', :nombre, '%'))")
     Page<Usuario> findByNombreContieneIgnoreCase(@Param("nombre") String nombre, Pageable pageable);
 
     // Cuenta usuarios por rol
@@ -41,22 +52,32 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     long countByRolId(@Param("rolId") Long rolId);
 
     // Busca usuarios por nombre y rol
-    @Query("""
+    @Query(value = """
         SELECT u FROM Usuario u JOIN FETCH u.rol r
         WHERE LOWER(u.nombreCompleto) LIKE LOWER(CONCAT('%', :nombre, '%'))
         AND r.id = :rolId
+        """,
+        countQuery = """
+        SELECT COUNT(u) FROM Usuario u
+        WHERE LOWER(u.nombreCompleto) LIKE LOWER(CONCAT('%', :nombre, '%'))
+        AND u.rol.id = :rolId
         """)
     Page<Usuario> findByNombreYRolId(@Param("nombre") String nombre,
                                      @Param("rolId")   Long rolId,
                                      Pageable pageable);
 
     // Lista los operadores de una organizacion
-    @Query("""
+    @Query(value = """
     SELECT u FROM Usuario u
     JOIN FETCH u.rol r
     WHERE u.organizacion.id = :organizacionId
       AND UPPER(r.nombre) = 'OPERADOR'
     ORDER BY u.nombreCompleto ASC
+    """,
+    countQuery = """
+    SELECT COUNT(u) FROM Usuario u
+    WHERE u.organizacion.id = :organizacionId
+      AND UPPER(u.rol.nombre) = 'OPERADOR'
     """)
     Page<Usuario> findOperadoresByOrganizacionId(
             @Param("organizacionId") Long organizacionId,

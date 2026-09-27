@@ -72,7 +72,7 @@ public class EventosApiController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<EventoDTO>> obtener(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok("Evento obtenido",
-                serviceEvento.toDTO(serviceEvento.obtenerEventoPublicoPorId(id))));
+                serviceEvento.toDetalleDTO(serviceEvento.obtenerEventoPublicoPorId(id))));
     }
 
     @GetMapping("/organizador/{id}")
@@ -80,7 +80,7 @@ public class EventosApiController {
     public ResponseEntity<ApiResponse<EventoDTO>> obtenerDeMiOrganizacion(@PathVariable Long id) {
         Long organizacionId = authHelper.usuarioAutenticado().getOrganizacion().getId();
         return ResponseEntity.ok(ApiResponse.ok("Evento obtenido",
-                serviceEvento.toDTO(serviceEvento.obtenerEventoDeOrganizacionPorId(organizacionId, id))));
+                serviceEvento.toDetalleDTO(serviceEvento.obtenerEventoDeOrganizacionPorId(organizacionId, id))));
     }
 
     @GetMapping("/organizador")
@@ -95,7 +95,7 @@ public class EventosApiController {
     @PreAuthorize("hasRole('MODERADOR') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<EventoDTO>> obtenerAdmin(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok("Evento obtenido",
-                serviceEvento.toDTO(serviceEvento.obtenerEventoAdministrativo(id))));
+                serviceEvento.toDetalleDTO(serviceEvento.obtenerEventoAdministrativo(id))));
     }
 
     @GetMapping("/mapa")
@@ -165,7 +165,7 @@ public class EventosApiController {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("Evento creado",
-                        serviceEvento.toDTO(serviceEvento.crearEvento(request, foto))));
+                        serviceEvento.toDetalleDTO(serviceEvento.crearEvento(request, foto))));
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -176,7 +176,7 @@ public class EventosApiController {
             @RequestPart(value = "foto", required = false) MultipartFile foto) {
 
         return ResponseEntity.ok(ApiResponse.ok("Evento actualizado",
-                serviceEvento.toDTO(serviceEvento.actualizarEvento(id, request, foto))));
+                serviceEvento.toDetalleDTO(serviceEvento.actualizarEvento(id, request, foto))));
     }
 
         @PatchMapping("/{id}/enviar-revision")

@@ -45,7 +45,7 @@ public class ServiceOrganizacion {
     //CONSULTAS
     @Transactional(readOnly = true)
     public OrganizacionDTO obtenerPorId(Long organizacionId) {
-        Organizacion organizacion = organizacionRepository.findById(organizacionId)
+        Organizacion organizacion = organizacionRepository.findByIdConRepresentante(organizacionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organización no encontrada"));
         return toDTO(organizacion);
     }
@@ -55,7 +55,9 @@ public class ServiceOrganizacion {
         Usuario usuario = authHelper.usuarioAutenticado();
         if (usuario.getOrganizacion() == null)
             throw new BusinessException("Aún no tiene un perfil de organización aprobado");
-        return toDTO(usuario.getOrganizacion());
+        Organizacion organizacion = organizacionRepository.findByIdConRepresentante(usuario.getOrganizacion().getId())
+                .orElse(usuario.getOrganizacion());
+        return toDTO(organizacion);
     }
 
     @Transactional(readOnly = true)
@@ -119,7 +121,7 @@ public class ServiceOrganizacion {
     //METRICAS DE LA ORGANIZACION
     @Transactional
     public void actualizarMetricasValoracion(Long organizacionId) {
-        Organizacion organizacion = obtenerOrganizacion(organizacionId);
+        Organizacion organizacion = buscarOrganizacionPorId(organizacionId);
 
         int total = (int) valoracionRepository.countByOrganizacionId(organizacionId);
         double promedio = total > 0
@@ -133,7 +135,7 @@ public class ServiceOrganizacion {
 
     @Transactional
     public void actualizarTotalSeguidores(Long organizacionId) {
-        Organizacion organizacion = obtenerOrganizacion(organizacionId);
+        Organizacion organizacion = buscarOrganizacionPorId(organizacionId);
         int total = (int) seguidorRepository.countByOrganizacionId(organizacionId);
         organizacion.setTotalSeguidores(total);
         organizacionRepository.save(organizacion);
@@ -141,7 +143,7 @@ public class ServiceOrganizacion {
 
     @Transactional
     public void actualizarTotalEventos(Long organizacionId) {
-        Organizacion organizacion = obtenerOrganizacion(organizacionId);
+        Organizacion organizacion = buscarOrganizacionPorId(organizacionId);
         int total = (int) eventoRepository.countByOrganizacionId(organizacionId);
         organizacion.setTotalEventosCreados(total);
         organizacionRepository.save(organizacion);
@@ -179,19 +181,15 @@ public class ServiceOrganizacion {
         return operador;
     }
 
-    // Obtiene la Organizacion asociada a un usuario
-    private Organizacion obtenerOrganizacion(Long usuarioId) {
-        Usuario usuario = usuarioRepository.findById(usuarioId)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
-        if (usuario.getOrganizacion() == null)
-            throw new BusinessException("El usuario no se encuentra asociado a una organización verificada");
-        return usuario.getOrganizacion();
+    private Organizacion buscarOrganizacionPorId(Long organizacionId) {
+        return organizacionRepository.findById(organizacionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organización no encontrada: " + organizacionId));
     }
 
     public OrganizacionDTO toDTO(Organizacion o) {
         OrganizacionDTO dto = new OrganizacionDTO();
         dto.setId(o.getId());
-        dto.setRepresentante(o.getRepresentante().getNombreCompleto());
+        dto.setRepresentante(o.getRepresentante() != null ? o.getRepresentante().getNombreCompleto() : null);
         dto.setRazonSocial(o.getRazonSocial());
         dto.setNit(o.getNit());
         dto.setCorreoContacto(o.getCorreoContacto());
