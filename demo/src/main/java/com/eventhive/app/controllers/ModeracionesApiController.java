@@ -69,7 +69,7 @@ public class ModeracionesApiController {
 
     // MODERACION A EVENTOS
     @GetMapping("/eventos/pendientes")
-    @PreAuthorize("hasAnyRole('MODERADOR','ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('MODERADOR'")
     public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> pendientesRevision(Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.ok("Eventos pendientes de revisión",
                 serviceEvento.toPagedDTO(serviceModeracion.listarPendientesRevision(pageable))));

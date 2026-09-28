@@ -11,16 +11,30 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 @EnableAsync
 public class AsyncConfig {
 
-    // Pool dedicado para el envío de correos: así un correo lento
-    // nunca bloquea al hilo que responde la petición HTTP.
     @Bean(name = "emailExecutor")
     public Executor emailExecutor() {
+
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(2);
-        executor.setMaxPoolSize(5);
-        executor.setQueueCapacity(200);
+
+        // Mantener solamente un hilo normalmente activo.
+        executor.setCorePoolSize(1);
+
+        // Máximo de 2 correos enviándose simultáneamente.
+        executor.setMaxPoolSize(2);
+
+        // Evita acumular cientos de tareas en memoria.
+        executor.setQueueCapacity(50);
+
         executor.setThreadNamePrefix("email-");
+
+        // Si la cola está llena, ejecuta la tarea en el hilo
+        // que realizó la llamada en lugar de crear más memoria/hilos.
+        executor.setRejectedExecutionHandler(
+                new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy()
+        );
+
         executor.initialize();
+
         return executor;
     }
 }
