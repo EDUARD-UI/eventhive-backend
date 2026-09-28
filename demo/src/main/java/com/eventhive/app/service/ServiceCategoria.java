@@ -10,9 +10,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.eventhive.app.config.SupabaseStorageConfig;
+import com.eventhive.app.dto.response.CategoriaConteoDTO;
 import com.eventhive.app.dto.response.CategoriaDTO;
 import com.eventhive.app.dto.response.CategoriaNombreDTO;
-import com.eventhive.app.enums.EstadoEvento;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Categoria;
@@ -44,11 +44,12 @@ public class ServiceCategoria {
     }
 
     @Transactional(readOnly = true)
-    public CategoriaDTO obtenerCategoriaDTOPorId(Long id) {
+    public CategoriaConteoDTO obtenerCategoriaDTOPorId(Long id) {
         Categoria categoria = obtenerCategoriaPorId(id);
-        CategoriaDTO dto = toDTO(categoria);
-        dto.setTotalEventos(eventoRepository.countByCategoriaIdAndEstado(id, EstadoEvento.PUBLICADO));
-        return dto;
+        return new CategoriaConteoDTO(
+            categoria.getId(),
+            categoria.getNombre(),
+            eventoRepository.countByCategoriaId(id));
     }
 
     //devuelve solo id y nombre de todas las categorias
@@ -64,6 +65,13 @@ public class ServiceCategoria {
         return categoriaRepository.findTop4ConCantidadEventos(PageRequest.of(0, 4))
                 .stream()
                 .map(this::rowToDTO)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<CategoriaConteoDTO> obtenerCategoriasConEventos() {
+        return categoriaRepository.findAllConEventos().stream()
+                .map(this::rowToConteoDTO)
                 .toList();
     }
 
@@ -124,14 +132,6 @@ public class ServiceCategoria {
         storageService.eliminarArchivo(storageConfig.getBucketCategorias(), nombre);
     }
 
-    public CategoriaDTO toDTO(Categoria categoria){
-        CategoriaDTO dto = new CategoriaDTO();
-        dto.setId(categoria.getId());
-        dto.setNombre(categoria.getNombre());
-        dto.setUrlFoto(categoria.getFoto());
-        return dto;
-    }
-
     public CategoriaDTO rowToDTO(Object[] row) {
         CategoriaDTO dto = new CategoriaDTO();
         dto.setId((Long) row[0]);
@@ -139,5 +139,12 @@ public class ServiceCategoria {
         dto.setUrlFoto((String) row[2]);
         dto.setTotalEventos(row[3] != null ? ((Number) row[3]).longValue() : 0L);
         return dto;
+    }
+
+    private CategoriaConteoDTO rowToConteoDTO(Object[] row) {
+        return new CategoriaConteoDTO(
+                (Long) row[0],
+                (String) row[1],
+                row[3] != null ? ((Number) row[3]).longValue() : 0L);
     }
 }

@@ -21,6 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.eventhive.app.dto.ApiResponse;
 import com.eventhive.app.dto.PagedResponse;
 import com.eventhive.app.dto.request.CategoriaRequest;
+import com.eventhive.app.dto.response.CategoriaConteoDTO;
 import com.eventhive.app.dto.response.CategoriaDTO;
 import com.eventhive.app.dto.response.CategoriaNombreDTO;
 import com.eventhive.app.service.ServiceCategoria;
@@ -62,8 +63,14 @@ public class CategoriasApiController {
                 serviceCategoria.obtenerTop4Categorias()));
     }
 
+    @GetMapping("/con-eventos")
+    public ResponseEntity<ApiResponse<List<CategoriaConteoDTO>>> listarConEventos() {
+        return ResponseEntity.ok(ApiResponse.ok("Categorías con eventos",
+                serviceCategoria.obtenerCategoriasConEventos()));
+    }
+
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<CategoriaDTO>> obtenerPorId(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<CategoriaConteoDTO>> obtenerPorId(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok("Categoría obtenida",
                 serviceCategoria.obtenerCategoriaDTOPorId(id)));
     }

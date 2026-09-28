@@ -20,13 +20,12 @@ public interface CategoriaRepository extends JpaRepository<Categoria, Long> {
     // Verifica si existe una categoría con ese nombre
     boolean existsByNombreIgnoreCase(String nombre);
 
-    // Devuelve todas las categorías con el número de eventos publicados relacionados
+    // Devuelve todas las categorías con el número total de eventos relacionados
     @Query(value = """
     SELECT c.id, c.nombre, c.foto, COUNT(e.id)
     FROM Categoria c
     LEFT JOIN Evento e
         ON e.categoria.id = c.id
-       AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
     GROUP BY c.id, c.nombre, c.foto
     ORDER BY c.nombre ASC
     """,
@@ -35,13 +34,22 @@ public interface CategoriaRepository extends JpaRepository<Categoria, Long> {
     """)
     Page<Object[]> findAllConCantidadEventos(Pageable pageable);
 
-    // Devuelve las 4 categorías destacadas con el mayor número total de eventos publicados
+    @Query("""
+    SELECT c.id, c.nombre, c.foto, COUNT(e.id)
+    FROM Categoria c
+    LEFT JOIN Evento e ON e.categoria.id = c.id
+    GROUP BY c.id, c.nombre, c.foto
+    HAVING COUNT(e.id) > 0
+    ORDER BY c.nombre ASC
+    """)
+    List<Object[]> findAllConEventos();
+
+    // Devuelve las 4 categorías destacadas con el mayor número total de eventos
     @Query("""
     SELECT c.id, c.nombre, c.foto, COUNT(e.id)
     FROM Categoria c
     LEFT JOIN Evento e
         ON e.categoria.id = c.id
-       AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
     GROUP BY c.id, c.nombre, c.foto
     ORDER BY COUNT(e.id) DESC, c.nombre ASC
     """)

@@ -60,6 +60,7 @@ public class ServiceAutenticacion {
         String refreshToken = jwtUtils.generarRefreshToken(userDetails);
 
         return LoginResponseDTO.builder()
+                .id(principal.getUsuario().getId())
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .tipo("Bearer")
@@ -97,6 +98,7 @@ public class ServiceAutenticacion {
         String nuevoAccessToken = jwtUtils.generarAccessToken(principal);
 
         return LoginResponseDTO.builder()
+                .id(usuario.getId())
                 .accessToken(nuevoAccessToken)
                 .refreshToken(refreshToken)
                 .tipo("Bearer")
