@@ -27,40 +27,43 @@ Una organización puede contener:
 -   Nivel de organización.
 -   Métricas agregadas de reputación y actividad.
 
-## 3. Registro
+## 3. Registro flexible y verificación
 
-Para solicitar el registro se consideran como datos mínimos:
+El alta se realiza por etapas. En el registro inicial se crea la cuenta
+del Representante y un pre-registro de organización con los datos
+disponibles, como razón social, NIT y correo empresarial. El RUT no es
+obligatorio en ese primer paso: puede cargarse posteriormente desde el
+flujo de la organización.
 
--   Razón Social.
--   Correo empresarial.
--   NIT.
--   Nombre del Representante Legal.
--   Documento RUT.
+La carga del RUT envía la solicitud a revisión del Administrador. El
+Administrador verifica el documento y los datos de la organización y
+puede verificarla, solicitar correcciones o rechazar la solicitud. El
+Moderador no participa en este flujo.
 
-El registro crea una solicitud que debe pasar por el flujo de
-Moderación.
-
-No debe considerarse que una organización está habilitada para publicar
-eventos hasta que su solicitud haya sido aprobada.
+Si se solicitan correcciones, el Representante puede actualizar los
+datos de la solicitud y reenviarla; el RUT puede reemplazarse cuando
+corresponda. Hasta que la verificación sea aprobada, la organización no
+se considera habilitada para publicar eventos. La creación flexible
+permite completar el proceso después del alta, pero no omite la
+verificación requerida para publicar.
 
 ## 4. Estados
 
-Estado conceptual:
+Estados conceptuales del ciclo de verificación:
 
 ``` text
-PENDIENTE_REVISION
-      ↓
-   APROBADA
-      ↓
-  SUSPENDIDA
-
-PENDIENTE_REVISION
-   ├── EN_CORRECCION → PENDIENTE_REVISION
-   └── RECHAZADA
+PRE_REGISTRO (sin RUT enviado)
+        ↓ carga del RUT
+PENDIENTE_VERIFICACION
+    ├── VERIFICADA
+    ├── EN_CORRECCION → reenvío → PENDIENTE_VERIFICACION
+    └── RECHAZADA
+             VERIFICADA → SUSPENDIDA (acción administrativa)
 ```
 
-La implementación exacta debe mantenerse alineada con los enums
-existentes del backend.
+Los nombres son conceptuales y deben mantenerse alineados con los enums
+y estados reales expuestos por el backend. El estado pendiente de
+verificación solo aplica después de enviar el RUT.
 
 ## 5. Usuarios asociados
 
@@ -263,7 +266,10 @@ La información privada utilizada para verificar una organización no debe
 mezclarse con el perfil público.
 
 Los documentos como el RUT deben estar protegidos mediante autorización
-y no exponerse como información pública de la organización.
+y no exponerse como información pública de la organización. La consulta
+y decisión sobre el RUT corresponden al Administrador durante la
+verificación; la moderación de eventos es un flujo independiente a cargo
+del Moderador para los eventos derivados por las reglas del sistema.
 
 El frontend debe recibir únicamente los campos necesarios para la
 pantalla que está mostrando.

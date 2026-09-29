@@ -11,6 +11,7 @@ import com.eventhive.app.dto.request.PermisosOperadorRequest;
 import com.eventhive.app.dto.response.OperadorDTO;
 import com.eventhive.app.dto.response.OrganizacionDTO;
 import com.eventhive.app.dto.response.RutUrlDTO;
+import com.eventhive.app.enums.EstadoOrganizacion;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Organizacion;
@@ -149,6 +150,18 @@ public class ServiceOrganizacion {
         organizacionRepository.save(organizacion);
     }
 
+    // CAMBIO DE ESTADO (único punto de entrada: valida la transición)
+    @Transactional
+    public void cambiarEstado(Organizacion organizacion, EstadoOrganizacion nuevoEstado) {
+        EstadoOrganizacion actual = organizacion.getEstado();
+        if (actual == nuevoEstado) return; // idempotente
+        if (actual == null || !actual.puedeTransicionarA(nuevoEstado)) {
+            throw new BusinessException("Transición de estado no permitida: " + actual + " -> " + nuevoEstado);
+        }
+        organizacion.setEstado(nuevoEstado);
+        organizacionRepository.save(organizacion);
+    }
+
     //METODOS AUXILIARES Y DE MAPEO
     private Organizacion organizacionDelRepresentante() {
         Usuario representante = authHelper.usuarioAutenticado();
@@ -201,6 +214,7 @@ public class ServiceOrganizacion {
         dto.setEventosFinalizados(o.getEventosFinalizados());
         dto.setEventosRechazados(o.getEventosRechazados());
         dto.setNivel(o.getNivel());
+        dto.setEstado(o.getEstado());
         return dto;
     }
 

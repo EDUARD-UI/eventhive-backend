@@ -113,6 +113,7 @@ public class ServiceSeguidor {
         dto.setTotalSeguidores(organizacion.getTotalSeguidores());
         dto.setTotalEventosCreados(organizacion.getTotalEventosCreados());
         dto.setNivel(organizacion.getNivel());
+        dto.setEstado(organizacion.getEstado());
         return dto;
     }
 }

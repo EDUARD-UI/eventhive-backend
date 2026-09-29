@@ -2,6 +2,7 @@ package com.eventhive.app.service;
 
 
 import com.eventhive.app.dto.response.PromocionDTO;
+import com.eventhive.app.enums.EstadoPromocion;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Evento;
@@ -45,6 +46,7 @@ public class ServicePromocion {
                 .orElse(null);
     }
 
+    @Transactional(readOnly = true)
     public Page<PromocionDTO> obtenerDTOPorOrganizacion(Long organizacionId, Pageable pageable) {
         return promocionRepository.findByOrganizacionId(organizacionId, pageable).map(this::toDTO);
     }
@@ -186,6 +188,12 @@ public class ServicePromocion {
                 && evento.getOrganizacion().getRepresentante().getId().equals(usuario.getId());
     }
 
+    private EstadoPromocion calcularEstado(Promocion p, LocalDate hoy) {
+        if (hoy.isBefore(p.getFechaInicio())) return EstadoPromocion.PROGRAMADA;
+        if (hoy.isAfter(p.getFechaFin())) return EstadoPromocion.VENCIDA;
+        return EstadoPromocion.VIGENTE;
+    }
+
     //METODO DE MAPEO
     public PromocionDTO toDTO(Promocion p) {
         PromocionDTO dto = new PromocionDTO();
@@ -194,10 +202,12 @@ public class ServicePromocion {
         dto.setDescuento(p.getDescuento());
         dto.setFechaInicio(p.getFechaInicio());
         dto.setFechaFinal(p.getFechaFin());
+        dto.setEstado(calcularEstado(p, LocalDate.now()));
 
         if (p.getEvento() != null) {
                 dto.setEventoId(p.getEvento().getId());
                 dto.setEventoTitulo(p.getEvento().getTitulo());
+                dto.setEventoNombre(p.getEvento().getTitulo());
         }
         return dto;
     }

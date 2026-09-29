@@ -24,6 +24,10 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
   // Cuenta los eventos asociados a una categoría con estado específico
     long countByCategoriaIdAndEstado(Long categoriaId, EstadoEvento estado);
 
+  // Cantidad de eventos agrupada por estado (agregado en BD)
+    @Query("SELECT new com.eventhive.app.dto.response.EventoEstadoConteoDTO(e.estado, COUNT(e)) FROM Evento e GROUP BY e.estado")
+    List<com.eventhive.app.dto.response.EventoEstadoConteoDTO> contarPorEstado();
+
   // Cuenta los eventos que tienen un estado específico.
     long countByEstado(EstadoEvento estado);
 

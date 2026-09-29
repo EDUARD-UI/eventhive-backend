@@ -25,6 +25,7 @@ import com.eventhive.app.dto.response.OrganizacionPublicaDTO;
 import com.eventhive.app.dto.response.RutUrlDTO;
 import com.eventhive.app.dto.response.SugerenciaAscensoDTO;
 import com.eventhive.app.dto.response.UsuarioDTO;
+import com.eventhive.app.enums.EstadoOrganizacion;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.service.ServiceInvitacionOrganizacion;
@@ -50,20 +51,24 @@ public class OrganizacionApiController {
     private final ServiceUsuario serviceUsuario;
 
     //CONSULTAS
+    // ?estado=APROBADA | PENDIENTE_REVISION | SUSPENDIDA (opcional; sin parámetro devuelve todas)
     @GetMapping
-    public ResponseEntity<ApiResponse<PagedResponse<OrganizacionPublicaDTO>>> listar(Pageable pageable) {
+    public ResponseEntity<ApiResponse<PagedResponse<OrganizacionPublicaDTO>>> listar(
+            @RequestParam(required = false) EstadoOrganizacion estado, Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.ok("Organizaciones obtenidas",
-                serviceUsuario.toPagedOrganizacion(serviceUsuario.obtenerOrganizaciones(pageable))));
+                serviceUsuario.toPagedOrganizacion(serviceUsuario.obtenerOrganizaciones(estado, pageable))));
     }
 
-        @PostMapping("/buscar")
-        public ResponseEntity<ApiResponse<PagedResponse<OrganizacionPublicaDTO>>> buscarPorRazonSocial(
-            @Valid @RequestBody BuscarOrganizacionRequest request, Pageable pageable) {
+    @PostMapping("/buscar")
+    public ResponseEntity<ApiResponse<PagedResponse<OrganizacionPublicaDTO>>> buscarPorRazonSocial(
+            @Valid @RequestBody BuscarOrganizacionRequest request,
+            @RequestParam(required = false) EstadoOrganizacion estado,
+            Pageable pageable) {
         Page<OrganizacionPublicaDTO> page = serviceUsuario.buscarOrganizacionesPorRazonSocial(
-            request.getRazonSocial(), pageable);
+                request.getRazonSocial(), estado, pageable);
         return ResponseEntity.ok(ApiResponse.ok("Organizaciones encontradas",
-            serviceUsuario.toPagedOrganizacion(page)));
-        }
+                serviceUsuario.toPagedOrganizacion(page)));
+    }
 
     @GetMapping("/{organizacionId}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
@@ -79,9 +84,10 @@ public class OrganizacionApiController {
     }
 
     @GetMapping("/top")
-    public ResponseEntity<ApiResponse<PagedResponse<OrganizacionPublicaDTO>>> topOrganizaciones(Pageable pageable) {
+    public ResponseEntity<ApiResponse<PagedResponse<OrganizacionPublicaDTO>>> topOrganizaciones(
+            @RequestParam(required = false) EstadoOrganizacion estado, Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.ok("Top de organizaciones",
-                serviceUsuario.toPagedOrganizacion(serviceUsuario.obtenerTopOrganizaciones(pageable))));
+                serviceUsuario.toPagedOrganizacion(serviceUsuario.obtenerTopOrganizaciones(estado, pageable))));
     }
 
     @GetMapping("/mi-organizacion")

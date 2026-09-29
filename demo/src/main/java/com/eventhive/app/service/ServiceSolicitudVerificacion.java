@@ -37,6 +37,7 @@ public class ServiceSolicitudVerificacion {
     private final AuthenticatedUserHelper authHelper;
     private final SupabaseStorageService storageService;
     private final ServiceNotification serviceNotification;
+    private final ServiceOrganizacion serviceOrganizacion;
     private final PasswordEncoder passwordEncoder;
 
     //CONSULTAS
@@ -61,7 +62,7 @@ public class ServiceSolicitudVerificacion {
     }
 
     //OPERACIONES DE CREACION Y ACTUALIZACION DE SOLICITUDES
-    // Crea cuenta + organización en PRE_REGISTRO.
+    // Crea cuenta + organización en PENDIENTE_REVISION.
     @Transactional
     public void registrarOrganizador(SolicitudVerificacionRequest request) {
 
@@ -85,7 +86,7 @@ public class ServiceSolicitudVerificacion {
         organizacion.setRazonSocial(request.getRazonSocial());
         organizacion.setNit(request.getNit());
         organizacion.setCorreoContacto(request.getCorreoEmpresarial());
-        organizacion.setEstado(EstadoOrganizacion.PRE_REGISTRO);
+        organizacion.setEstado(EstadoOrganizacion.PENDIENTE_REVISION);
         organizacionRepository.save(organizacion);
 
         representante.setOrganizacion(organizacion);
@@ -128,7 +129,11 @@ public class ServiceSolicitudVerificacion {
         solicitud.setUrlRut(urlRut);
         solicitud.setEstado(EstadoSolicitud.PENDIENTE);
         solicitud.setFechaSolicitud(LocalDateTime.now());
+        solicitud.setMotivoRechazo(null);
         solicitudRepository.save(solicitud);
+
+        // Una organización SUSPENDIDA que vuelve a enviar su RUT reinicia el proceso de revisión
+        iniciarRevisionOrganizacion(representante.getOrganizacion());
     }
 
     // GESTIÓN DE MODERACION
@@ -142,9 +147,9 @@ public class ServiceSolicitudVerificacion {
             throw new BusinessException("El usuario no tiene organización asociada");
         }
 
-        organizacion.setEstado(EstadoOrganizacion.VERIFICADA);
         organizacion.setUrlRut(solicitud.getUrlRut());
-        organizacionRepository.save(organizacion);
+        serviceOrganizacion.cambiarEstado(organizacion, EstadoOrganizacion.APROBADA);
+        organizacionRepository.save(organizacion); // persiste urlRut aunque el estado ya fuera APROBADA
 
         solicitud.setEstado(EstadoSolicitud.APROBADA);
         solicitud.setFechaResolucion(LocalDateTime.now());
@@ -160,8 +165,7 @@ public class ServiceSolicitudVerificacion {
         Usuario representante = solicitud.getRepresentanteLegal();
 
         if (representante.getOrganizacion() != null) {
-            representante.getOrganizacion().setEstado(EstadoOrganizacion.RECHAZADA);
-            organizacionRepository.save(representante.getOrganizacion());
+            serviceOrganizacion.cambiarEstado(representante.getOrganizacion(), EstadoOrganizacion.SUSPENDIDA);
         }
 
         solicitud.setEstado(EstadoSolicitud.RECHAZADA);
@@ -193,7 +197,8 @@ public class ServiceSolicitudVerificacion {
             throw new BusinessException("No autorizado para modificar esta solicitud");
         }
         if (solicitud.getEstado() != EstadoSolicitud.CORRECCION_SOLICITADA
-                && solicitud.getEstado() != EstadoSolicitud.INCOMPLETA) {
+                && solicitud.getEstado() != EstadoSolicitud.INCOMPLETA
+                && solicitud.getEstado() != EstadoSolicitud.RECHAZADA) {
             throw new BusinessException("La solicitud no está en estado reenviable");
         }
 
@@ -212,6 +217,7 @@ public class ServiceSolicitudVerificacion {
 
         solicitud.setEstado(EstadoSolicitud.PENDIENTE);
         solicitud.setFechaSolicitud(LocalDateTime.now());
+        solicitud.setMotivoRechazo(null);
         solicitudRepository.save(solicitud);
 
         if (representante.getOrganizacion() != null) {
@@ -220,10 +226,20 @@ public class ServiceSolicitudVerificacion {
             org.setNit(request.getNit());
             org.setCorreoContacto(request.getCorreoEmpresarial());
             organizacionRepository.save(org);
+            iniciarRevisionOrganizacion(org);
         }
     }
 
     // METODOS AUXILIARES Y MAPEO
+    // Deja la organización en PENDIENTE_REVISION (si estaba SUSPENDIDA) y avisa a los administradores
+    private void iniciarRevisionOrganizacion(Organizacion organizacion) {
+        if (organizacion == null) return;
+        if (organizacion.getEstado() == EstadoOrganizacion.SUSPENDIDA) {
+            serviceOrganizacion.cambiarEstado(organizacion, EstadoOrganizacion.PENDIENTE_REVISION);
+        }
+        serviceNotification.notificarAdminsSolicitudRutPendiente(organizacion);
+    }
+
     private void validarDatosUnicos(SolicitudVerificacionRequest request) {
         if (organizacionRepository.existsByNit(request.getNit())) {
             throw new BusinessException("Ese NIT ya está registrado");

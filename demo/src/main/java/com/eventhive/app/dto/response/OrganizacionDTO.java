@@ -2,6 +2,7 @@ package com.eventhive.app.dto.response;
 
 import java.time.LocalDateTime;
 
+import com.eventhive.app.enums.EstadoOrganizacion;
 import com.eventhive.app.enums.NivelOrganizador;
 
 import lombok.Getter;
@@ -28,4 +29,5 @@ public class OrganizacionDTO {
     private Integer eventosFinalizados;
     private Integer eventosRechazados;
     private NivelOrganizador nivel;
+    private EstadoOrganizacion estado;
 }

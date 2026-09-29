@@ -180,10 +180,26 @@ public class ServiceModeracion {
     }
 
     //METODOS DE MAPEO
+    private String accionDe(EstadoEvento estadoResultante) {
+        if (estadoResultante == null) return null;
+        return switch (estadoResultante) {
+            case PUBLICADO -> "APROBADO";
+            case EN_CORRECCION -> "CORRECCION_SOLICITADA";
+            case RECHAZADO -> "RECHAZADO";
+            case SUSPENDIDO -> "SUSPENDIDO";
+            default -> estadoResultante.name();
+        };
+    }
+
     private ModeracionEventoDTO toModeracionDTO(ModeracionEvento moderacion) {
         ModeracionEventoDTO dto = new ModeracionEventoDTO();
         dto.setId(moderacion.getId());
         dto.setEstadoResultante(moderacion.getEstadoResultante());
+        dto.setAccion(accionDe(moderacion.getEstadoResultante()));
+        if (moderacion.getEvento() != null) {
+            dto.setEventoId(moderacion.getEvento().getId());
+            dto.setEventoNombre(moderacion.getEvento().getTitulo());
+        }
         dto.setMotivo(moderacion.getMotivo());
         dto.setObservacion(moderacion.getObservacion());
         dto.setFecha(moderacion.getFecha());

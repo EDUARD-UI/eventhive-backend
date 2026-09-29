@@ -27,6 +27,7 @@ public class ServiceNivelOrganizacion {
     private final SugerenciaAscensoRepository sugerenciaRepository;
     private final OrganizacionRepository organizacionRepository;
     private final AuthenticatedUserHelper authHelper;
+    private final ServiceNotification serviceNotification;
 
     // Requisitos mínimos por nivel para avanzar al siguiente: eventos finalizados y antigüedad en días
     private static final int[] FINALIZADOS_REQUERIDOS = {3, 8};
@@ -58,6 +59,8 @@ public class ServiceNivelOrganizacion {
         sugerencia.setNivelActual(organizacion.getNivel());
         sugerencia.setNivelSugerido(organizacion.getNivel().siguiente());
         sugerenciaRepository.save(sugerencia);
+
+        serviceNotification.notificarAdminsSugerenciaAscenso(organizacion, sugerencia.getNivelSugerido());
     }
 
     //OPERACIONES DE ASCENSO

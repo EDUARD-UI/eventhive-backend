@@ -53,6 +53,12 @@ public interface CompraRepository extends JpaRepository<Compra, Long> {
                                                          @Param("nuevoEstado") EstadoCompra nuevoEstado,
                                                          @Param("estados") java.util.List<EstadoCompra> estados);
 
+    long countByClienteIdAndEstado(Long clienteId, EstadoCompra estado);
+
+    @Query("SELECT SUM(c.total) FROM Compra c WHERE c.cliente.id = :clienteId AND c.estado = :estado")
+    java.math.BigDecimal sumarTotalPorClienteYEstado(@Param("clienteId") Long clienteId,
+                                                      @Param("estado") EstadoCompra estado);
+
     // Busca una compra del cliente por su clave de idempotencia.
     Optional<Compra> findByClienteIdAndIdempotencyKey(Long clienteId, String idempotencyKey);
 }

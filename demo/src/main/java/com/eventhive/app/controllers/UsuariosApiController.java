@@ -18,8 +18,9 @@ import com.eventhive.app.dto.PagedResponse;
 import com.eventhive.app.dto.request.ActualizarPerfilRequest;
 import com.eventhive.app.dto.request.EditarClaveRequest;
 import com.eventhive.app.dto.response.OrganizacionPublicaDTO;
+import com.eventhive.app.dto.response.UsuarioActividadDTO;
+import com.eventhive.app.dto.response.UsuarioAdminDTO;
 import com.eventhive.app.dto.response.UsuarioDTO;
-import com.eventhive.app.model.Usuario;
 import com.eventhive.app.service.ServiceSeguidor;
 import com.eventhive.app.service.ServiceUsuario;
 
@@ -37,39 +38,26 @@ public class UsuariosApiController {
     //CONSULTAS
     @GetMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<PagedResponse<UsuarioDTO>>> listar(Pageable pageable) {
-        Page<UsuarioDTO> page = usuarioService.obtenerTodos(pageable)
-                .map(usuarioService::toDTO);
-
-        PagedResponse<UsuarioDTO> response = new PagedResponse<>(
-                page.getContent(),
-                page.getNumber(),
-                page.getSize(),
-                page.getTotalElements(),
-                page.getTotalPages()
-        );
-
-        return ResponseEntity.ok(ApiResponse.ok("Usuarios obtenidos", response));
+    public ResponseEntity<ApiResponse<PagedResponse<UsuarioAdminDTO>>> listar(Pageable pageable) {
+        Page<UsuarioAdminDTO> page = usuarioService.obtenerTodosAdmin(pageable);
+        return ResponseEntity.ok(ApiResponse.ok("Usuarios obtenidos", usuarioService.toPagedAdmin(page)));
     }
 
     @GetMapping("/buscar")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<PagedResponse<UsuarioDTO>>> filtrarUsuarios(
+    public ResponseEntity<ApiResponse<PagedResponse<UsuarioAdminDTO>>> filtrarUsuarios(
             @RequestParam(required = false) String nombre,
             @RequestParam(required = false) Long rolId,
             Pageable pageable) {
 
-        Page<UsuarioDTO> page = usuarioService.buscarPorFiltros(nombre, rolId, pageable)
-                .map(usuarioService::toDTO);
-
-        return ResponseEntity.ok(ApiResponse.ok("Resultados de búsqueda", usuarioService.toPaged(page)));
+        Page<UsuarioAdminDTO> page = usuarioService.buscarAdminPorFiltros(nombre, rolId, pageable);
+        return ResponseEntity.ok(ApiResponse.ok("Resultados de búsqueda", usuarioService.toPagedAdmin(page)));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<UsuarioDTO>> obtenerPorId(@PathVariable Long id) {
-        Usuario usuario = usuarioService.obtenerUsuarioPorId(id);
-        return ResponseEntity.ok(ApiResponse.ok("Usuario obtenido", usuarioService.toDTO(usuario)));
+    public ResponseEntity<ApiResponse<UsuarioAdminDTO>> obtenerPorId(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok("Usuario obtenido", usuarioService.obtenerAdminPorId(id)));
     }
 
     @GetMapping("/misOrganizaciones-seguidas")
@@ -96,6 +84,13 @@ public class UsuariosApiController {
     public ResponseEntity<ApiResponse<UsuarioDTO>> perfil() {
         return ResponseEntity.ok(ApiResponse.ok("Perfil obtenido",
                 usuarioService.obtenerPerfil()));
+    }
+
+    // Actividad como comprador (entradas, eventos, favoritos, gasto): disponible para todos los roles
+    @GetMapping("/perfil/actividad")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<UsuarioActividadDTO>> miActividad() {
+        return ResponseEntity.ok(ApiResponse.ok("Actividad obtenida", usuarioService.obtenerMiActividad()));
     }
 
     @PutMapping("/perfil")

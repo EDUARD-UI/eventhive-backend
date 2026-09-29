@@ -13,6 +13,7 @@ public class NotificationDTO {
     private String titulo;
     private String mensaje;
     private TipoNotification tipoNotificacion;
+    private Long organizacionId;
     private Long eventoId;
     private String nombreEvento;
     private Boolean leida;

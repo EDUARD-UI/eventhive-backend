@@ -267,11 +267,23 @@ Las métricas iniciales serán:
 El frontend debe mostrar estas métricas en un panel de organización,
 separado del perfil público.
 
+El registro de organizaciones es progresivo: la cuenta del Representante
+y el pre-registro pueden crearse antes de cargar el RUT. La carga del
+RUT envía la solicitud a verificación administrativa; hasta su
+aprobación la organización no queda habilitada para publicar. Si se
+solicitan correcciones, el Representante actualiza y reenvía la
+solicitud. El Moderador no revisa organizaciones.
+
 ------------------------------------------------------------------------
 
 ## 11. Flujo de eventos --- EN DESARROLLO / VALIDAR
 
-El flujo recomendado es:
+El sistema de reglas evalúa cada solicitud de publicación. Solo los
+eventos que requieren criterio humano se envían a la bandeja del
+Moderador; los demás siguen el resultado automático que corresponda,
+incluida la publicación directa cuando esté habilitada.
+
+El flujo de los eventos derivados a revisión humana es:
 
 ``` text
 BORRADOR
@@ -282,7 +294,8 @@ PENDIENTE_REVISION
    └── RECHAZADO
 ```
 
-Para organizaciones de nivel 3 puede habilitarse:
+Cuando las reglas automáticas habiliten la publicación directa, puede
+seguirse este flujo:
 
 ``` text
 BORRADOR
@@ -293,7 +306,10 @@ PUBLICADO
 ```
 
 La publicación automática no elimina la posibilidad de suspensión
-administrativa posterior.
+administrativa posterior. La aprobación, corrección o rechazo de la
+bandeja ordinaria de eventos corresponde al Moderador; el Administrador
+puede suspender o retirar eventos por motivos administrativos, pero no
+reemplaza esa revisión.
 
 El frontend debe utilizar el estado recibido por el backend para decidir
 qué acciones mostrar.

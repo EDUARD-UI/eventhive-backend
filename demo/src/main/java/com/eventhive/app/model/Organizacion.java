@@ -63,7 +63,7 @@ public class Organizacion {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "estado", nullable = false, length = 30)
-    private EstadoOrganizacion estado = EstadoOrganizacion.PRE_REGISTRO;
+    private EstadoOrganizacion estado = EstadoOrganizacion.PENDIENTE_REVISION;
 
     @Column(name = "eventos_finalizados", nullable = false)
     private Integer eventosFinalizados = 0;
@@ -75,6 +75,6 @@ public class Organizacion {
     private void prePersist() {
         if (fechaCreacion == null) fechaCreacion = LocalDateTime.now();
         if (nivel == null) nivel = NivelOrganizador.NIVEL_1;
-        if (estado == null) estado = EstadoOrganizacion.PRE_REGISTRO;
+        if (estado == null) estado = EstadoOrganizacion.PENDIENTE_REVISION;
     }
 }

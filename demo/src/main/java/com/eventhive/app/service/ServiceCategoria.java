@@ -104,12 +104,16 @@ public class ServiceCategoria {
 
         existente.setNombre(nombreNormalizado);
 
+        String fotoAnterior = null;
         if (foto != null && !foto.isEmpty()) {
-            eliminarFotoAnterior(existente.getFoto());
+            fotoAnterior = existente.getFoto();
             existente.setFoto(storageService.subirImagenCategoria(foto));
         }
 
         categoriaRepository.save(existente);
+
+        // Si la subida fallara arriba, la imagen anterior sigue intacta
+        eliminarFotoAnterior(fotoAnterior);
     }
 
     @Transactional
@@ -136,7 +140,7 @@ public class ServiceCategoria {
         CategoriaDTO dto = new CategoriaDTO();
         dto.setId((Long) row[0]);
         dto.setNombre((String) row[1]);
-        dto.setUrlFoto((String) row[2]);
+        dto.setImagenUrl((String) row[2]);
         dto.setTotalEventos(row[3] != null ? ((Number) row[3]).longValue() : 0L);
         return dto;
     }

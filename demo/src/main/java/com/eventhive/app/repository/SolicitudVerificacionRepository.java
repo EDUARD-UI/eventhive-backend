@@ -45,6 +45,9 @@ public interface SolicitudVerificacionRepository extends JpaRepository<Solicitud
     Optional<SolicitudVerificacion> findByIdConDetalles(@Param("id") Long id);
 
 
+    // Cuenta solicitudes en un estado (agregado en BD)
+    long countByEstado(EstadoSolicitud estado);
+
     // Verifica si un representante tiene una solicitud en un estado determinado.
     @Query("""
         SELECT COUNT(s) > 0 FROM SolicitudVerificacion s

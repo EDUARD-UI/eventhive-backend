@@ -265,9 +265,9 @@ public class ServiceEvento {
         Organizacion organizacion = evento.getOrganizacion();
         verificarLimiteDeNivel(organizacion);
 
-        if (organizacion.getEstado() != EstadoOrganizacion.VERIFICADA) {
+        if (organizacion.getEstado() != EstadoOrganizacion.APROBADA) {
             throw new BusinessException(
-                    "Debes verificar el RUT de tu organización antes de publicar un evento");
+                    "Tu organización debe estar aprobada (RUT verificado) antes de publicar un evento");
         }
 
         transicionarEstado(evento, EstadoEvento.PENDIENTE_REVISION);

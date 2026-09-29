@@ -11,6 +11,9 @@ import com.eventhive.app.model.ListaDeseo;
 
 public interface ListaDeseoRepository extends JpaRepository<ListaDeseo, Long> {
 
+    // Cantidad de eventos favoritos de un usuario.
+    long countByUsuarioId(Long usuarioId);
+
     // Verifica si un usuario guardó un evento en su lista de deseos.
     boolean existsByUsuarioIdAndEventoId(Long usuarioId, Long eventoId);
 

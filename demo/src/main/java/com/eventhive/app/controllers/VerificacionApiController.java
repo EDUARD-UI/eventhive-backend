@@ -46,7 +46,7 @@ public class VerificacionApiController {
     }
 
     //OPERACIONES DE SOLICITUDES
-    // Registro público: cuenta + organización en PRE_REGISTRO
+    // Registro público: cuenta + organización en PENDIENTE_REVISION
     @PostMapping(value = "/registro-organizador", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<Void>> registrarOrganizador(
             @RequestBody @Valid SolicitudVerificacionRequest request) {

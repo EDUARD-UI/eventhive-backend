@@ -3,7 +3,9 @@ package com.eventhive.app.service;
 import com.eventhive.app.dto.response.NotificationDTO;
 import com.eventhive.app.enums.TipoNotification;
 import com.eventhive.app.exception.ResourceNotFoundException;
+import com.eventhive.app.enums.NivelOrganizador;
 import com.eventhive.app.model.Compra;
+import com.eventhive.app.model.Organizacion;
 import com.eventhive.app.model.Evento;
 import com.eventhive.app.model.Notification;
 import com.eventhive.app.model.Tiquete;
@@ -193,6 +195,32 @@ public class ServiceNotification {
                 representante.getCorreo(), representante.getNombreCompleto(), aprobada, motivo);
     }
 
+    // NOTIFICACIONES PARA ADMINISTRADORES (campana del dashboard)
+
+    // Una organización subió/reenvió su RUT y espera validación
+    public void notificarAdminsSolicitudRutPendiente(Organizacion organizacion) {
+        notificarAdministradores(organizacion.getId(), TipoNotification.SOLICITUD_RUT_PENDIENTE,
+                "RUT pendiente de validación",
+                "La organización \"" + organizacion.getRazonSocial() + "\" envió su RUT para validación.");
+    }
+
+    // El sistema detectó que una organización cumple los requisitos para subir de nivel
+    public void notificarAdminsSugerenciaAscenso(Organizacion organizacion, NivelOrganizador nivelSugerido) {
+        notificarAdministradores(organizacion.getId(), TipoNotification.SUGERENCIA_ASCENSO_PENDIENTE,
+                "Sugerencia de ascenso",
+                "La organización \"" + organizacion.getRazonSocial() + "\" cumple los requisitos para pasar a "
+                        + nivelSugerido + ".");
+    }
+
+    private void notificarAdministradores(Long organizacionId, TipoNotification tipo, String titulo, String mensaje) {
+        List<Notification> notificaciones = usuarioRepository.findAllByRolNombre("ADMINISTRADOR").stream()
+                .map(admin -> crearNotificacion(admin.getId(), organizacionId, null, null, tipo, titulo, mensaje))
+                .toList();
+        if (!notificaciones.isEmpty()) {
+            notificationRepository.saveAll(notificaciones);
+        }
+    }
+
     // OPERACIONES DE NOTIFICACIONES
     public List<NotificationDTO> obtenerMisNotificaciones() {
         Usuario usuario = authHelper.usuarioAutenticado();
@@ -263,6 +291,7 @@ public class ServiceNotification {
         dto.setTitulo(n.getTitulo());
         dto.setMensaje(n.getMensaje());
         dto.setTipoNotificacion(n.getTipoNotificacion());
+        dto.setOrganizacionId(n.getOrganizacionId());
         dto.setEventoId(n.getEventoId());
         dto.setNombreEvento(n.getNombreEvento());
         dto.setLeida(n.getLeida());

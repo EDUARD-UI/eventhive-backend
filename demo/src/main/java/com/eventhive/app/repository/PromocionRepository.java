@@ -45,7 +45,7 @@ public interface PromocionRepository extends JpaRepository<Promocion, Long> {
             @Param("fin") LocalDate fin,
             @Param("excludeId") Long excludeId);
 
-    @Query(value = "SELECT p FROM Promocion p JOIN FETCH p.evento e",
+    @Query(value = "SELECT p FROM Promocion p JOIN FETCH p.evento e ORDER BY p.fechaInicio DESC, p.id DESC",
            countQuery = "SELECT COUNT(p) FROM Promocion p")
     Page<Promocion> findAllConEvento(Pageable pageable);
 

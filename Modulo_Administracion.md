@@ -5,17 +5,23 @@
 El Administrador supervisa el funcionamiento general de EventHive y
 gestiona aspectos administrativos de la plataforma.
 
-El Administrador **no reemplaza al Moderador en la revisión ordinaria de
-organizaciones y eventos**. Puede intervenir administrativamente cuando
-exista una razón justificada, por ejemplo, suspender una organización o
-retirar/suspender un evento publicado.
+El Administrador revisa las solicitudes de verificación de
+organizaciones cuando el Representante carga su RUT. No revisa ni aprueba
+ordinariamente eventos; esa revisión humana corresponde al Moderador
+solo para los eventos que el sistema de reglas deriva a su bandeja.
+
+También puede intervenir administrativamente cuando exista una razón
+justificada, por ejemplo, suspender una organización o retirar/suspender
+un evento publicado.
 
 ## 2. Roles del sistema
 
 EventHive utiliza estos roles:
 
--   **ADMINISTRADOR:** gestión global de la plataforma.
--   **MODERADOR:** revisión y moderación de organizaciones y eventos.
+-   **ADMINISTRADOR:** gestión global de la plataforma y revisión de
+    solicitudes de verificación de organizaciones tras la carga del RUT.
+-   **MODERADOR:** revisión humana únicamente de los eventos que el
+    sistema de reglas deriva a moderación.
 -   **REPRESENTANTE:** usuario responsable de una organización; gestiona
     sus eventos y la información de su organización según los permisos
     definidos.
@@ -37,14 +43,17 @@ El Administrador puede:
 -   Administrar promociones globales.
 -   Consultar estadísticas generales.
 -   Consultar y gestionar organizaciones.
+-   Aprobar, rechazar o solicitar correcciones en solicitudes de
+    verificación de organizaciones que ya tienen el RUT cargado.
 -   Suspender organizaciones cuando corresponda.
 -   Suspender o retirar eventos por motivos administrativos.
 -   Consultar reportes y métricas.
 -   Consultar el historial administrativo y de moderación.
 
-El Administrador **no debe aprobar normalmente solicitudes de
-organizaciones ni eventos**, porque esa responsabilidad pertenece al
-flujo de Moderación.
+El Administrador no aprueba ni modera eventos dentro del flujo ordinario.
+La verificación de organizaciones es una responsabilidad administrativa
+específica y se inicia cuando se envía el RUT; no equivale a administrar
+el resto de los datos comerciales de la organización.
 
 ## 4. Dashboard administrativo
 
@@ -52,7 +61,7 @@ El dashboard debe mostrar indicadores agregados de la plataforma:
 
 -   Total de usuarios.
 -   Total de organizaciones.
--   Organizaciones pendientes de revisión.
+-   Solicitudes de verificación pendientes (RUT enviado).
 -   Organizaciones aprobadas.
 -   Organizaciones suspendidas.
 -   Eventos pendientes de revisión.
@@ -89,7 +98,9 @@ Acciones administrativas:
 -   Reactivar organización cuando corresponda.
 
 La aprobación inicial, solicitud de correcciones y rechazo de la
-solicitud pertenecen al Módulo de Moderación.
+verificación pertenecen al Administrador y solo aplican después de que
+el Representante haya enviado el RUT. El registro inicial puede quedar
+como pre-registro sin documento y no entra todavía a la cola de revisión.
 
 La información administrativa sensible, como el RUT, no debe aparecer en
 el perfil público. El documento debe mantenerse en almacenamiento
@@ -150,8 +161,10 @@ El Administrador puede consultar estadísticas como:
 -   Tiempo promedio de revisión.
 -   Carga por moderador.
 
-El endpoint de estadísticas de moderación debe estar separado del
-endpoint de la bandeja de trabajo.
+Las estadísticas de moderación de eventos deben estar separadas de la
+bandeja del Moderador. La consulta de verificaciones de organizaciones
+pertenece al flujo administrativo y no debe contarse como carga de
+moderación de eventos.
 
 ## 10. Métricas comerciales
 
@@ -189,7 +202,10 @@ Las respuestas de error deben tratarse mediante códigos HTTP:
 
 ## 12. Reglas de consistencia
 
--   La moderación de contenido corresponde al Moderador.
+-   La revisión del RUT y la verificación inicial de organizaciones
+    corresponden al Administrador.
+-   La moderación humana de eventos corresponde al Moderador únicamente
+    cuando las reglas del sistema derivan el evento a revisión.
 -   La administración global corresponde al Administrador.
 -   Una Organización no es un rol.
 -   Representante y Operador son usuarios asociados a una Organización.

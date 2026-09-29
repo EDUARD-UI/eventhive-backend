@@ -21,6 +21,9 @@ public enum TipoNotification {
     // Moderación de organización
     SOLICITUD_ORGANIZACION_APROBADA,
     SOLICITUD_ORGANIZACION_RECHAZADA,
+    // Avisos dirigidos al ADMINISTRADOR (campana del dashboard)
+    SOLICITUD_RUT_PENDIENTE,
+    SUGERENCIA_ASCENSO_PENDIENTE,
 
     // Compras
     COMPRA_CONFIRMADA,

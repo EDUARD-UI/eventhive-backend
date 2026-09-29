@@ -1,5 +1,6 @@
 package com.eventhive.app.dto.response;
 
+import com.eventhive.app.enums.EstadoPromocion;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -13,6 +14,9 @@ public class PromocionDTO {
     private BigDecimal descuento;
     private LocalDate fechaInicio;
     private LocalDate fechaFinal;
+    private EstadoPromocion estado;
     private Long eventoId;
     private String eventoTitulo;
+    // Mismo valor que eventoTitulo; nombre alineado con el panel de administración
+    private String eventoNombre;
 }

@@ -1,5 +1,8 @@
 package com.eventhive.app.service;
 
+import java.math.BigDecimal;
+import java.util.Objects;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -9,13 +12,20 @@ import org.springframework.transaction.annotation.Transactional;
 import com.eventhive.app.dto.PagedResponse;
 import com.eventhive.app.dto.request.ActualizarPerfilRequest;
 import com.eventhive.app.dto.response.OrganizacionPublicaDTO;
+import com.eventhive.app.dto.response.UsuarioActividadDTO;
+import com.eventhive.app.dto.response.UsuarioAdminDTO;
 import com.eventhive.app.dto.response.UsuarioDTO;
 import com.eventhive.app.dto.response.UsuarioSesionDTO;
+import com.eventhive.app.enums.EstadoCompra;
+import com.eventhive.app.enums.EstadoOrganizacion;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Organizacion;
 import com.eventhive.app.model.Rol;
 import com.eventhive.app.model.Usuario;
+import com.eventhive.app.repository.CompraRepository;
+import com.eventhive.app.repository.ItemCompraRepository;
+import com.eventhive.app.repository.ListaDeseoRepository;
 import com.eventhive.app.repository.OrganizacionRepository;
 import com.eventhive.app.repository.RolesRepository;
 import com.eventhive.app.repository.UsuarioRepository;
@@ -33,6 +43,9 @@ public class ServiceUsuario {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticatedUserHelper authHelper;
     private final ServiceNotification serviceNotification;
+    private final CompraRepository compraRepository;
+    private final ItemCompraRepository itemCompraRepository;
+    private final ListaDeseoRepository listaDeseoRepository;
 
     //CONSULTAS Y FILTROS
     @Transactional(readOnly = true)
@@ -41,24 +54,53 @@ public class ServiceUsuario {
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con id: " + id));
     }
 
+    @Transactional(readOnly = true)
     public Page<UsuarioDTO> obtenerModeradoresDTO(Pageable pageable) {
-        return usuarioRepository.findByRolNombre("MODERADOR", pageable).map(this::toDTO);
+        return usuarioRepository.findByRolNombreConRol("MODERADOR", pageable).map(this::toDTO);
+    }
+
+    // Listados para el panel administrativo (rol + organización cargados con JOIN FETCH)
+    @Transactional(readOnly = true)
+    public Page<UsuarioAdminDTO> obtenerTodosAdmin(Pageable pageable) {
+        return usuarioRepository.findAllConRol(pageable).map(this::toAdminDTO);
     }
 
     @Transactional(readOnly = true)
-    public Page<OrganizacionPublicaDTO> obtenerOrganizaciones(Pageable pageable) {
-        return organizacionRepository.findAllConRepresentante(pageable).map(this::toOrganizacionPublicaDTO);
+    public Page<UsuarioAdminDTO> buscarAdminPorFiltros(String nombre, Long rolId, Pageable pageable) {
+        return buscarPorFiltros(nombre, rolId, pageable).map(this::toAdminDTO);
     }
 
     @Transactional(readOnly = true)
-    public Page<OrganizacionPublicaDTO> buscarOrganizacionesPorRazonSocial(String razonSocial, Pageable pageable) {
-        return organizacionRepository.findByRazonSocial(razonSocial.trim(), pageable)
-                .map(this::toOrganizacionPublicaDTO);
+    public UsuarioAdminDTO obtenerAdminPorId(Long id) {
+        return toAdminDTO(obtenerUsuarioPorId(id));
+    }
+
+    // estado == null -> sin filtro (comportamiento previo)
+    @Transactional(readOnly = true)
+    public Page<OrganizacionPublicaDTO> obtenerOrganizaciones(EstadoOrganizacion estado, Pageable pageable) {
+        Page<Organizacion> page = estado == null
+                ? organizacionRepository.findAllConRepresentante(pageable)
+                : organizacionRepository.findByEstadoConRepresentante(estado, pageable);
+        return page.map(this::toOrganizacionPublicaDTO);
     }
 
     @Transactional(readOnly = true)
-    public Page<OrganizacionPublicaDTO> obtenerTopOrganizaciones(Pageable pageable) {
-        return organizacionRepository.findTopOrganizaciones(pageable).map(this::toOrganizacionPublicaDTO);
+    public Page<OrganizacionPublicaDTO> buscarOrganizacionesPorRazonSocial(String razonSocial,
+                                                                            EstadoOrganizacion estado,
+                                                                            Pageable pageable) {
+        String texto = razonSocial.trim();
+        Page<Organizacion> page = estado == null
+                ? organizacionRepository.findByRazonSocial(texto, pageable)
+                : organizacionRepository.findByRazonSocialAndEstado(texto, estado, pageable);
+        return page.map(this::toOrganizacionPublicaDTO);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<OrganizacionPublicaDTO> obtenerTopOrganizaciones(EstadoOrganizacion estado, Pageable pageable) {
+        Page<Organizacion> page = estado == null
+                ? organizacionRepository.findTopOrganizaciones(pageable)
+                : organizacionRepository.findTopByEstado(estado, pageable);
+        return page.map(this::toOrganizacionPublicaDTO);
     }
 
     @Transactional(readOnly = true)
@@ -69,6 +111,20 @@ public class ServiceUsuario {
     @Transactional(readOnly = true)
     public UsuarioDTO obtenerPerfil() {
         return toDTO(authHelper.usuarioAutenticado());
+    }
+
+    // Resumen de la actividad como comprador del usuario autenticado (sin restricción por rol)
+    @Transactional(readOnly = true)
+    public UsuarioActividadDTO obtenerMiActividad() {
+        Long usuarioId = authHelper.usuarioAutenticado().getId();
+        return new UsuarioActividadDTO(
+                compraRepository.countByClienteIdAndEstado(usuarioId, EstadoCompra.CONFIRMADA),
+                Objects.requireNonNullElse(itemCompraRepository.contarEntradasCompradas(usuarioId), 0L),
+                itemCompraRepository.contarEventosComprados(usuarioId),
+                listaDeseoRepository.countByUsuarioId(usuarioId),
+                Objects.requireNonNullElse(
+                        compraRepository.sumarTotalPorClienteYEstado(usuarioId, EstadoCompra.CONFIRMADA),
+                        BigDecimal.ZERO));
     }
 
     @Transactional(readOnly = true)
@@ -95,7 +151,7 @@ public class ServiceUsuario {
         if (tieneRol) {
             return usuarioRepository.findByRolId(rolId, pageable);
         }
-        return usuarioRepository.findAll(pageable);
+        return usuarioRepository.findAllConRol(pageable);
     }
 
     //OPERACIONES CRUD
@@ -183,6 +239,19 @@ public class ServiceUsuario {
         return dto;
     }
 
+    public UsuarioAdminDTO toAdminDTO(Usuario u) {
+        UsuarioAdminDTO dto = new UsuarioAdminDTO();
+        dto.setId(u.getId());
+        dto.setNombre(u.getNombreCompleto());
+        dto.setTelefono(u.getTelefono());
+        dto.setRolNombre(u.getRol() != null ? u.getRol().getNombre() : null);
+        if (u.getOrganizacion() != null) {
+            dto.setOrganizacion(new UsuarioAdminDTO.OrganizacionResumenDTO(
+                    u.getOrganizacion().getId(), u.getOrganizacion().getRazonSocial()));
+        }
+        return dto;
+    }
+
     private UsuarioSesionDTO toSesionDTO(Usuario u) {
         UsuarioSesionDTO dto = new UsuarioSesionDTO();
         dto.setId(u.getId());
@@ -194,6 +263,11 @@ public class ServiceUsuario {
     }
 
     public PagedResponse<UsuarioDTO> toPaged(Page<UsuarioDTO> page) {
+        return new PagedResponse<>(page.getContent(), page.getNumber(), page.getSize(),
+                page.getTotalElements(), page.getTotalPages());
+    }
+
+    public PagedResponse<UsuarioAdminDTO> toPagedAdmin(Page<UsuarioAdminDTO> page) {
         return new PagedResponse<>(page.getContent(), page.getNumber(), page.getSize(),
                 page.getTotalElements(), page.getTotalPages());
     }
@@ -214,6 +288,7 @@ public class ServiceUsuario {
         dto.setTotalSeguidores(o.getTotalSeguidores());
         dto.setTotalEventosCreados(o.getTotalEventosCreados());
         dto.setNivel(o.getNivel());
+        dto.setEstado(o.getEstado());
         return dto;
     }
 }

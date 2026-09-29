@@ -15,6 +15,7 @@ public interface ModeracionEventoRepository extends JpaRepository<ModeracionEven
     @Query(value = """
     SELECT m FROM ModeracionEvento m
     LEFT JOIN FETCH m.moderador
+    JOIN FETCH m.evento
     WHERE m.evento.id = :eventoId
     ORDER BY m.fecha DESC
     """,
