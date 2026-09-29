@@ -37,6 +37,19 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     @Query("SELECT u FROM Usuario u JOIN FETCH u.rol WHERE u.correo = :correo")
     Optional<Usuario> findByCorreoConRol(@Param("correo") String correo);
 
+    // Usuario autenticado listo para la logica de negocio: rol, organizacion (con su
+    // representante) y permisos de evento ya inicializados, para poder usarlo fuera de
+    // una sesion de Hibernate sin LazyInitializationException.
+    @Query("""
+        SELECT u FROM Usuario u
+        JOIN FETCH u.rol
+        LEFT JOIN FETCH u.organizacion o
+        LEFT JOIN FETCH o.representante
+        LEFT JOIN FETCH u.permisosEvento
+        WHERE u.correo = :correo
+        """)
+    Optional<Usuario> findByCorreoConContexto(@Param("correo") String correo);
+
     // Busca usuarios por rol
     @Query(value = "SELECT u FROM Usuario u JOIN FETCH u.rol r WHERE r.id = :rolId",
            countQuery = "SELECT COUNT(u) FROM Usuario u WHERE u.rol.id = :rolId")

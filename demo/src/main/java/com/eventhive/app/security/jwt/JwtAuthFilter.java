@@ -1,6 +1,7 @@
 package com.eventhive.app.security.jwt;
 
 import com.eventhive.app.security.users.CustomUserDetailsService;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -8,6 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -45,18 +47,35 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
                     SecurityContextHolder.getContext().setAuthentication(auth);
                 }
-            } catch (Exception ex) {
-                // Token roto, vencido, de un usuario borrado/inactivo, con rol
-                // nulo, etc. NUNCA debe tumbar la petición: se limpia el
-                // contexto y se continúa como anónimo. Que la ruta sea
-                // pública o requiera sesión lo decide únicamente
-                // authorizeHttpRequests() en SecurityConfig, no este filtro.
-                log.debug("Token Bearer inválido, se ignora y se continúa como anónimo: {}", ex.getMessage());
+            } catch (JwtException | IllegalArgumentException | AuthenticationException ex) {
+                // Problema del TOKEN: roto, vencido, firma invalida, usuario borrado
+                // o inactivo. Se continua como anonimo; que la ruta sea publica o
+                // requiera sesion lo decide unicamente authorizeHttpRequests().
+                log.debug("Token Bearer invalido, se continua como anonimo: {}", ex.getMessage());
                 SecurityContextHolder.clearContext();
+            } catch (Exception ex) {
+                // Fallo del SERVIDOR (BD caida, LazyInitializationException, bug...).
+                // No es culpa del token: convertirlo en 401 hace que el frontend cierre
+                // la sesion de usuarios validos y oculta el error real. Se registra con
+                // stack trace y se responde 500.
+                log.error("Error inesperado al autenticar {} {}", request.getMethod(),
+                        request.getRequestURI(), ex);
+                SecurityContextHolder.clearContext();
+                responderErrorInterno(response);
+                return;
             }
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    // Se escribe la respuesta directamente: sendError() provocaria un dispatch a /error,
+    // que Spring Security volveria a proteger y terminaria devolviendo 401.
+    private void responderErrorInterno(HttpServletResponse response) throws IOException {
+        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        response.getWriter().write("{\"success\":false,\"mensaje\":\"Error interno al validar la sesión\"}");
     }
 
     private String extraerToken(HttpServletRequest request) {
