@@ -26,7 +26,10 @@ public interface LocalidadRepository extends JpaRepository<Localidad, Long> {
     @Query("UPDATE Localidad l SET l.disponibles = l.disponibles + :cantidad WHERE l.id = :id")
     void incrementarDisponibles(@Param("id") Long id, @Param("cantidad") int cantidad);
 
-    // Busca una localidad con su evento asociado cargado
-    @Query("SELECT l FROM Localidad l JOIN FETCH l.evento WHERE l.id = :id")
+    // Busca todas las localidades de una lista de eventos
+    List<Localidad> findByEventoIdIn(List<Long> eventoIds);
+
+    // Busca una localidad con su evento y organización cargados
+    @Query("SELECT l FROM Localidad l JOIN FETCH l.evento e JOIN FETCH e.organizacion WHERE l.id = :id")
     java.util.Optional<com.eventhive.app.model.Localidad> findByIdConEvento(@Param("id") Long id);
 }

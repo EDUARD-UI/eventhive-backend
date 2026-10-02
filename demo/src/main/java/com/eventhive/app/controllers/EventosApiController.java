@@ -1,11 +1,9 @@
 package com.eventhive.app.controllers;
 
-import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -111,16 +109,17 @@ public class EventosApiController {
 
     @GetMapping("/buscar")
     public ResponseEntity<ApiResponse<PagedResponse<EventoBusquedaDTO>>> buscar(
-            @RequestParam(required = false) String titulo,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
+            @RequestParam(name = "nombre", required = false) String nombre,
+            @RequestParam(name = "titulo", required = false) String titulo,
             Pageable pageable) {
 
-        if ((titulo == null || titulo.isBlank()) && fecha == null) {
+        String termino = (nombre != null && !nombre.isBlank()) ? nombre : titulo;
+        if (termino == null || termino.isBlank()) {
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Debe indicar al menos 'titulo' o 'fecha'"));
+                    .body(ApiResponse.error("El parámetro 'nombre' es requerido"));
         }
 
-        var page = serviceEvento.buscarEventos(titulo, fecha, pageable);
+        var page = serviceEvento.buscarEventos(termino, pageable);
         return ResponseEntity.ok(ApiResponse.ok("Resultados de búsqueda",
                 new PagedResponse<>(page.getContent(), page.getNumber(),
                         page.getSize(), page.getTotalElements(), page.getTotalPages())));

@@ -34,6 +34,12 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
   // Cuenta los eventos de una organización.
     long countByOrganizacionId(Long organizacionId);
 
+  // Cuenta los eventos de una organización por estado.
+    long countByOrganizacionIdAndEstado(Long organizacionId, EstadoEvento estado);
+
+  // Lista eventos de una organización paginados ordenados por ID desc.
+    Page<Evento> findByOrganizacionIdOrderByIdDesc(Long organizacionId, Pageable pageable);
+
   // Lista eventos publicados con categoría y organización cargadas.
   @Query(value = """
         SELECT e FROM Evento e

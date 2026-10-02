@@ -30,6 +30,7 @@ import com.eventhive.app.dto.response.EventoCategoriaDTO;
 import com.eventhive.app.dto.response.EventoDTO;
 import com.eventhive.app.dto.response.EventoMapaDTO;
 import com.eventhive.app.dto.response.EventoOrganizacionDTO;
+import com.eventhive.app.dto.response.EventosResumenOrganizacionDTO;
 import com.eventhive.app.dto.response.LocalidadDTO;
 import com.eventhive.app.enums.EstadoEvento;
 import com.eventhive.app.enums.EstadoOrganizacion;
@@ -141,7 +142,42 @@ public class ServiceEvento {
 
     @Transactional(readOnly = true)
     public Page<Evento> listarPorOrganizacion(Long organizacionId, Pageable pageable) {
-        return eventoRepository.findByOrganizacionIdConReferencias(organizacionId, pageable);
+        return listarPorOrganizacion(organizacionId, null, null, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Evento> listarPorOrganizacion(Long organizacionId, Long categoriaId, EstadoEvento estado, Pageable pageable) {
+        Specification<Evento> spec = (root, query, cb) -> {
+            if (Long.class != query.getResultType() && long.class != query.getResultType()) {
+                root.fetch("categoria", JoinType.INNER);
+                root.fetch("organizacion", JoinType.INNER);
+            }
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("organizacion").get("id"), organizacionId));
+            if (categoriaId != null) {
+                predicates.add(cb.equal(root.get("categoria").get("id"), categoriaId));
+            }
+            if (estado != null) {
+                predicates.add(cb.equal(root.get("estado"), estado));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+        return eventoRepository.findAll(spec, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public EventosResumenOrganizacionDTO obtenerResumenEventosOrganizacion(Long organizacionId) {
+        long activos = eventoRepository.countActivosByOrganizacionId(organizacionId);
+        long borrador = eventoRepository.countByOrganizacionIdAndEstado(organizacionId, EstadoEvento.BORRADOR);
+        long finalizados = eventoRepository.countByOrganizacionIdAndEstado(organizacionId, EstadoEvento.FINALIZADO);
+        long total = eventoRepository.countByOrganizacionId(organizacionId);
+        return new EventosResumenOrganizacionDTO(activos, borrador, finalizados, total);
+    }
+
+    // Búsqueda pública por título
+    @Transactional(readOnly = true)
+    public Page<EventoBusquedaDTO> buscarEventos(String titulo, Pageable pageable) {
+        return buscarEventos(titulo, null, pageable);
     }
 
     // Búsqueda pública por título y/o fecha
@@ -235,7 +271,13 @@ public class ServiceEvento {
         verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
 
         if (evento.getEstado() == EstadoEvento.SUSPENDIDO) {
-            throw new BusinessException("El evento está suspendido por un administrador y no puede modificarse");
+            throw new BusinessException("El evento está suspendido y no puede modificarse");
+        }
+        if (evento.getEstado() == EstadoEvento.FINALIZADO) {
+            throw new BusinessException("Los eventos finalizados no pueden modificarse");
+        }
+        if (evento.getEstado() == EstadoEvento.CANCELADO) {
+            throw new BusinessException("Los eventos cancelados no pueden modificarse");
         }
 
         EstadoEvento estadoAnterior = evento.getEstado();
@@ -250,6 +292,20 @@ public class ServiceEvento {
         Evento guardado = eventoRepository.save(evento);
         notificarCambioSiCorresponde(guardado, estadoAnterior);
         return guardado;
+    }
+
+    @Transactional
+    public void suspenderEvento(Long id) {
+        Evento evento = obtenerEventoAdministrativo(id);
+        verificarPermiso(evento, PermisoEvento.CANCELAR_EVENTO);
+
+        if (evento.getEstado() != EstadoEvento.PUBLICADO) {
+            throw new BusinessException("Solo se pueden suspender eventos en estado PUBLICADO");
+        }
+
+        transicionarEstado(evento, EstadoEvento.SUSPENDIDO);
+        eventoRepository.save(evento);
+        serviceNotification.notificarCambioEvento(evento, TipoNotification.EVENTO_SUSPENDIDO);
     }
 
     @Transactional
@@ -322,6 +378,10 @@ public class ServiceEvento {
     public void eliminarEvento(Long id) {
         Evento evento = obtenerEventoAdministrativo(id);
         verificarPermiso(evento, PermisoEvento.CANCELAR_EVENTO);
+
+        if (evento.getEstado() == EstadoEvento.FINALIZADO) {
+            throw new BusinessException("Los eventos finalizados no pueden eliminarse");
+        }
 
         if (evento.getEstado() != EstadoEvento.BORRADOR) {
             throw new BusinessException("Solo se pueden eliminar físicamente eventos en BORRADOR");

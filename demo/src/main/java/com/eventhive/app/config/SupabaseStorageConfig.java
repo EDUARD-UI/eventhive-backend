@@ -1,8 +1,9 @@
 package com.eventhive.app.config;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
+
+import lombok.RequiredArgsConstructor;
 
 
 @Configuration
@@ -30,5 +31,17 @@ public class SupabaseStorageConfig {
 
     public String getBucketCategorias() {
         return properties.getBucket().getCategorias();
+    }
+
+    public String getBucketBannersHome() {
+        return properties.getBucket().getBannersHome();
+    }
+
+    public String getBucketPerfilOrganizacion() {
+        return properties.getBucket().getPerfilOrganizacion();
+    }
+
+    public String getBucketImagenPerfil() {
+        return properties.getBucket().getImagenPerfil();
     }
 }

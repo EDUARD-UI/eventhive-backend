@@ -46,6 +46,8 @@ public class ServiceUsuario {
     private final CompraRepository compraRepository;
     private final ItemCompraRepository itemCompraRepository;
     private final ListaDeseoRepository listaDeseoRepository;
+    private final SupabaseStorageService storageService;
+    private final com.eventhive.app.config.SupabaseStorageConfig storageConfig;
 
     //CONSULTAS Y FILTROS
     @Transactional(readOnly = true)
@@ -157,9 +159,27 @@ public class ServiceUsuario {
     //OPERACIONES CRUD
     @Transactional
     public UsuarioDTO actualizarPerfil(ActualizarPerfilRequest request) {
+        return actualizarPerfil(request, null);
+    }
+
+    @Transactional
+    public UsuarioDTO actualizarPerfil(ActualizarPerfilRequest request, org.springframework.web.multipart.MultipartFile imagen) {
         Usuario u = authHelper.usuarioAutenticado();
-        u.setNombreCompleto(request.getNombre());
-        u.setTelefono(request.getTelefono());
+        if (request != null) {
+            if (request.getNombre() != null && !request.getNombre().isBlank()) {
+                u.setNombreCompleto(request.getNombre().trim());
+            }
+            if (request.getTelefono() != null) {
+                u.setTelefono(request.getTelefono().trim());
+            }
+        }
+        if (imagen != null && !imagen.isEmpty()) {
+            if (u.getImagenPerfil() != null && !u.getImagenPerfil().isBlank()) {
+                storageService.eliminarImagenDeBucket(storageConfig.getBucketImagenPerfil(), u.getImagenPerfil());
+            }
+            String url = storageService.subirImagenPerfilUsuario(imagen);
+            u.setImagenPerfil(url);
+        }
         return toDTO(usuarioRepository.save(u));
     }
 
@@ -233,6 +253,7 @@ public class ServiceUsuario {
         dto.setNombre(u.getNombreCompleto());
         dto.setCorreo(u.getCorreo());
         dto.setTelefono(u.getTelefono());
+        dto.setImagenPerfil(u.getImagenPerfil());
         if (u.getRol() != null) {
             dto.setRolNombre(u.getRol().getNombre());
         }
@@ -244,6 +265,7 @@ public class ServiceUsuario {
         dto.setId(u.getId());
         dto.setNombre(u.getNombreCompleto());
         dto.setTelefono(u.getTelefono());
+        dto.setImagenPerfil(u.getImagenPerfil());
         dto.setRolNombre(u.getRol() != null ? u.getRol().getNombre() : null);
         if (u.getOrganizacion() != null) {
             dto.setOrganizacion(new UsuarioAdminDTO.OrganizacionResumenDTO(
@@ -258,6 +280,7 @@ public class ServiceUsuario {
         dto.setNombre(u.getNombreCompleto());
         dto.setCorreo(u.getCorreo());
         dto.setTelefono(u.getTelefono());
+        dto.setImagenPerfil(u.getImagenPerfil());
         dto.setRolNombre(u.getRol() != null ? u.getRol().getNombre() : "");
         return dto;
     }
@@ -282,6 +305,8 @@ public class ServiceUsuario {
         dto.setId(o.getId());
         dto.setRazonSocial(o.getRazonSocial());
         dto.setRepresentante(o.getRepresentante() != null ? o.getRepresentante().getNombreCompleto() : null);
+        dto.setDescripcion(o.getDescripcion());
+        dto.setUrlLogo(o.getUrlLogo());
         dto.setFechaCreacion(o.getFechaCreacion());
         dto.setPromedioRating(o.getPromedioRating());
         dto.setTotalValoraciones(o.getTotalValoraciones());

@@ -61,6 +61,9 @@ public class Usuario {
     @Column(length = 20)
     private String telefono;
 
+    @Column(name = "imagen_perfil", length = 500)
+    private String imagenPerfil;
+
     @Column(nullable = false)
     private String clave;
 

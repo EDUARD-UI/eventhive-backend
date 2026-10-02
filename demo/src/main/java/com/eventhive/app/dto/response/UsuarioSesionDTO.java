@@ -13,4 +13,9 @@ public class UsuarioSesionDTO {
     private String correo;
     private String telefono;
     private String rolNombre;
+    private String imagenPerfil;
+
+    public String getUrlImagenPerfil() {
+        return imagenPerfil;
+    }
 }

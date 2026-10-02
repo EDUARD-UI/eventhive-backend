@@ -19,7 +19,17 @@ public class OrganizacionDTO {
     private String razonSocial;
     private String nit;
     private String correoContacto;
+    private String descripcion;
+    private String urlLogo;
     private LocalDateTime fechaCreacion;
+
+    public String getImagenPerfil() {
+        return urlLogo;
+    }
+
+    public Double getReputacion() {
+        return promedioRating;
+    }
 
     // Estadísticas
     private Double promedioRating;

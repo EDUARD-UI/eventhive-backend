@@ -14,7 +14,17 @@ public class OrganizacionPublicaDTO {
     private Long id;
     private String razonSocial;
     private String representante;
+    private String descripcion;
+    private String urlLogo;
     private LocalDateTime fechaCreacion;
+
+    public String getImagenPerfil() {
+        return urlLogo;
+    }
+
+    public Double getReputacion() {
+        return promedioRating;
+    }
     private Double promedioRating;
     private Integer totalValoraciones;
     private Integer totalSeguidores;

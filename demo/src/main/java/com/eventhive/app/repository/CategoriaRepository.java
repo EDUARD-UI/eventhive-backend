@@ -54,6 +54,17 @@ public interface CategoriaRepository extends JpaRepository<Categoria, Long> {
     """)
     List<com.eventhive.app.dto.response.EventosPorCategoriaDTO> contarEventosPorCategoria();
 
+    // Cantidad de eventos por categoría para una organización específica
+    @Query("""
+    SELECT new com.eventhive.app.dto.response.EventosPorCategoriaDTO(c.id, c.nombre, COUNT(e.id))
+    FROM Categoria c
+    JOIN Evento e ON e.categoria.id = c.id
+    WHERE e.organizacion.id = :organizacionId
+    GROUP BY c.id, c.nombre
+    ORDER BY COUNT(e.id) DESC, c.nombre ASC
+    """)
+    List<com.eventhive.app.dto.response.EventosPorCategoriaDTO> contarEventosPorCategoriaYOrganizacion(@org.springframework.data.repository.query.Param("organizacionId") Long organizacionId);
+
     // Devuelve las 4 categorías destacadas con el mayor número total de eventos
     @Query("""
     SELECT c.id, c.nombre, c.foto, COUNT(e.id)

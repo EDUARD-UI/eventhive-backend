@@ -1,22 +1,42 @@
 package com.eventhive.app.service;
 
+import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import com.eventhive.app.config.SupabaseStorageConfig;
+import com.eventhive.app.dto.PagedResponse;
+import com.eventhive.app.dto.request.ActualizarOrganizacionRequest;
 import com.eventhive.app.dto.request.PermisosOperadorRequest;
+import com.eventhive.app.dto.response.EventoEntradasResumenDTO;
+import com.eventhive.app.dto.response.EventosPorCategoriaDTO;
+import com.eventhive.app.dto.response.LocalidadEntradasDTO;
 import com.eventhive.app.dto.response.OperadorDTO;
 import com.eventhive.app.dto.response.OrganizacionDTO;
+import com.eventhive.app.dto.response.OrganizacionEstadisticasDTO;
+import com.eventhive.app.dto.response.PanelEntradasDTO;
 import com.eventhive.app.dto.response.RutUrlDTO;
+import com.eventhive.app.dto.response.VentasOrganizacionResumenDTO;
 import com.eventhive.app.enums.EstadoOrganizacion;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
+import com.eventhive.app.model.Evento;
+import com.eventhive.app.model.Localidad;
 import com.eventhive.app.model.Organizacion;
 import com.eventhive.app.model.Usuario;
+import com.eventhive.app.repository.CategoriaRepository;
 import com.eventhive.app.repository.EventoRepository;
+import com.eventhive.app.repository.ItemCompraRepository;
+import com.eventhive.app.repository.LocalidadRepository;
 import com.eventhive.app.repository.OrganizacionRepository;
 import com.eventhive.app.repository.RolesRepository;
 import com.eventhive.app.repository.SeguidorRepository;
@@ -41,7 +61,11 @@ public class ServiceOrganizacion {
     private final RolesRepository rolesRepository;
     private final AuthenticatedUserHelper authHelper;
     private final SupabaseStorageService storageService;
+    private final SupabaseStorageConfig storageConfig;
     private final ServiceNotification serviceNotification;
+    private final ItemCompraRepository itemCompraRepository;
+    private final LocalidadRepository localidadRepository;
+    private final CategoriaRepository categoriaRepository;
 
     //CONSULTAS
     @Transactional(readOnly = true)
@@ -199,6 +223,151 @@ public class ServiceOrganizacion {
                 .orElseThrow(() -> new ResourceNotFoundException("Organización no encontrada: " + organizacionId));
     }
 
+    private Organizacion organizacionDelUsuario() {
+        Usuario usuario = authHelper.usuarioAutenticado();
+        if (usuario.getOrganizacion() == null) {
+            throw new BusinessException("El usuario no pertenece a ninguna organización");
+        }
+        return usuario.getOrganizacion();
+    }
+
+    @Transactional(readOnly = true)
+    public OrganizacionEstadisticasDTO obtenerEstadisticasMiOrganizacion() {
+        Organizacion org = organizacionDelUsuario();
+        Long orgId = org.getId();
+
+        long eventosActivos = eventoRepository.countActivosByOrganizacionId(orgId);
+        long boletasVendidas = itemCompraRepository.contarBoletasVendidasPorOrganizacion(orgId);
+        long totalEventos = eventoRepository.countByOrganizacionId(orgId);
+
+        return new OrganizacionEstadisticasDTO(eventosActivos, boletasVendidas, totalEventos);
+    }
+
+    @Transactional(readOnly = true)
+    public List<EventosPorCategoriaDTO> obtenerEventosPorCategoriaMiOrganizacion() {
+        Organizacion org = organizacionDelUsuario();
+        return categoriaRepository.contarEventosPorCategoriaYOrganizacion(org.getId());
+    }
+
+    @Transactional(readOnly = true)
+    public VentasOrganizacionResumenDTO obtenerResumenVentas() {
+        Organizacion org = organizacionDelUsuario();
+        Long orgId = org.getId();
+
+        long boletasVendidas = itemCompraRepository.contarBoletasVendidasPorOrganizacion(orgId);
+        BigDecimal totalIngresos = itemCompraRepository.sumarIngresosPorOrganizacion(orgId);
+        if (totalIngresos == null) {
+            totalIngresos = BigDecimal.ZERO;
+        }
+
+        return new VentasOrganizacionResumenDTO(boletasVendidas, totalIngresos);
+    }
+
+    @Transactional(readOnly = true)
+    public PanelEntradasDTO obtenerPanelEntradas(Pageable pageable) {
+        Organizacion org = organizacionDelUsuario();
+        Long orgId = org.getId();
+
+        long totalBoletas = itemCompraRepository.contarBoletasVendidasPorOrganizacion(orgId);
+        BigDecimal totalIngresos = itemCompraRepository.sumarIngresosPorOrganizacion(orgId);
+        if (totalIngresos == null) {
+            totalIngresos = BigDecimal.ZERO;
+        }
+
+        Page<Evento> eventosPage = eventoRepository.findByOrganizacionIdOrderByIdDesc(orgId, pageable);
+        List<Evento> eventos = eventosPage.getContent();
+
+        if (eventos.isEmpty()) {
+            return PanelEntradasDTO.builder()
+                    .totalBoletasVendidas(totalBoletas)
+                    .totalIngresos(totalIngresos)
+                    .eventos(new PagedResponse<>(List.of(), eventosPage.getNumber(), eventosPage.getSize(),
+                            eventosPage.getTotalElements(), eventosPage.getTotalPages()))
+                    .build();
+        }
+
+        List<Long> eventoIds = eventos.stream().map(Evento::getId).toList();
+        List<Localidad> todasLocalidades = localidadRepository.findByEventoIdIn(eventoIds);
+        Map<Long, List<Localidad>> localidadesPorEvento = todasLocalidades.stream()
+                .collect(Collectors.groupingBy(loc -> loc.getEvento().getId()));
+
+        List<Long> localidadIds = todasLocalidades.stream().map(Localidad::getId).toList();
+        Map<Long, Long> ventasMap = new HashMap<>();
+        if (!localidadIds.isEmpty()) {
+            List<Object[]> ventasRows = itemCompraRepository.contarVentasPorLocalidadIds(localidadIds);
+            for (Object[] row : ventasRows) {
+                Long locId = (Long) row[0];
+                Long cantidad = ((Number) row[1]).longValue();
+                ventasMap.put(locId, cantidad);
+            }
+        }
+
+        List<EventoEntradasResumenDTO> dtoList = eventos.stream().map(ev -> {
+            List<Localidad> locs = localidadesPorEvento.getOrDefault(ev.getId(), List.of());
+            List<LocalidadEntradasDTO> locDTOs = locs.stream().map(loc -> {
+                long vendidas = ventasMap.getOrDefault(loc.getId(), 0L);
+                if (vendidas == 0 && loc.getCapacidad() > loc.getDisponibles()) {
+                    vendidas = loc.getCapacidad() - loc.getDisponibles();
+                }
+                double porcentaje = loc.getCapacidad() > 0
+                        ? Math.min(100.0, Math.round(((double) vendidas / loc.getCapacidad()) * 1000.0) / 10.0)
+                        : 0.0;
+                return LocalidadEntradasDTO.builder()
+                        .id(loc.getId())
+                        .nombre(loc.getNombre())
+                        .precio(loc.getPrecio())
+                        .capacidad(loc.getCapacidad())
+                        .disponibles(loc.getDisponibles())
+                        .boletasVendidas(vendidas)
+                        .porcentajeVendido(porcentaje)
+                        .build();
+            }).toList();
+
+            return EventoEntradasResumenDTO.builder()
+                    .id(ev.getId())
+                    .nombre(ev.getTitulo())
+                    .localidades(locDTOs)
+                    .build();
+        }).toList();
+
+        PagedResponse<EventoEntradasResumenDTO> pagedEventos = new PagedResponse<>(
+                dtoList, eventosPage.getNumber(), eventosPage.getSize(),
+                eventosPage.getTotalElements(), eventosPage.getTotalPages());
+
+        return PanelEntradasDTO.builder()
+                .totalBoletasVendidas(totalBoletas)
+                .totalIngresos(totalIngresos)
+                .eventos(pagedEventos)
+                .build();
+    }
+
+    @Transactional
+    public OrganizacionDTO actualizarPerfilOrganizacion(ActualizarOrganizacionRequest request, MultipartFile imagen) {
+        Organizacion organizacion = organizacionDelRepresentante();
+
+        if (request != null) {
+            if (request.getRazonSocial() != null && !request.getRazonSocial().isBlank()) {
+                organizacion.setRazonSocial(request.getRazonSocial().trim());
+            }
+            if (request.getDescripcion() != null) {
+                organizacion.setDescripcion(request.getDescripcion().trim());
+            }
+            if (request.getCorreoContacto() != null && !request.getCorreoContacto().isBlank()) {
+                organizacion.setCorreoContacto(request.getCorreoContacto().trim());
+            }
+        }
+
+        if (imagen != null && !imagen.isEmpty()) {
+            if (organizacion.getUrlLogo() != null && !organizacion.getUrlLogo().isBlank()) {
+                storageService.eliminarImagenDeBucket(storageConfig.getBucketPerfilOrganizacion(), organizacion.getUrlLogo());
+            }
+            String nuevaUrl = storageService.subirImagenPerfilOrganizacion(imagen);
+            organizacion.setUrlLogo(nuevaUrl);
+        }
+
+        return toDTO(organizacionRepository.save(organizacion));
+    }
+
     public OrganizacionDTO toDTO(Organizacion o) {
         OrganizacionDTO dto = new OrganizacionDTO();
         dto.setId(o.getId());
@@ -206,6 +375,8 @@ public class ServiceOrganizacion {
         dto.setRazonSocial(o.getRazonSocial());
         dto.setNit(o.getNit());
         dto.setCorreoContacto(o.getCorreoContacto());
+        dto.setDescripcion(o.getDescripcion());
+        dto.setUrlLogo(o.getUrlLogo());
         dto.setFechaCreacion(o.getFechaCreacion());
         dto.setPromedioRating(o.getPromedioRating());
         dto.setTotalValoraciones(o.getTotalValoraciones());
@@ -227,3 +398,4 @@ public class ServiceOrganizacion {
         return dto;
     }
 }
+

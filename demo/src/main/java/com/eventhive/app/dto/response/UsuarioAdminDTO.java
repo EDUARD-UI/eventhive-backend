@@ -15,6 +15,7 @@ public class UsuarioAdminDTO {
     private String nombre;
     private String telefono;
     private String rolNombre;
+    private String imagenPerfil;
     private OrganizacionResumenDTO organizacion;
 
     @Getter

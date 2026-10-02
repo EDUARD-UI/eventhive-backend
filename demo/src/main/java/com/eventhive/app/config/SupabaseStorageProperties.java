@@ -1,8 +1,9 @@
 package com.eventhive.app.config;
 
+import org.springframework.boot.context.properties.ConfigurationProperties;
+
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @Getter
 @Setter
@@ -19,5 +20,8 @@ public class SupabaseStorageProperties {
         private String verificaciones;
         private String eventos;
         private String categorias;
+        private String bannersHome = "banners-home";
+        private String perfilOrganizacion = "perfilOrganizacion";
+        private String imagenPerfil = "imagenPerfil";
     }
 }

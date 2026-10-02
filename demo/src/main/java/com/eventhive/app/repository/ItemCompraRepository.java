@@ -58,4 +58,37 @@ public interface ItemCompraRepository extends JpaRepository<ItemCompra, Long> {
           AND i.compra.estado = com.eventhive.app.enums.EstadoCompra.CONFIRMADA
         """)
     long contarEventosComprados(@Param("usuarioId") Long usuarioId);
+
+    // Total de boletas vendidas por una organización (compras CONFIRMADAS)
+    @Query("""
+        SELECT COALESCE(SUM(i.cantidad), 0)
+        FROM ItemCompra i
+        JOIN i.compra c
+        JOIN i.evento e
+        WHERE e.organizacion.id = :organizacionId
+          AND c.estado = com.eventhive.app.enums.EstadoCompra.CONFIRMADA
+        """)
+    long contarBoletasVendidasPorOrganizacion(@Param("organizacionId") Long organizacionId);
+
+    // Total de ingresos generados por una organización (compras CONFIRMADAS, sin deducir comisión)
+    @Query("""
+        SELECT COALESCE(SUM(i.cantidad * i.precioUnitario), 0)
+        FROM ItemCompra i
+        JOIN i.compra c
+        JOIN i.evento e
+        WHERE e.organizacion.id = :organizacionId
+          AND c.estado = com.eventhive.app.enums.EstadoCompra.CONFIRMADA
+        """)
+    java.math.BigDecimal sumarIngresosPorOrganizacion(@Param("organizacionId") Long organizacionId);
+
+    // Boletas vendidas agrupadas por localidad para un conjunto de localidades
+    @Query("""
+        SELECT i.localidad.id, COALESCE(SUM(i.cantidad), 0)
+        FROM ItemCompra i
+        JOIN i.compra c
+        WHERE i.localidad.id IN :localidadIds
+          AND c.estado = com.eventhive.app.enums.EstadoCompra.CONFIRMADA
+        GROUP BY i.localidad.id
+        """)
+    List<Object[]> contarVentasPorLocalidadIds(@Param("localidadIds") List<Long> localidadIds);
 }

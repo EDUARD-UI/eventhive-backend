@@ -29,7 +29,7 @@ public class SupabaseStorageService {
     private static final long MAX_FILE_SIZE =
             5L * 1024 * 1024;
 
-    private static final int HEADER_BUFFER_SIZE = 8;
+        private static final int HEADER_BUFFER_SIZE = 12;
 
     private final SupabaseStorageConfig config;
 
@@ -226,6 +226,63 @@ public class SupabaseStorageService {
         );
     }
 
+    public String subirImagenBannerHome(
+            MultipartFile archivo,
+            int posicion
+    ) {
+
+        validarImagen(archivo, true);
+
+        return subirArchivo(
+                archivo,
+                config.getBucketBannersHome(),
+                "",
+                true,
+                "banner-" + posicion
+        );
+    }
+
+    public String subirImagenPerfilOrganizacion(
+            MultipartFile archivo
+    ) {
+
+        validarImagen(archivo, false);
+
+        return subirArchivo(
+                archivo,
+                config.getBucketPerfilOrganizacion(),
+                "org_",
+                true
+        );
+    }
+
+    public String subirImagenPerfilUsuario(
+            MultipartFile archivo
+    ) {
+
+        validarImagen(archivo, false);
+
+        return subirArchivo(
+                archivo,
+                config.getBucketImagenPerfil(),
+                "user_",
+                true
+        );
+    }
+
+    public void eliminarImagenDeBucket(
+            String bucket,
+            String url
+    ) {
+        if (url == null || url.isBlank() || bucket == null || bucket.isBlank()) {
+            return;
+        }
+        String nombre = extraerNombreArchivo(url);
+        if (nombre != null && !nombre.isBlank()) {
+            eliminarArchivo(bucket, nombre);
+        }
+    }
+
 
     // =========================================================
     // ELIMINAR ARCHIVOS
@@ -315,6 +372,17 @@ public class SupabaseStorageService {
             boolean publico
     ) {
 
+        return subirArchivo(archivo, bucket, prefijo, publico, null);
+    }
+
+    private String subirArchivo(
+            MultipartFile archivo,
+            String bucket,
+            String prefijo,
+            boolean publico,
+            String nombreFijo
+    ) {
+
         if (archivo == null ||
                 archivo.isEmpty()) {
 
@@ -330,10 +398,9 @@ public class SupabaseStorageService {
                             archivo.getOriginalFilename()
                     );
 
-            String nombreArchivo =
-                    prefijo
-                            + UUID.randomUUID()
-                            + extension;
+            String nombreArchivo = nombreFijo != null
+                    ? nombreFijo
+                    : prefijo + UUID.randomUUID() + extension;
 
             String url =
                     config.getUrl()
@@ -351,6 +418,9 @@ public class SupabaseStorageService {
                     construirHeaders(
                             contentType
                     );
+            if (nombreFijo != null) {
+                headers.set("x-upsert", "true");
+            }
 
             /*
              * MultipartFile ya está respaldado por el
@@ -503,6 +573,14 @@ public class SupabaseStorageService {
             MultipartFile archivo
     ) {
 
+        validarImagen(archivo, false);
+    }
+
+    private void validarImagen(
+            MultipartFile archivo,
+            boolean permiteWebp
+    ) {
+
         if (archivo == null ||
                 archivo.isEmpty()) {
 
@@ -522,19 +600,24 @@ public class SupabaseStorageService {
         String contentType =
                 archivo.getContentType();
 
+        boolean tipoValido = "image/png".equals(contentType)
+                || "image/jpeg".equals(contentType)
+                || (permiteWebp && "image/webp".equals(contentType));
         if (contentType == null ||
-                (!contentType.equals("image/png")
-                        && !contentType.equals("image/jpeg"))) {
+                !tipoValido) {
 
             throw new BusinessException(
-                    "La imagen debe ser PNG o JPG"
+                    permiteWebp
+                            ? "La imagen debe ser PNG, JPG o WebP"
+                            : "La imagen debe ser PNG o JPG"
             );
         }
 
         validarExtension(
                 archivo,
                 contentType,
-                false
+                false,
+                permiteWebp
         );
 
         validarFirmaArchivo(
@@ -584,7 +667,8 @@ public class SupabaseStorageService {
         validarExtension(
                 archivo,
                 contentType,
-                true
+                true,
+                false
         );
 
         validarFirmaArchivo(
@@ -601,7 +685,8 @@ public class SupabaseStorageService {
     private void validarExtension(
             MultipartFile archivo,
             String contentType,
-            boolean permitePdf
+            boolean permitePdf,
+            boolean permiteWebp
     ) {
 
         String extension =
@@ -633,6 +718,10 @@ public class SupabaseStorageService {
             valida =
                     extension.equals(".jpg")
                             || extension.equals(".jpeg");
+
+                } else if (contentType.equals("image/webp")) {
+
+                        valida = permiteWebp && extension.equals(".webp");
 
         } else {
 
@@ -704,6 +793,18 @@ public class SupabaseStorageService {
                                 && (header[0] & 0xFF) == 0xFF
                                 && (header[1] & 0xFF) == 0xD8
                                 && (header[2] & 0xFF) == 0xFF;
+
+            } else if (contentType.equals("image/webp")) {
+
+                valido = bytesLeidos >= 12
+                        && header[0] == 'R'
+                        && header[1] == 'I'
+                        && header[2] == 'F'
+                        && header[3] == 'F'
+                        && header[8] == 'W'
+                        && header[9] == 'E'
+                        && header[10] == 'B'
+                        && header[11] == 'P';
             }
 
             if (!valido) {
