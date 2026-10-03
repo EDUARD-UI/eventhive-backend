@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.eventhive.app.dto.ApiResponse;
 import com.eventhive.app.dto.response.EventoEstadoConteoDTO;
 import com.eventhive.app.dto.response.EventosPorCategoriaDTO;
+import com.eventhive.app.dto.response.IngresosPlataformaDTO;
 import com.eventhive.app.dto.response.OrganizacionesPorValidacionDTO;
 import com.eventhive.app.dto.response.TopEventoVentasDTO;
 import com.eventhive.app.dto.response.TopOrganizacionVentasDTO;
@@ -56,5 +57,11 @@ public class AdminEstadisticasApiController {
     public ResponseEntity<ApiResponse<List<TopOrganizacionVentasDTO>>> topOrganizacionesPorVentas() {
         return ResponseEntity.ok(ApiResponse.ok("Top 5 organizaciones por ventas obtenido",
                 serviceEstadisticas.topOrganizacionesPorVentas()));
+    }
+
+    @GetMapping("/ingresos-plataforma")
+    public ResponseEntity<ApiResponse<IngresosPlataformaDTO>> ingresosPlataforma() {
+        return ResponseEntity.ok(ApiResponse.ok("Ingresos de la plataforma obtenidos",
+                serviceEstadisticas.ingresosPlataforma()));
     }
 }

@@ -201,7 +201,7 @@ public class ServiceEvento {
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 
-        return eventoRepository.findAll(spec, pageable).map(this::toEventoBusquedaDTO);
+        return eventoRepository.findAll(spec, conPosicionadosPrimero(pageable)).map(this::toEventoBusquedaDTO);
     }
 
     // Eventos para el mapa: filtra por categoría y/o radio de distancia
@@ -573,6 +573,7 @@ public class ServiceEvento {
         dto.setFecha(e.getFecha());
         dto.setHora(e.getHora());
         dto.setEstado(e.getEstado());
+        dto.setPromocionado(e.getPromocionado());
         // localidades se deja en null para listados (no se expone en listas)
 
         if (e.getUbicacion() != null) {
@@ -701,5 +702,20 @@ public class ServiceEvento {
         }
 
         evento.setEstado(nuevoEstado);
+
+        if (nuevoEstado == EstadoEvento.FINALIZADO) {
+            evento.setPromocionado(false);
+        }
+    }
+
+    // Antepone el orden "posicionados primero" al orden que pida el cliente
+    private Pageable conPosicionadosPrimero(Pageable pageable) {
+        if (pageable.isUnpaged()) {
+            return pageable;
+        }
+        org.springframework.data.domain.Sort orden = org.springframework.data.domain.Sort
+                .by(org.springframework.data.domain.Sort.Direction.DESC, "promocionado")
+                .and(pageable.getSort());
+        return org.springframework.data.domain.PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), orden);
     }
 }

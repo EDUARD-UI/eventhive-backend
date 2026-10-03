@@ -46,6 +46,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         JOIN FETCH e.categoria
         JOIN FETCH e.organizacion o
         WHERE e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
+        ORDER BY e.promocionado DESC
         """,
         countQuery = """
         SELECT COUNT(e) FROM Evento e
@@ -60,6 +61,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         JOIN FETCH e.organizacion o
         WHERE c.id = :categoriaId
           AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
+        ORDER BY e.promocionado DESC
         """,
         countQuery = """
         SELECT COUNT(e) FROM Evento e
@@ -76,6 +78,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         WHERE e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
           AND (:titulo IS NULL OR LOWER(e.titulo) LIKE LOWER(CONCAT('%', :titulo, '%')))
           AND (:fecha IS NULL OR e.fecha = :fecha)
+        ORDER BY e.promocionado DESC
         """,
         countQuery = """
         SELECT COUNT(e) FROM Evento e
@@ -219,7 +222,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
             e.fecha > :hoy
             OR (e.fecha = :hoy AND e.hora >= :hora)
           )
-    ORDER BY e.fecha ASC, e.hora ASC, e.id ASC
+    ORDER BY e.promocionado DESC, e.fecha ASC, e.hora ASC, e.id ASC
     """,
     countQuery = """
     SELECT COUNT(e) FROM Evento e

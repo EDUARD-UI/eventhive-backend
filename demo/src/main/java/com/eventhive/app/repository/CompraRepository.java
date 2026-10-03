@@ -61,4 +61,28 @@ public interface CompraRepository extends JpaRepository<Compra, Long> {
 
     // Busca una compra del cliente por su clave de idempotencia.
     Optional<Compra> findByClienteIdAndIdempotencyKey(Long clienteId, String idempotencyKey);
+
+    // Comisión total de EventHive (solo compras CONFIRMADAS; las canceladas no cuentan)
+    @Query("""
+        SELECT COALESCE(SUM(c.comisionEventhive), 0) FROM Compra c
+        WHERE c.estado = com.eventhive.app.enums.EstadoCompra.CONFIRMADA
+        """)
+    java.math.BigDecimal sumarComisionesConfirmadas();
+
+    // Comisión cobrada solo sobre compras de eventos posicionados (9%)
+    @Query("""
+        SELECT COALESCE(SUM(c.comisionEventhive), 0) FROM Compra c
+        WHERE c.estado = com.eventhive.app.enums.EstadoCompra.CONFIRMADA
+          AND c.porcentajeComision > :porcentajeBase
+        """)
+    java.math.BigDecimal sumarComisionesPosicionados(@Param("porcentajeBase") java.math.BigDecimal porcentajeBase);
+
+    // Lo que realmente recibe una organización (total - comisión)
+    @Query("""
+        SELECT COALESCE(SUM(c.netoOrganizador), 0) FROM Compra c
+        WHERE c.estado = com.eventhive.app.enums.EstadoCompra.CONFIRMADA
+          AND EXISTS (SELECT 1 FROM ItemCompra i
+                      WHERE i.compra = c AND i.evento.organizacion.id = :organizacionId)
+        """)
+    java.math.BigDecimal sumarNetoPorOrganizacion(@Param("organizacionId") Long organizacionId);
 }

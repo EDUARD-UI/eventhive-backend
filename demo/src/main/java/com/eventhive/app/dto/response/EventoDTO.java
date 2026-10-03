@@ -21,6 +21,7 @@ public class EventoDTO {
     private LocalDate fecha;
     private LocalTime hora;
     private EstadoEvento estado;
+    private Boolean promocionado;
     private Double latitud;
     private Double longitud;
     private EventoCategoriaDTO categoria;

@@ -72,6 +72,9 @@ public class Evento {
     @Column(name = "url_pulep", length = 500)
     private String urlPulep;
 
+    @Column(nullable = false)
+    private Boolean promocionado = false;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private EstadoEvento estado = EstadoEvento.BORRADOR;

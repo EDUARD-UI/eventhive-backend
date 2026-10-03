@@ -41,7 +41,10 @@ public class ServiceCompra {
     private final PromocionRepository promocionRepository;
     private final AuthenticatedUserHelper authHelper;
     private final ServiceNotification serviceNotification;
+    private final ServiceMonetizacion serviceMonetizacion;
     private final ObjectProvider<ServiceCompra> self;
+
+    private static final int MAX_BOLETAS_POR_COMPRA = 5;
 
     //CONSULTAS
     @Transactional(readOnly = true)
@@ -84,22 +87,41 @@ public class ServiceCompra {
         }
     }
 
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Compra intentarCrearCompra(CompraRequestDTO request, Usuario usuario) {
         List<ItemCompra> items = new ArrayList<>();
         BigDecimal total = BigDecimal.ZERO;
+        Long eventoIdCompra = null;
 
         for (CompraRequestDTO.ItemRequest itemReq : request.getItems()) {
             Localidad localidad = buscarLocalidad(itemReq.getLocalidadId());
             validarEventoPublicado(localidad);
-            descontarDisponibles(localidad, itemReq.getCantidad());
+            Long eventoId = localidad.getEvento().getId();
 
+            // Una compra solo puede incluir localidades del mismo evento.
+            if (eventoIdCompra == null) {
+                eventoIdCompra = eventoId;
+            } else if (!eventoIdCompra.equals(eventoId)) {
+                throw new BusinessException("Una compra solo puede contener entradas de un mismo evento");
+            }
+
+            descontarDisponibles(localidad, itemReq.getCantidad());
             BigDecimal precio = calcularPrecioConPromocion(localidad);
             items.add(buildItem(localidad, itemReq.getCantidad(), precio));
+
             total = total.add(precio.multiply(BigDecimal.valueOf(itemReq.getCantidad())));
         }
 
-        Compra guardada = guardarCompra(usuario, items, total, request.getIdempotencyKey());
+        Evento evento = items.get(0).getEvento();
+
+        BigDecimal porcentajeComision = serviceMonetizacion.obtenerPorcentajeComision(evento);
+        BigDecimal comisionEventhive = serviceMonetizacion.calcularComision(total, porcentajeComision);
+        BigDecimal netoOrganizador = serviceMonetizacion.calcularNetoOrganizador(total, comisionEventhive);
+
+        Compra guardada = guardarCompra(usuario, items, total, porcentajeComision,
+                comisionEventhive, netoOrganizador, request.getIdempotencyKey());
+
         generarTiquetes(items, guardada);
         return guardada;
     }
@@ -163,8 +185,32 @@ public class ServiceCompra {
     }
 
     private void validarRequest(CompraRequestDTO request) {
-        if (request.getItems() == null || request.getItems().isEmpty()) {
+
+        if (request == null || request.getItems() == null || request.getItems().isEmpty()) {
             throw new BusinessException("Debe incluir al menos un ítem en la compra");
+        }
+
+        int totalBoletas = 0;
+
+        for (CompraRequestDTO.ItemRequest item : request.getItems()) {
+            if (item == null) {
+                throw new BusinessException("El ítem de compra no puede ser nulo");
+            }
+
+            if (item.getLocalidadId() == null) {
+                throw new BusinessException("La localidad es obligatoria");
+            }
+
+            if (item.getCantidad() == null || item.getCantidad() <= 0) {
+                throw new BusinessException("La cantidad de entradas debe ser mayor que cero");
+            }
+
+            // Evita desbordamientos y rechaza el límite antes de sumar.
+            if (item.getCantidad() > MAX_BOLETAS_POR_COMPRA - totalBoletas) {
+                throw new BusinessException("No se pueden comprar más de 5 entradas por compra");
+            }
+
+            totalBoletas += item.getCantidad();
         }
     }
 
@@ -214,16 +260,28 @@ public class ServiceCompra {
         return item;
     }
 
-    private Compra guardarCompra(Usuario usuario, List<ItemCompra> items, BigDecimal total, String idempotencyKey) {
+
+    private Compra guardarCompra(Usuario usuario, List<ItemCompra> items, BigDecimal total,
+                                 BigDecimal porcentajeComision, BigDecimal comisionEventhive,
+                                 BigDecimal netoOrganizador, String idempotencyKey) {
+
         Compra compra = new Compra();
+
         compra.setIdempotencyKey(idempotencyKey);
         compra.setFechaCompra(LocalDateTime.now());
         compra.setTotal(total);
+
+        compra.setPorcentajeComision(porcentajeComision);
+        compra.setComisionEventhive(comisionEventhive);
+        compra.setNetoOrganizador(netoOrganizador);
+
         compra.setMetodoPago("TARJETA");
         compra.setCliente(usuario);
         compra.setEstado(EstadoCompra.CONFIRMADA);
-        items.forEach(i -> i.setCompra(compra));
+
+        items.forEach(item -> item.setCompra(compra));
         compra.setItems(items);
+
         return compraRepository.save(compra);
     }
 

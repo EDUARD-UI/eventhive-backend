@@ -2,6 +2,7 @@ package com.eventhive.app.controllers;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -9,13 +10,17 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.eventhive.app.dto.ApiResponse;
 import com.eventhive.app.dto.PagedResponse;
+import com.eventhive.app.dto.request.ActualizarOrganizacionRequest;
 import com.eventhive.app.dto.request.BuscarOrganizacionRequest;
 import com.eventhive.app.dto.request.PermisosOperadorRequest;
 import com.eventhive.app.dto.response.InvitacionOrganizacionDTO;
@@ -94,6 +99,15 @@ public class OrganizacionApiController {
     @PreAuthorize("hasRole('REPRESENTANTE')")
     public ResponseEntity<ApiResponse<OrganizacionDTO>> miOrganizacion() {
         return ResponseEntity.ok(ApiResponse.ok("Organización obtenida", serviceOrganizacion.miOrganizacion()));
+    }
+
+    @PutMapping(value = "/mi-organizacion", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('REPRESENTANTE')")
+    public ResponseEntity<ApiResponse<OrganizacionDTO>> actualizarMiOrganizacion(
+            @RequestPart("datos") @Valid ActualizarOrganizacionRequest request,
+            @RequestPart(value = "imagen", required = false) MultipartFile imagen) {
+        return ResponseEntity.ok(ApiResponse.ok("Organización actualizada",
+                serviceOrganizacion.actualizarPerfilOrganizacion(request, imagen)));
     }
 
     @GetMapping("/mis-invitaciones")

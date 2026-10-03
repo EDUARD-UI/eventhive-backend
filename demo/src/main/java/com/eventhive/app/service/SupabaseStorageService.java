@@ -233,13 +233,17 @@ public class SupabaseStorageService {
 
         validarImagen(archivo, true);
 
+        // Nombre único por subida: la URL cambia y el navegador/CDN no sirve la imagen anterior
         return subirArchivo(
                 archivo,
                 config.getBucketBannersHome(),
-                "",
-                true,
-                "banner-" + posicion
+                "banner-" + posicion + "-",
+                true
         );
+    }
+
+    public void eliminarImagenBannerHome(String url) {
+        eliminarImagenDeBucket(config.getBucketBannersHome(), url);
     }
 
     public String subirImagenPerfilOrganizacion(

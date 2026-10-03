@@ -4,6 +4,7 @@ import com.eventhive.app.dto.ApiResponse;
 import com.eventhive.app.dto.PagedResponse;
 import com.eventhive.app.dto.response.PromocionDTO;
 import com.eventhive.app.dto.request.PromocionRequest;
+import com.eventhive.app.model.Evento;
 import com.eventhive.app.model.Promocion;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.service.ServicePromocion;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -96,4 +98,23 @@ public class PromocionApiController {
         servicePromocion.eliminarPromocion(id, usuario);
         return ResponseEntity.ok(ApiResponse.ok("Promoción eliminada"));
     }
+
+    // PROMOCIONES Y POSICIONAMIENTO SEO A EVENTOS DESTACADOS
+
+    @PostMapping("/eventos/{eventoId}/posicionar")
+    @PreAuthorize("hasRole('REPRESENTANTE')")
+    public ResponseEntity<ApiResponse<Void>> posicionarEvento(@PathVariable Long eventoId) {
+        servicePromocion.posicionarEvento(eventoId);
+
+        return ResponseEntity.ok(ApiResponse.ok("El evento ha sido posicionado correctamente"));
+    }
+
+    @DeleteMapping("/eventos/{eventoId}/posicionar")
+    @PreAuthorize("hasRole('REPRESENTANTE')")
+    public ResponseEntity<ApiResponse<Void>> quitarPosicionamiento(@PathVariable Long eventoId) {
+        servicePromocion.quitarPosicionamiento(eventoId);
+
+        return ResponseEntity.ok(ApiResponse.ok("El posicionamiento del evento ha sido desactivado"));
+    }
+
 }

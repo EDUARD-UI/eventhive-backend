@@ -50,6 +50,15 @@ public class Compra {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal total;
 
+    @Column(name = "porcentaje_comision", nullable = false, precision = 5, scale = 2)
+    private BigDecimal porcentajeComision = new BigDecimal("7.00");
+
+    @Column(name = "comision_eventhive", nullable = false, precision = 12, scale = 2)
+    private BigDecimal comisionEventhive = BigDecimal.ZERO;
+
+    @Column(name = "neto_organizador", nullable = false, precision = 12, scale = 2)
+    private BigDecimal netoOrganizador = BigDecimal.ZERO;
+
     @Column(name = "metodo_pago", length = 50)
     private String metodoPago;
 

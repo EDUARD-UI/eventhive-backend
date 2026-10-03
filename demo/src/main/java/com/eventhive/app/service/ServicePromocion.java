@@ -1,16 +1,20 @@
 package com.eventhive.app.service;
 
-
 import com.eventhive.app.dto.response.PromocionDTO;
+import com.eventhive.app.enums.EstadoEvento;
+import com.eventhive.app.enums.EstadoPosicionamiento;
 import com.eventhive.app.enums.EstadoPromocion;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Evento;
+import com.eventhive.app.model.PosicionamientoEvento;
 import com.eventhive.app.model.Promocion;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.repository.EventoRepository;
+import com.eventhive.app.repository.PosicionamientoEventoRepository;
 import com.eventhive.app.repository.PromocionRepository;
 import com.eventhive.app.repository.TiqueteRepository;
+import com.eventhive.app.utils.AuthenticatedUserHelper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,16 +25,16 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class ServicePromocion {
 
     private final PromocionRepository promocionRepository;
+    private final PosicionamientoEventoRepository posicionamientoEventoRepository;
     private final EventoRepository eventoRepository;
     private final TiqueteRepository tiqueteRepository;
+    private final AuthenticatedUserHelper authHelper;
     private static final DateTimeFormatter FMT = DateTimeFormatter.ISO_LOCAL_DATE;
 
     //CONSULTAS
@@ -51,7 +55,61 @@ public class ServicePromocion {
         return promocionRepository.findByOrganizacionId(organizacionId, pageable).map(this::toDTO);
     }
 
-    //OPERACIONES CRUD
+    //OPERACIONES DE POSICIONAMIENTO SEO
+    @Transactional
+    public Evento posicionarEvento(Long eventoId) {
+        Usuario usuario = authHelper.usuarioAutenticado();
+
+        Evento evento = eventoRepository.findById(eventoId)
+                .orElseThrow(() -> new BusinessException("Evento no encontrado"));
+
+        validarPropietarioEvento(evento, usuario);
+
+        if (evento.getEstado() != EstadoEvento.PUBLICADO) {
+            throw new BusinessException("Solo se pueden posicionar eventos publicados");
+        }
+
+        if (Boolean.TRUE.equals(evento.getPromocionado())) {
+            throw new BusinessException("El evento ya está posicionado");
+        }
+
+        if (posicionamientoEventoRepository.existsByEventoIdAndEstado(eventoId, EstadoPosicionamiento.CONFIRMADO)) {
+            throw new BusinessException("El evento ya tiene un posicionamiento contratado");
+        }
+
+        PosicionamientoEvento posicionamiento = new PosicionamientoEvento();
+        posicionamiento.setEvento(evento);
+        posicionamiento.setOrganizador(usuario);
+        posicionamiento.setPrecio(new BigDecimal("9.00"));
+        posicionamiento.setMetodoPago("TARJETA");
+        posicionamiento.setEstado(EstadoPosicionamiento.CONFIRMADO);
+        posicionamientoEventoRepository.save(posicionamiento);
+        evento.setPromocionado(true);
+
+        return eventoRepository.save(evento);
+    }
+
+    @Transactional
+    public Evento quitarPosicionamiento(Long eventoId) {
+        Usuario usuario = authHelper.usuarioAutenticado();
+
+        Evento evento = eventoRepository.findById(eventoId)
+                .orElseThrow(() -> new BusinessException("Evento no encontrado"));
+
+        validarPropietarioEvento(evento, usuario);
+
+        if (!Boolean.TRUE.equals(evento.getPromocionado())) {
+            throw new BusinessException("El evento no está posicionado");
+        }
+
+        posicionamientoEventoRepository.findByEventoIdAndEstado(eventoId, EstadoPosicionamiento.CONFIRMADO)
+                .ifPresent(p -> p.setEstado(EstadoPosicionamiento.CANCELADO));
+
+        evento.setPromocionado(false);
+        return eventoRepository.save(evento);
+    }
+
+    //OPERACIONES CRUD PROMOCIONES
     @Transactional
     public void crearPromocion(Long eventoId, String descripcion, BigDecimal descuento,
                                String fechaInicio, String fechaFin, Usuario usuario) {
@@ -131,6 +189,19 @@ public class ServicePromocion {
                 .orElseThrow(() -> new ResourceNotFoundException("Promoción no encontrada: " + id));
     }
 
+    private void validarPropietarioEvento(Evento evento, Usuario usuario) {
+
+        if (evento.getOrganizacion() == null) {
+            throw new BusinessException("El evento no tiene una organización asociada");
+        }
+
+        if (evento.getOrganizacion().getRepresentante() == null
+                || !evento.getOrganizacion().getRepresentante().getId().equals(usuario.getId())) {
+
+            throw new BusinessException("No tienes permisos para modificar el posicionamiento de este evento");
+        }
+    }
+
     private void validarEventoParaCrearPromocion(Evento evento) {
         if (evento.getFecha() == null || evento.getHora() == null) {
             throw new BusinessException("El evento debe tener fecha y hora para gestionar una promoción");
@@ -205,9 +276,9 @@ public class ServicePromocion {
         dto.setEstado(calcularEstado(p, LocalDate.now()));
 
         if (p.getEvento() != null) {
-                dto.setEventoId(p.getEvento().getId());
-                dto.setEventoTitulo(p.getEvento().getTitulo());
-                dto.setEventoNombre(p.getEvento().getTitulo());
+            dto.setEventoId(p.getEvento().getId());
+            dto.setEventoTitulo(p.getEvento().getTitulo());
+            dto.setEventoNombre(p.getEvento().getTitulo());
         }
         return dto;
     }
