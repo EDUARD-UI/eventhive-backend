@@ -1,9 +1,11 @@
 package com.eventhive.app.controllers;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -23,7 +25,6 @@ import org.springframework.web.multipart.MultipartFile;
 import com.eventhive.app.dto.ApiResponse;
 import com.eventhive.app.dto.PagedResponse;
 import com.eventhive.app.dto.request.EventoRequest;
-import com.eventhive.app.dto.response.EventoBusquedaDTO;
 import com.eventhive.app.dto.response.EventoDTO;
 import com.eventhive.app.dto.response.EventoMapaDTO;
 import com.eventhive.app.service.ServiceEvento;
@@ -46,13 +47,24 @@ public class EventosApiController {
     @GetMapping
     public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> listar(
             @RequestParam(required = false) Long categoriaId,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
             Pageable pageable) {
 
-        var page = categoriaId != null
-                ? serviceEvento.listarPorCategoria(categoriaId, pageable)
-                : serviceEvento.listarTodos(pageable);
+        var page = serviceEvento.listarPublicos(categoriaId, fecha, pageable);
 
         return ResponseEntity.ok(ApiResponse.ok("Eventos obtenidos", serviceEvento.toPagedDTO(page)));
+    }
+
+    // Eventos destacados: solo promocionados que además están PUBLICADOS.
+    @GetMapping("/destacados")
+    public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> eventosDestacados(
+            @PageableDefault(size = 10) Pageable pageable) {
+
+        return ResponseEntity.ok(ApiResponse.ok(
+                "Eventos destacados obtenidos",
+                serviceEvento.toPagedDTO(serviceEvento.listarDestacados(pageable))
+        ));
     }
 
     //eventos cercanos a la fecha actual
@@ -108,7 +120,7 @@ public class EventosApiController {
     }
 
     @GetMapping("/buscar")
-    public ResponseEntity<ApiResponse<PagedResponse<EventoBusquedaDTO>>> buscar(
+    public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> buscar(
             @RequestParam(name = "nombre", required = false) String nombre,
             @RequestParam(name = "titulo", required = false) String titulo,
             Pageable pageable) {

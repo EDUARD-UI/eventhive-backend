@@ -25,7 +25,6 @@ import org.springframework.web.multipart.MultipartFile;
 import com.eventhive.app.config.SupabaseStorageConfig;
 import com.eventhive.app.dto.PagedResponse;
 import com.eventhive.app.dto.request.EventoRequest;
-import com.eventhive.app.dto.response.EventoBusquedaDTO;
 import com.eventhive.app.dto.response.EventoCategoriaDTO;
 import com.eventhive.app.dto.response.EventoDTO;
 import com.eventhive.app.dto.response.EventoMapaDTO;
@@ -56,6 +55,7 @@ import com.eventhive.app.repository.OrganizacionRepository;
 import com.eventhive.app.repository.TiqueteRepository;
 import com.eventhive.app.repository.specification.EventoSpecification;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
+import com.eventhive.app.utils.OrdenEventos;
 
 import lombok.RequiredArgsConstructor;
 
@@ -82,7 +82,34 @@ public class ServiceEvento {
     // CONSULTAS
     @Transactional(readOnly = true)
     public Page<Evento> listarTodos(Pageable pageable) {
-        return eventoRepository.findPublicadosVisibles(pageable);
+        return eventoRepository.findPublicadosVisibles(OrdenEventos.estable(pageable));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Evento> listarPublicos(Long categoriaId, LocalDate fecha, Pageable pageable) {
+        Specification<Evento> spec = (root, query, cb) -> {
+            if (Long.class != query.getResultType() && long.class != query.getResultType()) {
+                root.fetch("categoria", JoinType.INNER);
+                root.fetch("organizacion", JoinType.INNER);
+            }
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("estado"), EstadoEvento.PUBLICADO));
+            if (categoriaId != null) {
+                predicates.add(cb.equal(root.get("categoria").get("id"), categoriaId));
+            }
+            if (fecha != null) {
+                predicates.add(cb.equal(root.get("fecha"), fecha));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return eventoRepository.findAll(spec, OrdenEventos.promocionadosPrimero(pageable));
+    }
+
+    // Solo eventos promocionados que además están PUBLICADOS.
+    @Transactional(readOnly = true)
+    public Page<Evento> listarDestacados(Pageable pageable) {
+        return eventoRepository.findDestacadosPublicados(pageable);
     }
 
     @Transactional(readOnly = true)
@@ -129,7 +156,7 @@ public class ServiceEvento {
 
     @Transactional(readOnly = true)
     public Page<Evento> listarPorCategoria(Long categoriaId, Pageable pageable) {
-        return eventoRepository.findByCategoriaVisibles(categoriaId, pageable);
+        return eventoRepository.findByCategoriaVisibles(categoriaId, OrdenEventos.estable(pageable));
     }
 
     @Transactional(readOnly = true)
@@ -176,18 +203,13 @@ public class ServiceEvento {
 
     // Búsqueda pública por título
     @Transactional(readOnly = true)
-    public Page<EventoBusquedaDTO> buscarEventos(String titulo, Pageable pageable) {
-        return buscarEventos(titulo, null, pageable);
-    }
-
-    // Búsqueda pública por título y/o fecha
-    @Transactional(readOnly = true)
-    public Page<EventoBusquedaDTO> buscarEventos(String titulo, LocalDate fecha, Pageable pageable) {
+    public Page<EventoDTO> buscarEventos(String titulo, Pageable pageable) {
         String tituloNormalizado = (titulo != null && !titulo.isBlank()) ? titulo.trim() : null;
 
         Specification<Evento> spec = (root, query, cb) -> {
             if (Long.class != query.getResultType() && long.class != query.getResultType()) {
                 root.fetch("categoria", JoinType.INNER);
+                root.fetch("organizacion", JoinType.INNER);
             }
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("estado"), EstadoEvento.PUBLICADO));
@@ -195,13 +217,10 @@ public class ServiceEvento {
             if (tituloNormalizado != null) {
                 predicates.add(cb.like(cb.lower(root.get("titulo")), "%" + tituloNormalizado.toLowerCase() + "%"));
             }
-            if (fecha != null) {
-                predicates.add(cb.equal(root.get("fecha"), fecha));
-            }
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 
-        return eventoRepository.findAll(spec, conPosicionadosPrimero(pageable)).map(this::toEventoBusquedaDTO);
+        return eventoRepository.findAll(spec, OrdenEventos.promocionadosPrimero(pageable)).map(this::toDTO);
     }
 
     // Eventos para el mapa: filtra por categoría y/o radio de distancia
@@ -621,17 +640,6 @@ public class ServiceEvento {
                 page.getTotalPages());
     }
 
-    private EventoBusquedaDTO toEventoBusquedaDTO(Evento evento) {
-        EventoBusquedaDTO dto = new EventoBusquedaDTO();
-        dto.setId(evento.getId());
-        dto.setTitulo(evento.getTitulo());
-        dto.setFecha(evento.getFecha());
-        if (evento.getCategoria() != null) {
-            dto.setNombreCategoria(evento.getCategoria().getNombre());
-        }
-        return dto;
-    }
-
     private EventoCategoriaDTO toEventoCategoriaDTO(Evento evento){
         EventoCategoriaDTO dto = new EventoCategoriaDTO();
         dto.setId(evento.getCategoria().getId());
@@ -708,14 +716,4 @@ public class ServiceEvento {
         }
     }
 
-    // Antepone el orden "posicionados primero" al orden que pida el cliente
-    private Pageable conPosicionadosPrimero(Pageable pageable) {
-        if (pageable.isUnpaged()) {
-            return pageable;
-        }
-        org.springframework.data.domain.Sort orden = org.springframework.data.domain.Sort
-                .by(org.springframework.data.domain.Sort.Direction.DESC, "promocionado")
-                .and(pageable.getSort());
-        return org.springframework.data.domain.PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), orden);
-    }
 }

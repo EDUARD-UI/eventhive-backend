@@ -404,9 +404,10 @@ En caso de error, la respuesta suele devolver:
 ### Base: `/api/eventos`
 
 #### `GET /api/eventos`
-- Recibe: `categoriaId` opcional y paginación.
+- Recibe: `categoriaId` y `fecha` opcionales, y paginación (`page`, `size`, `sort`). La fecha debe enviarse en formato `yyyy-MM-dd` y filtra por ese día exacto.
 - Devuelve: `ApiResponse<PagedResponse<EventoDTO>>`
-- Descripción: lista eventos públicos.
+- Descripción: lista eventos públicos; permite combinar los filtros opcionales de categoría y fecha. El filtro de fecha se evalúa como fecha de calendario sin conversiones de zona horaria, evitando devolver eventos del día anterior. Los promocionados aparecen primero y el orden secundario predeterminado es por fecha, hora e ID ascendente.
+- Ejemplos: `/api/eventos?fecha=2026-10-14` o `/api/eventos?categoriaId=1&fecha=2026-10-14`
 - Ejemplo de respuesta:
 
 ```json
@@ -424,6 +425,7 @@ En caso de error, la respuesta suele devolver:
         "fecha": "2026-10-14",
         "hora": "19:30:00",
         "estado": "PUBLICADO",
+        "promocionado": true,
         "latitud": -33.4489,
         "longitud": -70.6693,
         "categoria": {
@@ -445,6 +447,12 @@ En caso de error, la respuesta suele devolver:
   }
 }
 ```
+
+#### `GET /api/eventos/destacados`
+- Recibe: paginación opcional (`page`, `size`, `sort`); `size` es 10 por defecto.
+- Devuelve: `ApiResponse<PagedResponse<EventoDTO>>`.
+- Descripción: lista únicamente eventos `PUBLICADO` con `promocionado: true`, ordenados por fecha, hora e ID ascendente.
+- Cada evento contiene el mismo `EventoDTO` usado por `GET /api/eventos`, incluidos `descripcion`, `lugar`, `foto`, `fecha`, `hora`, `estado`, `promocionado`, coordenadas, categoría y organización.
 
 #### `GET /api/eventos/proximos`
 - Recibe: paginación.
@@ -669,7 +677,7 @@ En caso de error, la respuesta suele devolver:
 #### `GET /api/eventos/mapa`
 - Recibe: `categoriaId`, `lat`, `lng`, `radioKm` opcionales.
 - Devuelve: `ApiResponse<List<EventoMapaDTO>>`
-- Descripción: eventos para renderizar en mapa.
+- Descripción: eventos para renderizar en mapa; los promocionados aparecen primero y luego se ordenan por fecha, hora e ID ascendente.
 - Ejemplo de respuesta:
 
 ```json
@@ -690,9 +698,10 @@ En caso de error, la respuesta suele devolver:
 ```
 
 #### `GET /api/eventos/buscar`
-- Recibe: `nombre` (o `titulo`) y paginación (`page`, `size`, `sort`). No recibe fecha.
-- Devuelve: `ApiResponse<PagedResponse<EventoBusquedaDTO>>`
-- Descripción: búsqueda pública de eventos por título/nombre.
+- Recibe: `nombre` o `titulo` para buscar por coincidencia parcial y paginación (`page`, `size`, `sort`). Debe enviarse `nombre` o `titulo`.
+- Devuelve: `ApiResponse<PagedResponse<EventoDTO>>`, con los mismos campos de tarjeta que el listado público.
+- Descripción: búsqueda pública de eventos `PUBLICADO` por coincidencia parcial en el título. Los promocionados aparecen primero; el orden predeterminado secundario es por fecha, hora e ID ascendente. Para filtrar por categoría o fecha se utiliza `GET /api/eventos`.
+- Ejemplo: `/api/eventos/buscar?titulo=jazz`
 - Ejemplo de respuesta:
 
 ```json
@@ -704,8 +713,23 @@ En caso de error, la respuesta suele devolver:
       {
         "id": 15,
         "titulo": "Festival de Jazz",
-        "nombreCategoria": "Música",
-        "fecha": "2026-10-14"
+        "descripcion": "Evento musical con artistas locales",
+        "lugar": "Parque Central, Santiago",
+        "foto": "https://storage.example/eventos/festival-jazz.jpg",
+        "fecha": "2026-10-14",
+        "hora": "19:30:00",
+        "estado": "PUBLICADO",
+        "promocionado": true,
+        "latitud": -33.4489,
+        "longitud": -70.6693,
+        "categoria": {
+          "id": 1,
+          "nombre": "Música"
+        },
+        "organizacion": {
+          "id": 20,
+          "nombre": "Eventica"
+        }
       }
     ],
     "pageNumber": 0,

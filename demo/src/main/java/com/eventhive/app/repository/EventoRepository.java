@@ -54,6 +54,22 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         """)
   Page<Evento> findPublicadosVisibles(Pageable pageable);
 
+    // Eventos destacados: solo los PROMOCIONADOS que además están PUBLICADOS.
+    @Query(value = """
+        SELECT e FROM Evento e
+        JOIN FETCH e.categoria
+        JOIN FETCH e.organizacion o
+        WHERE e.promocionado = true
+          AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
+        ORDER BY e.fecha ASC, e.hora ASC, e.id ASC
+        """,
+        countQuery = """
+        SELECT COUNT(e) FROM Evento e
+        WHERE e.promocionado = true
+          AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
+        """)
+    Page<Evento> findDestacadosPublicados(Pageable pageable);
+
     // Lista eventos publicados filtrados por categoría.
     @Query(value = """
         SELECT e FROM Evento e
@@ -110,6 +126,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
                      CAST(:radioMetros AS double precision)
                    )
               )
+        ORDER BY e.promocionado DESC, e.fecha ASC, e.hora ASC, e.id ASC
         """, nativeQuery = true)
     List<EventoMapaProjection> findParaMapa(@Param("categoriaId") Long categoriaId,
                                             @Param("lat") Double lat,
