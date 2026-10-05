@@ -17,6 +17,8 @@ public interface PosicionamientoEventoRepository extends JpaRepository<Posiciona
     // Evita contratar un segundo posicionamiento sobre el mismo evento
     boolean existsByEventoIdAndEstado(Long eventoId, EstadoPosicionamiento estado);
 
+    boolean existsByEventoIdAndEstadoIn(Long eventoId, List<EstadoPosicionamiento> estados);
+
     // Historial completo de un evento (confirmados y cancelados)
     List<PosicionamientoEvento> findByEventoIdOrderByFechaContratacionDesc(Long eventoId);
 

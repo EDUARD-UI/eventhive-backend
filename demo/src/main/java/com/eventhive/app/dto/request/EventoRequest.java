@@ -33,10 +33,12 @@ public class EventoRequest {
     private Long categoriaId;
 
     @NotNull(message = "La latitud es requerida")
-    @DecimalMin("-90.0") @DecimalMax("90.0")
+    @DecimalMin(value = "-90.0", message = "La latitud debe estar entre -90 y 90")
+    @DecimalMax(value = "90.0", message = "La latitud debe estar entre -90 y 90")
     private Double latitud;
 
     @NotNull(message = "La longitud es requerida")
-    @DecimalMin("-180.0") @DecimalMax("180.0")
+    @DecimalMin(value = "-180.0", message = "La longitud debe estar entre -180 y 180")
+    @DecimalMax(value = "180.0", message = "La longitud debe estar entre -180 y 180")
     private Double longitud;
 }

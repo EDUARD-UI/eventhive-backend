@@ -26,9 +26,9 @@ import com.eventhive.app.dto.ApiResponse;
 import com.eventhive.app.dto.PagedResponse;
 import com.eventhive.app.dto.request.EventoRequest;
 import com.eventhive.app.dto.response.EventoDTO;
+import com.eventhive.app.dto.response.EventoDestacadoDTO;
 import com.eventhive.app.dto.response.EventoMapaDTO;
 import com.eventhive.app.service.ServiceEvento;
-import com.eventhive.app.service.ServiceModeracion;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
 
 import jakarta.validation.Valid;
@@ -40,7 +40,6 @@ import lombok.RequiredArgsConstructor;
 public class EventosApiController {
 
     private final ServiceEvento serviceEvento;
-    private final ServiceModeracion serviceModeracion;
     private final AuthenticatedUserHelper authHelper;
 
     //CONSULTAS
@@ -58,12 +57,12 @@ public class EventosApiController {
 
     // Eventos destacados: solo promocionados que además están PUBLICADOS.
     @GetMapping("/destacados")
-    public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> eventosDestacados(
+        public ResponseEntity<ApiResponse<PagedResponse<EventoDestacadoDTO>>> eventosDestacados(
             @PageableDefault(size = 10) Pageable pageable) {
 
         return ResponseEntity.ok(ApiResponse.ok(
                 "Eventos destacados obtenidos",
-                serviceEvento.toPagedDTO(serviceEvento.listarDestacados(pageable))
+                serviceEvento.toPagedDestacadosDTO(serviceEvento.listarDestacados(pageable))
         ));
     }
 
@@ -174,9 +173,18 @@ public class EventosApiController {
             @RequestPart("datos") @Valid EventoRequest request,
             @RequestPart(value = "foto", required = false) MultipartFile foto){
 
+        var evento = serviceEvento.crearEvento(request, foto);
+                var organizacion = evento.getOrganizacion();
+                String mensaje;
+                if (organizacion.getEstado() == com.eventhive.app.enums.EstadoOrganizacion.PENDIENTE_REVISION) {
+                        mensaje = organizacion.getUrlRut() == null || organizacion.getUrlRut().isBlank()
+                                        ? "Organización PENDIENTE_REVISION. Evento creado como BORRADOR; adjunta el RUT para solicitar verificación."
+                                        : "Organización PENDIENTE_REVISION. Evento creado como BORRADOR; podrá enviarse a moderación cuando la organización sea aprobada.";
+                } else {
+                        mensaje = "Organización APROBADA. Evento creado como BORRADOR; envíalo a moderación cuando esté completo.";
+                }
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.ok("Evento creado",
-                        serviceEvento.toDetalleDTO(serviceEvento.crearEvento(request, foto))));
+                .body(ApiResponse.ok(mensaje, serviceEvento.toDetalleDTO(evento)));
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

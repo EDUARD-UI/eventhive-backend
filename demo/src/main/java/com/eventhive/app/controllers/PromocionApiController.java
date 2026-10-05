@@ -4,8 +4,7 @@ import com.eventhive.app.dto.ApiResponse;
 import com.eventhive.app.dto.PagedResponse;
 import com.eventhive.app.dto.response.PromocionDTO;
 import com.eventhive.app.dto.request.PromocionRequest;
-import com.eventhive.app.model.Evento;
-import com.eventhive.app.model.Promocion;
+import com.eventhive.app.dto.request.PosicionamientoSeoRequest;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.service.ServicePromocion;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
@@ -18,10 +17,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -103,8 +98,10 @@ public class PromocionApiController {
 
     @PostMapping("/eventos/{eventoId}/posicionar")
     @PreAuthorize("hasRole('REPRESENTANTE')")
-    public ResponseEntity<ApiResponse<Void>> posicionarEvento(@PathVariable Long eventoId) {
-        servicePromocion.posicionarEvento(eventoId);
+    public ResponseEntity<ApiResponse<Void>> posicionarEvento(
+            @PathVariable Long eventoId,
+            @Valid @RequestBody PosicionamientoSeoRequest request) {
+        servicePromocion.posicionarEvento(eventoId, request.getUrlImagenDestacado());
 
         return ResponseEntity.ok(ApiResponse.ok("El evento ha sido posicionado correctamente"));
     }

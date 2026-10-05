@@ -1,5 +1,6 @@
 package com.eventhive.app.dto.response;
 
+import java.math.BigDecimal;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,5 +16,7 @@ import lombok.Setter;
 public class EventoEntradasResumenDTO {
     private Long id;
     private String nombre;
+    private long boletasVendidas;
+    private BigDecimal ingresosGenerados;
     private List<LocalidadEntradasDTO> localidades;
 }

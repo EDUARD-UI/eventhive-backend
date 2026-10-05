@@ -34,6 +34,7 @@ import com.eventhive.app.model.Localidad;
 import com.eventhive.app.model.Organizacion;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.repository.CategoriaRepository;
+import com.eventhive.app.repository.CompraRepository;
 import com.eventhive.app.repository.EventoRepository;
 import com.eventhive.app.repository.ItemCompraRepository;
 import com.eventhive.app.repository.LocalidadRepository;
@@ -63,6 +64,7 @@ public class ServiceOrganizacion {
     private final SupabaseStorageService storageService;
     private final SupabaseStorageConfig storageConfig;
     private final ServiceNotification serviceNotification;
+    private final CompraRepository compraRepository;
     private final ItemCompraRepository itemCompraRepository;
     private final LocalidadRepository localidadRepository;
     private final CategoriaRepository categoriaRepository;
@@ -255,7 +257,7 @@ public class ServiceOrganizacion {
         Long orgId = org.getId();
 
         long boletasVendidas = itemCompraRepository.contarBoletasVendidasPorOrganizacion(orgId);
-        BigDecimal totalIngresos = itemCompraRepository.sumarIngresosPorOrganizacion(orgId);
+        BigDecimal totalIngresos = compraRepository.sumarNetoPorOrganizacion(orgId);
         if (totalIngresos == null) {
             totalIngresos = BigDecimal.ZERO;
         }
@@ -269,7 +271,7 @@ public class ServiceOrganizacion {
         Long orgId = org.getId();
 
         long totalBoletas = itemCompraRepository.contarBoletasVendidasPorOrganizacion(orgId);
-        BigDecimal totalIngresos = itemCompraRepository.sumarIngresosPorOrganizacion(orgId);
+        BigDecimal totalIngresos = compraRepository.sumarNetoPorOrganizacion(orgId);
         if (totalIngresos == null) {
             totalIngresos = BigDecimal.ZERO;
         }
@@ -279,6 +281,7 @@ public class ServiceOrganizacion {
 
         if (eventos.isEmpty()) {
             return PanelEntradasDTO.builder()
+                    .totalEventos(eventosPage.getTotalElements())
                     .totalBoletasVendidas(totalBoletas)
                     .totalIngresos(totalIngresos)
                     .eventos(new PagedResponse<>(List.of(), eventosPage.getNumber(), eventosPage.getSize(),
@@ -287,6 +290,16 @@ public class ServiceOrganizacion {
         }
 
         List<Long> eventoIds = eventos.stream().map(Evento::getId).toList();
+        Map<Long, Long> ventasPorEvento = new HashMap<>();
+        for (Object[] row : itemCompraRepository.contarVentasPorEventoIds(eventoIds)) {
+            ventasPorEvento.put((Long) row[0], ((Number) row[1]).longValue());
+        }
+
+        Map<Long, BigDecimal> ingresosPorEvento = new HashMap<>();
+        for (Object[] row : compraRepository.sumarNetoPorEventos(eventoIds)) {
+            ingresosPorEvento.merge((Long) row[0], (BigDecimal) row[2], BigDecimal::add);
+        }
+
         List<Localidad> todasLocalidades = localidadRepository.findByEventoIdIn(eventoIds);
         Map<Long, List<Localidad>> localidadesPorEvento = todasLocalidades.stream()
                 .collect(Collectors.groupingBy(loc -> loc.getEvento().getId()));
@@ -326,6 +339,8 @@ public class ServiceOrganizacion {
             return EventoEntradasResumenDTO.builder()
                     .id(ev.getId())
                     .nombre(ev.getTitulo())
+                    .boletasVendidas(ventasPorEvento.getOrDefault(ev.getId(), 0L))
+                    .ingresosGenerados(ingresosPorEvento.getOrDefault(ev.getId(), BigDecimal.ZERO))
                     .localidades(locDTOs)
                     .build();
         }).toList();
@@ -335,6 +350,7 @@ public class ServiceOrganizacion {
                 eventosPage.getTotalElements(), eventosPage.getTotalPages());
 
         return PanelEntradasDTO.builder()
+            .totalEventos(eventosPage.getTotalElements())
                 .totalBoletasVendidas(totalBoletas)
                 .totalIngresos(totalIngresos)
                 .eventos(pagedEventos)

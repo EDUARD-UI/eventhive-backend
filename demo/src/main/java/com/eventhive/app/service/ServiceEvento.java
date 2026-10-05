@@ -27,6 +27,7 @@ import com.eventhive.app.dto.PagedResponse;
 import com.eventhive.app.dto.request.EventoRequest;
 import com.eventhive.app.dto.response.EventoCategoriaDTO;
 import com.eventhive.app.dto.response.EventoDTO;
+import com.eventhive.app.dto.response.EventoDestacadoDTO;
 import com.eventhive.app.dto.response.EventoMapaDTO;
 import com.eventhive.app.dto.response.EventoOrganizacionDTO;
 import com.eventhive.app.dto.response.EventosResumenOrganizacionDTO;
@@ -265,6 +266,9 @@ public class ServiceEvento {
         validarPermisoSobreEvento(usuario, PermisoEvento.CREAR_EVENTO);
 
         Organizacion organizacion = usuario.getOrganizacion();
+        if (organizacion.getEstado() == EstadoOrganizacion.SUSPENDIDA) {
+            throw new BusinessException("La organización está suspendida y no puede crear eventos");
+        }
 
         Evento evento = new Evento();
         mapearCamposRequest(evento, request, categoria);
@@ -638,6 +642,18 @@ public class ServiceEvento {
                 page.getSize(),
                 page.getTotalElements(),
                 page.getTotalPages());
+    }
+
+    public PagedResponse<EventoDestacadoDTO> toPagedDestacadosDTO(Page<Evento> page) {
+        return new PagedResponse<>(
+                page.getContent().stream().map(evento -> {
+                    EventoDTO base = toDTO(evento);
+                    EventoDestacadoDTO destacado = new EventoDestacadoDTO();
+                    org.springframework.beans.BeanUtils.copyProperties(base, destacado);
+                    destacado.setUrlImagenDestacado(evento.getUrlImagenDestacado());
+                    return destacado;
+                }).toList(),
+                page.getNumber(), page.getSize(), page.getTotalElements(), page.getTotalPages());
     }
 
     private EventoCategoriaDTO toEventoCategoriaDTO(Evento evento){

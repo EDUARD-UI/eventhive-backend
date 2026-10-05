@@ -70,6 +70,16 @@ public interface ItemCompraRepository extends JpaRepository<ItemCompra, Long> {
         """)
     long contarBoletasVendidasPorOrganizacion(@Param("organizacionId") Long organizacionId);
 
+    @Query("""
+        SELECT i.evento.id, COALESCE(SUM(i.cantidad), 0)
+        FROM ItemCompra i
+        JOIN i.compra c
+        WHERE i.evento.id IN :eventoIds
+          AND c.estado = com.eventhive.app.enums.EstadoCompra.CONFIRMADA
+        GROUP BY i.evento.id
+        """)
+    List<Object[]> contarVentasPorEventoIds(@Param("eventoIds") List<Long> eventoIds);
+
     // Total de ingresos generados por una organización (compras CONFIRMADAS, sin deducir comisión)
     @Query("""
         SELECT COALESCE(SUM(i.cantidad * i.precioUnitario), 0)

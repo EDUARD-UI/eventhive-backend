@@ -2,16 +2,13 @@ package com.eventhive.app.service;
 
 import com.eventhive.app.dto.response.PromocionDTO;
 import com.eventhive.app.enums.EstadoEvento;
-import com.eventhive.app.enums.EstadoPosicionamiento;
 import com.eventhive.app.enums.EstadoPromocion;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Evento;
-import com.eventhive.app.model.PosicionamientoEvento;
 import com.eventhive.app.model.Promocion;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.repository.EventoRepository;
-import com.eventhive.app.repository.PosicionamientoEventoRepository;
 import com.eventhive.app.repository.PromocionRepository;
 import com.eventhive.app.repository.TiqueteRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
@@ -22,19 +19,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.net.URI;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+
+import com.eventhive.app.config.SupabaseStorageConfig;
 
 @Service
 @RequiredArgsConstructor
 public class ServicePromocion {
 
     private final PromocionRepository promocionRepository;
-    private final PosicionamientoEventoRepository posicionamientoEventoRepository;
     private final EventoRepository eventoRepository;
     private final TiqueteRepository tiqueteRepository;
     private final AuthenticatedUserHelper authHelper;
+    private final ServiceCompra serviceCompra;
+    private final SupabaseStorageConfig storageConfig;
     private static final DateTimeFormatter FMT = DateTimeFormatter.ISO_LOCAL_DATE;
 
     //CONSULTAS
@@ -57,7 +58,7 @@ public class ServicePromocion {
 
     //OPERACIONES DE POSICIONAMIENTO SEO
     @Transactional
-    public Evento posicionarEvento(Long eventoId) {
+    public Evento posicionarEvento(Long eventoId, String urlImagenDestacado) {
         Usuario usuario = authHelper.usuarioAutenticado();
 
         Evento evento = eventoRepository.findById(eventoId)
@@ -69,22 +70,15 @@ public class ServicePromocion {
             throw new BusinessException("Solo se pueden posicionar eventos publicados");
         }
 
+        validarUrlImagenDestacado(urlImagenDestacado);
+        serviceCompra.validarPagoPosicionamientoConfirmado(eventoId);
+
         if (Boolean.TRUE.equals(evento.getPromocionado())) {
             throw new BusinessException("El evento ya está posicionado");
         }
 
-        if (posicionamientoEventoRepository.existsByEventoIdAndEstado(eventoId, EstadoPosicionamiento.CONFIRMADO)) {
-            throw new BusinessException("El evento ya tiene un posicionamiento contratado");
-        }
-
-        PosicionamientoEvento posicionamiento = new PosicionamientoEvento();
-        posicionamiento.setEvento(evento);
-        posicionamiento.setOrganizador(usuario);
-        posicionamiento.setPrecio(new BigDecimal("9.00"));
-        posicionamiento.setMetodoPago("TARJETA");
-        posicionamiento.setEstado(EstadoPosicionamiento.CONFIRMADO);
-        posicionamientoEventoRepository.save(posicionamiento);
         evento.setPromocionado(true);
+        evento.setUrlImagenDestacado(urlImagenDestacado.trim());
 
         return eventoRepository.save(evento);
     }
@@ -102,11 +96,32 @@ public class ServicePromocion {
             throw new BusinessException("El evento no está posicionado");
         }
 
-        posicionamientoEventoRepository.findByEventoIdAndEstado(eventoId, EstadoPosicionamiento.CONFIRMADO)
-                .ifPresent(p -> p.setEstado(EstadoPosicionamiento.CANCELADO));
-
         evento.setPromocionado(false);
+        evento.setUrlImagenDestacado(null);
         return eventoRepository.save(evento);
+    }
+
+    private void validarUrlImagenDestacado(String url) {
+        try {
+            URI uriImagen = URI.create(url.trim());
+            URI uriStorage = URI.create(storageConfig.getUrl());
+            String prefijoBucket = "/storage/v1/object/public/" + storageConfig.getBucketEventos() + "/";
+            boolean mismoOrigen = uriImagen.getScheme() != null
+                    && uriImagen.getScheme().equalsIgnoreCase(uriStorage.getScheme())
+                    && uriImagen.getHost() != null
+                    && uriImagen.getHost().equalsIgnoreCase(uriStorage.getHost())
+                    && uriImagen.getPort() == uriStorage.getPort();
+            boolean imagenEnBucketEventos = uriImagen.getPath() != null
+                    && uriImagen.getPath().startsWith(prefijoBucket)
+                    && uriImagen.getPath().length() > prefijoBucket.length();
+
+            if (!mismoOrigen || !imagenEnBucketEventos || uriImagen.getUserInfo() != null) {
+                throw new BusinessException(
+                        "La imagen destacada debe pertenecer al bucket de eventos de Supabase");
+            }
+        } catch (IllegalArgumentException exception) {
+            throw new BusinessException("La URL de la imagen destacada no es válida o no pertenece al bucket de eventos");
+        }
     }
 
     //OPERACIONES CRUD PROMOCIONES

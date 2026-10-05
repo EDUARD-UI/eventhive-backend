@@ -450,9 +450,9 @@ En caso de error, la respuesta suele devolver:
 
 #### `GET /api/eventos/destacados`
 - Recibe: paginación opcional (`page`, `size`, `sort`); `size` es 10 por defecto.
-- Devuelve: `ApiResponse<PagedResponse<EventoDTO>>`.
+- Devuelve: `ApiResponse<PagedResponse<EventoDestacadoDTO>>`.
 - Descripción: lista únicamente eventos `PUBLICADO` con `promocionado: true`, ordenados por fecha, hora e ID ascendente.
-- Cada evento contiene el mismo `EventoDTO` usado por `GET /api/eventos`, incluidos `descripcion`, `lugar`, `foto`, `fecha`, `hora`, `estado`, `promocionado`, coordenadas, categoría y organización.
+- Cada evento contiene los mismos campos de `EventoDTO` y `urlImagenDestacado`. La URL destacada solo se incluye en esta ruta; los otros endpoints de eventos no la devuelven.
 
 #### `GET /api/eventos/proximos`
 - Recibe: paginación.
@@ -1087,6 +1087,7 @@ En caso de error, la respuesta suele devolver:
         "metodoPago": "TARJETA",
         "items": [
           {
+            "eventoId": 20,
             "localidadId": 1,
             "localidadNombre": "General",
             "eventoNombre": "Festival de Jazz",
@@ -1151,6 +1152,7 @@ En caso de error, la respuesta suele devolver:
     "metodoPago": "TARJETA",
     "items": [
       {
+        "eventoId": 20,
         "localidadId": 2,
         "localidadNombre": "General",
         "eventoNombre": "Expo Creativa",
@@ -1162,6 +1164,23 @@ En caso de error, la respuesta suele devolver:
   }
 }
 ```
+
+#### `POST /api/compras/eventos/{eventoId}/posicionamiento/pagos`
+- Recibe: `eventoId` en path; no hay opciones de posicionamiento ni importe enviado por frontend.
+- Devuelve: `ApiResponse<PagoPosicionamientoDTO>`.
+- Permisos: REPRESENTANTE de la organización propietaria.
+- Descripción: registra un pago simulado `PENDIENTE` por el valor configurado en backend.
+
+#### `GET /api/compras/posicionamiento/pagos/{pagoId}`
+- Recibe: `pagoId` en path.
+- Devuelve: `ApiResponse<PagoPosicionamientoDTO>` con `id`, `eventoId`, `organizacionId`, `precio` y `estado`.
+- Permisos: REPRESENTANTE de la organización propietaria.
+
+#### `PATCH /api/compras/posicionamiento/pagos/{pagoId}/confirmar-simulado`
+- Recibe: `pagoId` en path.
+- Devuelve: `ApiResponse<PagoPosicionamientoDTO>`.
+- Permisos: REPRESENTANTE de la organización propietaria.
+- Descripción: confirma el pago simulado. Después, el frontend debe asignar la URL con `POST /api/promociones/eventos/{eventoId}/posicionar`.
 
 #### `DELETE /api/compras/{id}`
 - Recibe: `id` en path.
@@ -1725,6 +1744,19 @@ En caso de error, la respuesta suele devolver:
 }
 ```
 
+Los operadores se agregan mediante invitación por correo, aceptan o rechazan la invitación y pueden ser expulsados por el representante. No existe un estado organizacional de operador; `usuarios.activo` se reserva para el control de acceso al sistema.
+
+#### `GET /api/organizaciones/mi-organizacion/estadisticas`
+- Recibe: paginación estándar (`page`, `size`, `sort`).
+- Devuelve: `ApiResponse<PanelEntradasDTO>` con total de eventos, boletas, ingresos netos y eventos paginados con sus ventas.
+- Permisos: REPRESENTANTE u OPERADOR asociado a la organización.
+- Los ingresos son el neto para la organización después de la comisión de Eventhive.
+
+#### `GET /api/organizaciones/mi-organizacion/valoraciones`
+- Recibe: paginación estándar (`page`, `size`, `sort`).
+- Devuelve: `ApiResponse<PagedResponse<ValoracionDTO>>`.
+- Permisos: REPRESENTANTE u OPERADOR asociado a la organización. La organización se determina desde el usuario autenticado.
+
 #### `GET /api/organizaciones/mi-organizacion/seguidores`
 - Recibe: paginación.
 - Devuelve: `ApiResponse<PagedResponse<UsuarioDTO>>`
@@ -1964,6 +1996,8 @@ En caso de error, la respuesta suele devolver:
   }
 }
 ```
+
+Para el panel autenticado se recomienda `GET /api/organizaciones/mi-organizacion/valoraciones`, que aplica el mismo paginado sin recibir un ID de organización desde el frontend.
 
 #### `POST /api/valoraciones`
 - Recibe: body `ValoracionRequest` con `organizacionId`, `comentario`, `calificacion`.
@@ -2712,6 +2746,26 @@ En caso de error, la respuesta suele devolver:
   "mensaje": "Promoción eliminada",
   "data": null
 }
+```
+
+#### `POST /api/promociones/eventos/{eventoId}/posicionar`
+- Recibe: `eventoId` en path y body JSON `{ "urlImagenDestacado": "https://..." }`.
+- Devuelve: `ApiResponse<Void>`.
+- Permisos: REPRESENTANTE de la organización propietaria.
+- Descripción: requiere un pago de posicionamiento confirmado en `/api/compras`. Asigna la URL y marca `promocionado: true`; solo `GET /api/eventos/destacados` devuelve esta URL.
+- Validaciones: el evento debe estar publicado y la URL debe corresponder al bucket público `eventos-images` del mismo proyecto Supabase.
+
+#### `DELETE /api/promociones/eventos/{eventoId}/posicionar`
+- Recibe: `eventoId` en path.
+- Devuelve: `ApiResponse<Void>`.
+- Permisos: REPRESENTANTE de la organización propietaria.
+- Descripción: desactiva el destacado y elimina la URL sin borrar el pago histórico.
+
+### Cambio de base de datos
+La columna se administra fuera de Hibernate (`ddl-auto=none`). Aplicar antes del despliegue:
+
+```sql
+ALTER TABLE eventos ADD COLUMN IF NOT EXISTS url_imagen_destacado VARCHAR(500);
 ```
 
 ---

@@ -22,7 +22,7 @@ public class BoletosApiController {
     private final ServiceBoletos serviceBoletos;
 
     @GetMapping("/{compraId}")
-    @PreAuthorize("hasRole('CLIENTE')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<BoletosCompraDTO>> obtener(@PathVariable Long compraId) {
         return ResponseEntity.ok(ApiResponse.ok("boletos de Compra obtenida", serviceBoletos.obtenerBoletosPorCompra(compraId)));
     }

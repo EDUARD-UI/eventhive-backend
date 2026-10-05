@@ -1,10 +1,11 @@
 package com.eventhive.app.dto.response;
 
+import java.util.Set;
+
 import com.eventhive.app.enums.PermisoEvento;
+
 import lombok.Getter;
 import lombok.Setter;
-
-import java.util.Set;
 
 @Getter
 @Setter

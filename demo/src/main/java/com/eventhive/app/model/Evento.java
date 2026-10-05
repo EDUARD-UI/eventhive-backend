@@ -72,6 +72,9 @@ public class Evento {
     @Column(name = "url_pulep", length = 500)
     private String urlPulep;
 
+    @Column(name = "url_imagen_destacado", length = 500)
+    private String urlImagenDestacado;
+
     @Column(nullable = false)
     private Boolean promocionado = false;
 

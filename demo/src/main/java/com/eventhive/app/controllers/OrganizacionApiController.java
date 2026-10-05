@@ -27,9 +27,11 @@ import com.eventhive.app.dto.response.InvitacionOrganizacionDTO;
 import com.eventhive.app.dto.response.OperadorDTO;
 import com.eventhive.app.dto.response.OrganizacionDTO;
 import com.eventhive.app.dto.response.OrganizacionPublicaDTO;
+import com.eventhive.app.dto.response.PanelEntradasDTO;
 import com.eventhive.app.dto.response.RutUrlDTO;
 import com.eventhive.app.dto.response.SugerenciaAscensoDTO;
 import com.eventhive.app.dto.response.UsuarioDTO;
+import com.eventhive.app.dto.response.ValoracionDTO;
 import com.eventhive.app.enums.EstadoOrganizacion;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.model.Usuario;
@@ -38,6 +40,7 @@ import com.eventhive.app.service.ServiceNivelOrganizacion;
 import com.eventhive.app.service.ServiceOrganizacion;
 import com.eventhive.app.service.ServiceSeguidor;
 import com.eventhive.app.service.ServiceUsuario;
+import com.eventhive.app.service.ServiceValoracion;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
 
 import jakarta.validation.Valid;
@@ -54,6 +57,7 @@ public class OrganizacionApiController {
     private final ServiceSeguidor serviceSeguidor;
     private final ServiceInvitacionOrganizacion serviceInvitacion;
     private final ServiceUsuario serviceUsuario;
+    private final ServiceValoracion serviceValoracion;
 
     //CONSULTAS
     // ?estado=APROBADA | PENDIENTE_REVISION | SUSPENDIDA (opcional; sin parámetro devuelve todas)
@@ -137,6 +141,13 @@ public class OrganizacionApiController {
                         page.getTotalElements(), page.getTotalPages())));
     }
 
+    @GetMapping("/mi-organizacion/estadisticas")
+    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
+    public ResponseEntity<ApiResponse<PanelEntradasDTO>> estadisticasMiOrganizacion(Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.ok("Estadísticas de la organización obtenidas",
+                serviceOrganizacion.obtenerPanelEntradas(pageable)));
+    }
+
     @GetMapping("/mi-organizacion/seguidores")
     @PreAuthorize("hasRole('REPRESENTANTE') or hasRole('OPERADOR')")
     public ResponseEntity<ApiResponse<PagedResponse<UsuarioDTO>>> misSeguidores(Pageable pageable) {
@@ -151,7 +162,19 @@ public class OrganizacionApiController {
         return ResponseEntity.ok(ApiResponse.ok("Seguidores de la organizacion obtenidos", response));
     }
 
-    //endpoint para obtener las valoracion de mi organizacion(crear)
+    @GetMapping("/mi-organizacion/valoraciones")
+    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
+    public ResponseEntity<ApiResponse<PagedResponse<ValoracionDTO>>> valoracionesMiOrganizacion(Pageable pageable) {
+        Usuario usuario = authHelper.usuarioAutenticado();
+        if (usuario.getOrganizacion() == null) {
+            throw new BusinessException("El usuario no pertenece a una organización");
+        }
+        Page<ValoracionDTO> page = serviceValoracion.obtenerValoracionesDTOPorOrganizacion(
+                usuario.getOrganizacion().getId(), pageable);
+        return ResponseEntity.ok(ApiResponse.ok("Valoraciones de la organización obtenidas",
+                new PagedResponse<>(page.getContent(), page.getNumber(), page.getSize(),
+                        page.getTotalElements(), page.getTotalPages())));
+    }
 
     //GESTION DE PERMISOS Y OPERADORES
     @PatchMapping("/operadores/{operadorId}/actualizar-permisos")

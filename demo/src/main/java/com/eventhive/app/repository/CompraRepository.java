@@ -14,18 +14,15 @@ import com.eventhive.app.model.Compra;
 
 public interface CompraRepository extends JpaRepository<Compra, Long> {
 
-    // Obtiene compras de un cliente con sus ítems y detalles cargados
+    // Pagina primero las compras; las colecciones LAZY se inicializan en lotes al mapear el DTO.
     @Query(value = """
-        SELECT DISTINCT c FROM Compra c
+        SELECT c FROM Compra c
         JOIN FETCH c.cliente
-        LEFT JOIN FETCH c.items i
-        LEFT JOIN FETCH i.evento
-        LEFT JOIN FETCH i.localidad
         WHERE c.cliente.id = :clienteId
         ORDER BY c.fechaCompra DESC
         """,
         countQuery = """
-        SELECT COUNT(DISTINCT c) FROM Compra c
+        SELECT COUNT(c) FROM Compra c
         WHERE c.cliente.id = :clienteId
         """)
     Page<Compra> findByClienteIdConItems(@Param("clienteId") Long clienteId, Pageable pageable);
@@ -85,4 +82,13 @@ public interface CompraRepository extends JpaRepository<Compra, Long> {
                       WHERE i.compra = c AND i.evento.organizacion.id = :organizacionId)
         """)
     java.math.BigDecimal sumarNetoPorOrganizacion(@Param("organizacionId") Long organizacionId);
+
+        @Query("""
+                SELECT i.evento.id, c.id, c.netoOrganizador
+                FROM Compra c JOIN c.items i
+                WHERE c.estado = com.eventhive.app.enums.EstadoCompra.CONFIRMADA
+                    AND i.evento.id IN :eventoIds
+                GROUP BY i.evento.id, c.id, c.netoOrganizador
+                """)
+        java.util.List<Object[]> sumarNetoPorEventos(@Param("eventoIds") java.util.List<Long> eventoIds);
 }

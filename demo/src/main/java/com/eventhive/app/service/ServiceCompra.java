@@ -2,14 +2,19 @@ package com.eventhive.app.service;
 
 import com.eventhive.app.dto.response.CompraResponseDTO;
 import com.eventhive.app.dto.response.ItemCompraDTO;
+import com.eventhive.app.dto.response.PagoPosicionamientoDTO;
 import com.eventhive.app.dto.request.CompraRequestDTO;
 import com.eventhive.app.enums.EstadoCompra;
 import com.eventhive.app.enums.EstadoEvento;
+import com.eventhive.app.enums.EstadoOrganizacion;
+import com.eventhive.app.enums.EstadoPosicionamiento;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.*;
 import com.eventhive.app.repository.CompraRepository;
+import com.eventhive.app.repository.EventoRepository;
 import com.eventhive.app.repository.LocalidadRepository;
+import com.eventhive.app.repository.PosicionamientoEventoRepository;
 import com.eventhive.app.repository.PromocionRepository;
 import com.eventhive.app.repository.TiqueteRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
@@ -36,7 +41,9 @@ import java.util.UUID;
 public class ServiceCompra {
 
     private final CompraRepository compraRepository;
+    private final EventoRepository eventoRepository;
     private final LocalidadRepository localidadRepository;
+    private final PosicionamientoEventoRepository posicionamientoEventoRepository;
     private final TiqueteRepository tiqueteRepository;
     private final PromocionRepository promocionRepository;
     private final AuthenticatedUserHelper authHelper;
@@ -45,6 +52,7 @@ public class ServiceCompra {
     private final ObjectProvider<ServiceCompra> self;
 
     private static final int MAX_BOLETAS_POR_COMPRA = 5;
+    private static final BigDecimal PRECIO_POSICIONAMIENTO = new BigDecimal("9.00");
 
     //CONSULTAS
     @Transactional(readOnly = true)
@@ -85,6 +93,77 @@ public class ServiceCompra {
                     .map(this::compraToDTO)
                     .orElseThrow(() -> e);
         }
+    }
+
+    @Transactional
+    public PagoPosicionamientoDTO registrarPagoPosicionamiento(Long eventoId) {
+        Usuario usuario = authHelper.usuarioAutenticado();
+        Evento evento = eventoRepository.findById(eventoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado"));
+        validarPropietarioPosicionamiento(evento, usuario);
+        if (evento.getOrganizacion().getEstado() != EstadoOrganizacion.APROBADA
+                || evento.getEstado() != EstadoEvento.PUBLICADO) {
+            throw new BusinessException("Solo se puede pagar el posicionamiento de un evento publicado de una organización aprobada");
+        }
+        if (Boolean.TRUE.equals(evento.getPromocionado())
+                || posicionamientoEventoRepository.existsByEventoIdAndEstadoIn(eventoId,
+                        List.of(EstadoPosicionamiento.PENDIENTE, EstadoPosicionamiento.CONFIRMADO))) {
+            throw new BusinessException("El evento ya tiene un posicionamiento activo o un pago pendiente");
+        }
+
+        PosicionamientoEvento pago = new PosicionamientoEvento();
+        pago.setEvento(evento);
+        pago.setOrganizador(usuario);
+        pago.setPrecio(PRECIO_POSICIONAMIENTO);
+        pago.setMetodoPago("SIMULADO");
+        pago.setEstado(EstadoPosicionamiento.PENDIENTE);
+        return pagoPosicionamientoToDTO(posicionamientoEventoRepository.save(pago));
+    }
+
+    @Transactional(readOnly = true)
+    public PagoPosicionamientoDTO obtenerPagoPosicionamiento(Long pagoId) {
+        Usuario usuario = authHelper.usuarioAutenticado();
+        PosicionamientoEvento pago = posicionamientoEventoRepository.findById(pagoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pago de posicionamiento no encontrado"));
+        validarPropietarioPosicionamiento(pago.getEvento(), usuario);
+        return pagoPosicionamientoToDTO(pago);
+    }
+
+    @Transactional
+    public PagoPosicionamientoDTO confirmarPagoPosicionamientoSimulado(Long pagoId) {
+        Usuario usuario = authHelper.usuarioAutenticado();
+        PosicionamientoEvento pago = posicionamientoEventoRepository.findById(pagoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pago de posicionamiento no encontrado"));
+        validarPropietarioPosicionamiento(pago.getEvento(), usuario);
+        if (pago.getEstado() != EstadoPosicionamiento.PENDIENTE) {
+            throw new BusinessException("El pago ya no está pendiente");
+        }
+        pago.setEstado(EstadoPosicionamiento.CONFIRMADO);
+        return pagoPosicionamientoToDTO(posicionamientoEventoRepository.save(pago));
+    }
+
+    @Transactional(readOnly = true)
+    public void validarPagoPosicionamientoConfirmado(Long eventoId) {
+        Usuario usuario = authHelper.usuarioAutenticado();
+        Evento evento = eventoRepository.findById(eventoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado"));
+        validarPropietarioPosicionamiento(evento, usuario);
+        if (!posicionamientoEventoRepository.existsByEventoIdAndEstado(
+                eventoId, EstadoPosicionamiento.CONFIRMADO)) {
+            throw new BusinessException("El pago de posicionamiento debe estar confirmado antes de destacar el evento");
+        }
+    }
+
+    private void validarPropietarioPosicionamiento(Evento evento, Usuario usuario) {
+        if (evento.getOrganizacion() == null || evento.getOrganizacion().getRepresentante() == null
+                || !evento.getOrganizacion().getRepresentante().getId().equals(usuario.getId())) {
+            throw new ResourceNotFoundException("Evento no encontrado");
+        }
+    }
+
+    private PagoPosicionamientoDTO pagoPosicionamientoToDTO(PosicionamientoEvento pago) {
+        return new PagoPosicionamientoDTO(pago.getId(), pago.getEvento().getId(),
+                pago.getEvento().getOrganizacion().getId(), pago.getPrecio(), pago.getEstado());
     }
 
 
@@ -322,6 +401,7 @@ public class ServiceCompra {
 
     private ItemCompraDTO itemToDTO(ItemCompra item) {
         return ItemCompraDTO.builder()
+            .eventoId(item.getEvento().getId())
                 .localidadId(item.getLocalidad().getId())
                 .localidadNombre(item.getLocalidad().getNombre())
                 .eventoNombre(item.getEvento().getTitulo())

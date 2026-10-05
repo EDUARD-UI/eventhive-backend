@@ -14,6 +14,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 public class PanelEntradasDTO {
+    private long totalEventos;
     private long totalBoletasVendidas;
     private BigDecimal totalIngresos;
     private PagedResponse<EventoEntradasResumenDTO> eventos;
