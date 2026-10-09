@@ -38,7 +38,7 @@ import org.locationtech.jts.geom.Point;
 })
 @Getter
 @Setter
-public class Evento {
+public class Evento {//planes de promocionado
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
