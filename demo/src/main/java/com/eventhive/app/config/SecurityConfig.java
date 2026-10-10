@@ -71,6 +71,8 @@ public class SecurityConfig {
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/invitaciones/roles/validar").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/invitaciones/roles/aceptar").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/eventos/organizador/**").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/eventos/admin/**").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/eventos/**").permitAll()
@@ -78,7 +80,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/localidades/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/valoraciones/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/roles/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/promociones/evento/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/promociones/planes").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/banners-home").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/organizaciones/**").permitAll()
                 .anyRequest().authenticated()

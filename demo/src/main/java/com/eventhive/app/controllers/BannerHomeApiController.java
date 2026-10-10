@@ -38,7 +38,7 @@ public class BannerHomeApiController {
     }
 
     @GetMapping("/admin")
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR','MARKETING')")
     public ResponseEntity<ApiResponse<List<BannerHomeDTO>>> obtenerEspaciosAdministrativos() {
         return ResponseEntity.ok(ApiResponse.ok(
                 "Espacios de banners obtenidos", serviceBannerHome.obtenerEspaciosAdministrativos()));
@@ -46,7 +46,7 @@ public class BannerHomeApiController {
 
     //CREACIÓN
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR','MARKETING')")
     public ResponseEntity<ApiResponse<BannerHomeDTO>> crear(
             @RequestParam int posicion,
             @RequestParam String titulo,
@@ -59,7 +59,7 @@ public class BannerHomeApiController {
     }
 
     @PostMapping(value = "/{posicion}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR','MARKETING')")
     public ResponseEntity<ApiResponse<BannerHomeDTO>> crearConPosicion(
             @PathVariable int posicion,
             @RequestParam String titulo,
@@ -73,7 +73,7 @@ public class BannerHomeApiController {
 
     //MODIFICACIONES
     @PutMapping(value = "/{posicion}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR','MARKETING')")
     public ResponseEntity<ApiResponse<BannerHomeDTO>> actualizar(
             @PathVariable int posicion,
             @RequestParam String titulo,
@@ -87,7 +87,7 @@ public class BannerHomeApiController {
 
     //ELIMINACIÓN
     @DeleteMapping("/{posicion}")
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR','MARKETING')")
     public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable int posicion) {
         serviceBannerHome.eliminar(posicion);
         return ResponseEntity.ok(ApiResponse.ok("Banner eliminado exitosamente"));

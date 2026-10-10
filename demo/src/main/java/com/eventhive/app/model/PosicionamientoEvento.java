@@ -30,6 +30,19 @@ public class PosicionamientoEvento {
     @JoinColumn(name = "organizador_id", nullable = false)
     private Usuario organizador;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "plan_promocion_id")
+    private PlanPromocion plan;
+
+    @Column(name = "comision_porcentaje")
+    private BigDecimal comisionPorcentaje;
+
+    @Column(name = "plan_premium")
+    private Boolean planPremium;
+
+    @Column(name = "pauta_redes")
+    private Boolean pautaRedes;
+
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal precio;
 

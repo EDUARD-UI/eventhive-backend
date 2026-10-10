@@ -56,16 +56,20 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
 
     // Eventos destacados: solo los PROMOCIONADOS que además están PUBLICADOS.
     @Query(value = """
-        SELECT e FROM Evento e
+        SELECT DISTINCT e FROM Evento e
         JOIN FETCH e.categoria
         JOIN FETCH e.organizacion o
-        WHERE e.promocionado = true
+        JOIN PosicionamientoEvento p ON p.evento = e
+        WHERE p.estado = com.eventhive.app.enums.EstadoPosicionamiento.CONFIRMADO
+          AND p.planPremium = true
           AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
         ORDER BY e.fecha ASC, e.hora ASC, e.id ASC
         """,
         countQuery = """
-        SELECT COUNT(e) FROM Evento e
-        WHERE e.promocionado = true
+        SELECT COUNT(DISTINCT e) FROM Evento e
+        JOIN PosicionamientoEvento p ON p.evento = e
+        WHERE p.estado = com.eventhive.app.enums.EstadoPosicionamiento.CONFIRMADO
+          AND p.planPremium = true
           AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
         """)
     Page<Evento> findDestacadosPublicados(Pageable pageable);

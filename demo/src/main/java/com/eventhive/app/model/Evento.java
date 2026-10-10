@@ -3,6 +3,7 @@ package com.eventhive.app.model;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.math.BigDecimal;
 import java.util.List;
 
 import com.eventhive.app.enums.EstadoEvento;
@@ -77,6 +78,9 @@ public class Evento {//planes de promocionado
 
     @Column(nullable = false)
     private Boolean promocionado = false;
+
+    @Column(name = "comision_promocion_porcentaje", precision = 5, scale = 2)
+    private BigDecimal comisionPromocionPorcentaje;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

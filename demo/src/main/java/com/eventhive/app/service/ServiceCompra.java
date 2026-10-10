@@ -15,7 +15,7 @@ import com.eventhive.app.repository.CompraRepository;
 import com.eventhive.app.repository.EventoRepository;
 import com.eventhive.app.repository.LocalidadRepository;
 import com.eventhive.app.repository.PosicionamientoEventoRepository;
-import com.eventhive.app.repository.PromocionRepository;
+import com.eventhive.app.repository.PlanPromocionRepository;
 import com.eventhive.app.repository.TiqueteRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
 import lombok.RequiredArgsConstructor;
@@ -28,8 +28,6 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -45,14 +43,13 @@ public class ServiceCompra {
     private final LocalidadRepository localidadRepository;
     private final PosicionamientoEventoRepository posicionamientoEventoRepository;
     private final TiqueteRepository tiqueteRepository;
-    private final PromocionRepository promocionRepository;
+    private final PlanPromocionRepository planPromocionRepository;
     private final AuthenticatedUserHelper authHelper;
     private final ServiceNotification serviceNotification;
     private final ServiceMonetizacion serviceMonetizacion;
     private final ObjectProvider<ServiceCompra> self;
 
     private static final int MAX_BOLETAS_POR_COMPRA = 5;
-    private static final BigDecimal PRECIO_POSICIONAMIENTO = new BigDecimal("9.00");
 
     //CONSULTAS
     @Transactional(readOnly = true)
@@ -96,10 +93,13 @@ public class ServiceCompra {
     }
 
     @Transactional
-    public PagoPosicionamientoDTO registrarPagoPosicionamiento(Long eventoId) {
+    public PagoPosicionamientoDTO registrarPagoPosicionamiento(Long eventoId, Long planId) {
         Usuario usuario = authHelper.usuarioAutenticado();
         Evento evento = eventoRepository.findById(eventoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado"));
+        var plan = planPromocionRepository.findById(planId)
+                .filter(com.eventhive.app.model.PlanPromocion::isActivo)
+                .orElseThrow(() -> new ResourceNotFoundException("Plan de promoción no encontrado o inactivo"));
         validarPropietarioPosicionamiento(evento, usuario);
         if (evento.getOrganizacion().getEstado() != EstadoOrganizacion.APROBADA
                 || evento.getEstado() != EstadoEvento.PUBLICADO) {
@@ -114,7 +114,11 @@ public class ServiceCompra {
         PosicionamientoEvento pago = new PosicionamientoEvento();
         pago.setEvento(evento);
         pago.setOrganizador(usuario);
-        pago.setPrecio(PRECIO_POSICIONAMIENTO);
+        pago.setPlan(plan);
+        pago.setPrecio(plan.getPrecio());
+        pago.setComisionPorcentaje(plan.getComisionPorcentaje());
+        pago.setPlanPremium(plan.isPremium());
+        pago.setPautaRedes(plan.isPautaRedes());
         pago.setMetodoPago("SIMULADO");
         pago.setEstado(EstadoPosicionamiento.PENDIENTE);
         return pagoPosicionamientoToDTO(posicionamientoEventoRepository.save(pago));
@@ -139,6 +143,15 @@ public class ServiceCompra {
             throw new BusinessException("El pago ya no está pendiente");
         }
         pago.setEstado(EstadoPosicionamiento.CONFIRMADO);
+        Evento evento = pago.getEvento();
+        evento.setPromocionado(true);
+        if (pago.getPlan() != null) {
+            evento.setComisionPromocionPorcentaje(pago.getComisionPorcentaje());
+            if (evento.getUrlImagenDestacado() == null || evento.getUrlImagenDestacado().isBlank()) {
+                evento.setUrlImagenDestacado(evento.getFoto());
+            }
+        }
+        eventoRepository.save(evento);
         return pagoPosicionamientoToDTO(posicionamientoEventoRepository.save(pago));
     }
 
@@ -186,7 +199,7 @@ public class ServiceCompra {
             }
 
             descontarDisponibles(localidad, itemReq.getCantidad());
-            BigDecimal precio = calcularPrecioConPromocion(localidad);
+            BigDecimal precio = localidad.getPrecio();
             items.add(buildItem(localidad, itemReq.getCantidad(), precio));
 
             total = total.add(precio.multiply(BigDecimal.valueOf(itemReq.getCantidad())));
@@ -318,15 +331,6 @@ public class ServiceCompra {
                             + "'. Disponibles: " + localidad.getDisponibles()
                             + ", solicitados: " + cantidad);
         }
-    }
-
-    private BigDecimal calcularPrecioConPromocion(Localidad localidad) {
-        return promocionRepository
-                .findVigenteByEventoId(localidad.getEvento().getId(), LocalDate.now())
-                .map(promo -> localidad.getPrecio()
-                        .multiply(BigDecimal.valueOf(100).subtract(promo.getDescuento()))
-                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP))
-                .orElse(localidad.getPrecio());
     }
 
     //METODOS DE CREACION DE ENTIDADES

@@ -1166,10 +1166,10 @@ En caso de error, la respuesta suele devolver:
 ```
 
 #### `POST /api/compras/eventos/{eventoId}/posicionamiento/pagos`
-- Recibe: `eventoId` en path; no hay opciones de posicionamiento ni importe enviado por frontend.
+- Recibe: `eventoId` en path y `planId` como query param.
 - Devuelve: `ApiResponse<PagoPosicionamientoDTO>`.
 - Permisos: REPRESENTANTE de la organización propietaria.
-- Descripción: registra un pago simulado `PENDIENTE` por el valor configurado en backend.
+- Descripción: registra un pago simulado `PENDIENTE` con el precio del plan seleccionado; el cliente no envía el precio.
 
 #### `GET /api/compras/posicionamiento/pagos/{pagoId}`
 - Recibe: `pagoId` en path.
@@ -1180,7 +1180,7 @@ En caso de error, la respuesta suele devolver:
 - Recibe: `pagoId` en path.
 - Devuelve: `ApiResponse<PagoPosicionamientoDTO>`.
 - Permisos: REPRESENTANTE de la organización propietaria.
-- Descripción: confirma el pago simulado. Después, el frontend debe asignar la URL con `POST /api/promociones/eventos/{eventoId}/posicionar`.
+- Descripción: al confirmar el pago simulado el evento queda destacado y se aplica la comisión congelada al contratar. Si el plan es Premium, entra al carrusel.
 
 #### `DELETE /api/compras/{id}`
 - Recibe: `id` en path.
@@ -1810,9 +1810,10 @@ Los operadores se agregan mediante invitación por correo, aceptan o rechazan la
 ```
 
 #### `POST /api/organizaciones/invitar`
-- Recibe: query param `correo`.
+- Recibe: query param `correo`; envía una invitación nueva para el rol OPERADOR.
 - Devuelve: `ApiResponse<Void>`
 - Permisos: REPRESENTANTE.
+- El destinatario acepta desde el enlace de correo, que vence en 24 horas; puede completar una cuenta nueva o actualizar una cuenta CLIENTE existente.
 - Ejemplo de respuesta:
 
 ```json
@@ -1827,6 +1828,7 @@ Los operadores se agregan mediante invitación por correo, aceptan o rechazan la
 - Recibe: `invitacionId` en path.
 - Devuelve: `ApiResponse<Void>`
 - Permisos: público/autenticado según flujo de negocio.
+- Ruta heredada para invitaciones anteriores; las invitaciones nuevas se aceptan con `POST /api/invitaciones/roles/aceptar`.
 - Ejemplo de respuesta:
 
 ```json
@@ -2622,151 +2624,46 @@ Para el panel autenticado se recomienda `GET /api/organizaciones/mi-organizacion
 
 ---
 
-## 16. Promociones
+## 16. Promoción pagada de eventos
 
-### Base: `/api/promociones`
+La promoción de eventos es distinta a ofrecer descuentos en boletos. Los
+descuentos de compra ya no están disponibles ni se aplican al checkout.
 
-#### `GET /api/promociones/evento/{eventoId}`
-- Recibe: `eventoId` en path.
-- Devuelve: `ApiResponse<PromocionDTO>`
-- Ejemplo de respuesta:
+#### `GET /api/promociones/planes`
+- Público. Devuelve los planes activos con precio, comisión, bandera `premium` y `pautaRedes`.
+- También incluye `detallePublicidad`. Impulso Digital inicia en $500.000/10% (anuncios pagados en redes por 1-2 semanas); Sold Out Absoluto inicia en $1.000.000/15% (Premium, carrusel, pauta de alto presupuesto y publicaciones fijas).
 
-```json
-{
-  "success": true,
-  "mensaje": "Promoción obtenida",
-  "data": {
-    "id": 1,
-    "eventoId": 15,
-    "descripcion": "Descuento del 20%",
-    "descuento": 20,
-    "fechaInicio": "2026-09-01",
-    "fechaFinal": "2026-09-30",
-    "estado": "VIGENTE",
-    "eventoId": 15,
-    "eventoTitulo": "Festival de Jazz",
-    "eventoNombre": "Festival de Jazz"
-  }
-}
-```
+#### `POST /api/compras/eventos/{eventoId}/posicionamiento/pagos?planId={id}`
+- Permisos: REPRESENTANTE del evento.
+- Registra una intención de pago simulada usando el precio vigente del plan.
 
-#### `GET /api/promociones`
-- Recibe: paginación.
-- Devuelve: `ApiResponse<PagedResponse<PromocionDTO>>`
-- Permisos: ADMINISTRADOR.
-- Ejemplo de respuesta:
+#### `PATCH /api/compras/posicionamiento/pagos/{pagoId}/confirmar-simulado`
+- Permisos: REPRESENTANTE propietario.
+- Confirma el pago simulado, destaca el evento y conserva la comisión contratada.
+- En producción debe reemplazarse la confirmación simulada por una confirmación de pasarela.
 
-```json
-{
-  "success": true,
-  "mensaje": "Promociones obtenidas",
-  "data": {
-    "content": [
-      {
-        "id": 1,
-        "descripcion": "Descuento del 20%",
-        "descuento": 20,
-        "fechaInicio": "2026-09-01",
-        "fechaFinal": "2026-09-30",
-        "estado": "VIGENTE",
-        "eventoId": 15,
-        "eventoTitulo": "Festival de Jazz",
-        "eventoNombre": "Festival de Jazz"
-      }
-    ]
-  }
-}
-```
-
-#### `GET /api/promociones/mi-organizacion`
-- Recibe: paginación.
-- Devuelve: `ApiResponse<PagedResponse<PromocionDTO>>`
-- Permisos: REPRESENTANTE.
-- Ejemplo de respuesta:
-
-```json
-{
-  "success": true,
-  "mensaje": "Promociones obtenidas",
-  "data": {
-    "content": [
-      {
-        "id": 1,
-        "eventoId": 15,
-        "descripcion": "Descuento del 20%",
-        "descuento": 20,
-        "fechaInicio": "2026-09-01",
-        "fechaFinal": "2026-09-30",
-        "estado": "VIGENTE",
-        "eventoTitulo": "Festival de Jazz",
-        "eventoNombre": "Festival de Jazz"
-      }
-    ]
-  }
-}
-```
-
-#### `POST /api/promociones`
-- Recibe: body `PromocionRequest`.
-- Devuelve: `ApiResponse<Void>`
-- Permisos: REPRESENTANTE o ADMINISTRADOR.
-- Ejemplo de respuesta:
-
-```json
-{
-  "success": true,
-  "mensaje": "Promoción creada",
-  "data": null
-}
-```
-
-#### `PUT /api/promociones/{id}`
-- Recibe: `id` en path y body `PromocionRequest`.
-- Devuelve: `ApiResponse<Void>`
-- Permisos: REPRESENTANTE o ADMINISTRADOR.
-- Ejemplo de respuesta:
-
-```json
-{
-  "success": true,
-  "mensaje": "Promoción actualizada",
-  "data": null
-}
-```
-
-#### `DELETE /api/promociones/{id}`
-- Recibe: `id` en path.
-- Devuelve: `ApiResponse<Void>`
-- Permisos: REPRESENTANTE o ADMINISTRADOR.
-- Ejemplo de respuesta:
-
-```json
-{
-  "success": true,
-  "mensaje": "Promoción eliminada",
-  "data": null
-}
-```
+#### `GET /api/eventos/destacados`
+- Devuelve únicamente eventos publicados con pago confirmado cuyo plan comprado era Premium.
+- La lista está ordenada por fecha del evento; no hay selección aleatoria ni rotación.
 
 #### `POST /api/promociones/eventos/{eventoId}/posicionar`
-- Recibe: `eventoId` en path y body JSON `{ "urlImagenDestacado": "https://..." }`.
-- Devuelve: `ApiResponse<Void>`.
-- Permisos: REPRESENTANTE de la organización propietaria.
-- Descripción: requiere un pago de posicionamiento confirmado en `/api/compras`. Asigna la URL y marca `promocionado: true`; solo `GET /api/eventos/destacados` devuelve esta URL.
-- Validaciones: el evento debe estar publicado y la URL debe corresponder al bucket público `eventos-images` del mismo proyecto Supabase.
+- Body: `{ "urlImagenDestacado": "https://..." }`.
+- Permisos: REPRESENTANTE propietario con pago confirmado.
+- Asigna o actualiza la imagen del evento destacado; no activa ni cancela el pago.
 
-#### `DELETE /api/promociones/eventos/{eventoId}/posicionar`
-- Recibe: `eventoId` en path.
-- Devuelve: `ApiResponse<Void>`.
-- Permisos: REPRESENTANTE de la organización propietaria.
-- Descripción: desactiva el destacado y elimina la URL sin borrar el pago histórico.
+### Dashboard MARKETING
 
-### Cambio de base de datos
-La columna se administra fuera de Hibernate (`ddl-auto=none`). Aplicar antes del despliegue:
+- `GET /api/marketing/planes`: lista todos los planes.
+- `PUT /api/marketing/planes/{id}`: actualiza nombre, precio, comisión porcentual, Premium, pauta en redes y estado activo.
+- `GET /api/marketing/eventos-promocionados`: lista eventos/organizaciones con pago confirmado, plan y características contratadas.
+- `GET /api/banners-home/admin` y las operaciones de escritura de `/api/banners-home` permiten ADMINISTRADOR y MARKETING.
 
-```sql
-ALTER TABLE eventos ADD COLUMN IF NOT EXISTS url_imagen_destacado VARCHAR(500);
-```
+La aplicación usa `spring.jpa.hibernate.ddl-auto=none`. Antes de desplegar
+esta versión, aplicar una vez
+[`V1__marketing_invitations_and_paid_promotions.sql`](./demo/src/main/resources/db/manual/V1__marketing_invitations_and_paid_promotions.sql).
+Configurar el envío por Brevo SMTP mediante las variables `MAIL_HOST`,
+`MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` y
+`eventhive.frontend-url` (URL base de la web para aceptar invitaciones).
 
 ---
 
@@ -2833,6 +2730,27 @@ ALTER TABLE eventos ADD COLUMN IF NOT EXISTS url_imagen_destacado VARCHAR(500);
   "data": null
 }
 ```
+
+### Invitaciones de roles por enlace temporal
+
+Una Administración autenticada puede invitar a MODERADOR o MARKETING; un
+REPRESENTANTE solo puede invitar a OPERADOR. Se puede invitar un correo
+sin cuenta o uno que ya tenga una cuenta CLIENTE. El enlace de Brevo es
+de un solo uso y vence 24 horas después del envío.
+
+#### `POST /api/invitaciones/roles`
+- Body: `{ "correo": "persona@correo.com", "rol": "MARKETING" }`.
+- Permisos: ADMINISTRADOR o REPRESENTANTE. La autorización limita qué roles puede asignar cada remitente.
+
+#### `GET /api/invitaciones/roles/validar?token={token}`
+- Público; devuelve el correo, rol y fecha de expiración para mostrar el formulario.
+
+#### `POST /api/invitaciones/roles/aceptar`
+- Público. Body: `{ "token": "...", "nombre": "Nombre", "telefono": "+573001112233", "clave": "contraseña segura" }`.
+- Crea la cuenta nueva o actualiza la cuenta CLIENTE existente con el rol invitado.
+
+#### `GET /api/invitaciones/roles/enviadas`
+- ADMINISTRADOR o REPRESENTANTE. Devuelve la lista paginada de invitaciones enviadas por la persona autenticada.
 
 ---
 
@@ -3084,10 +3002,11 @@ Este módulo administra los dos espacios promocionales propios de Eventhive. No 
 - Público: registro/login, consulta pública de eventos y organizaciones, banners del home
 - Autenticado: perfil, compras, lista de deseos, notificaciones, seguimientos
 - CLIENTE: compras, boletos, valoraciones
-- REPRESENTANTE: gestión de eventos, organización, promociones, verificación
+- REPRESENTANTE: gestión de eventos, organización, contratación de promoción pagada y verificación
 - OPERADOR: gestión de eventos y localidades
 - MODERADOR: revisión y moderación de eventos
-- ADMINISTRADOR: administración general, roles, moderadores, categorías, palabras prohibidas, promociones, verificación de organizaciones y banners del home
+- MARKETING: planes y comisiones de promoción, campañas de eventos pagados y banners del home
+- ADMINISTRADOR: administración general, invitaciones de moderadores/marketing, categorías, palabras prohibidas y verificación de organizaciones
 
 ---
 

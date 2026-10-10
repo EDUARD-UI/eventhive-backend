@@ -132,6 +132,25 @@ public class ServiceCorreo {
         });
     }
 
+    public void enviarInvitacionRol(String correoDestino, String rol, String enlace) {
+        try {
+            String asunto = "Invitación para unirte a EventHive como " + rol;
+            String html = baseTemplate("Completa tu registro",
+                    "Recibiste una invitación para crear una cuenta EventHive con el rol <strong>"
+                            + escaparHtml(rol) + "</strong>.",
+                    "<p>El enlace es de un solo uso y vence en 24 horas.</p>"
+                            + "<p><a href=\"" + escaparHtml(enlace)
+                            + "\" style=\"display:inline-block;background:#5b2a86;color:white;padding:12px 20px;"
+                            + "text-decoration:none;border-radius:6px;\">Aceptar invitación</a></p>"
+                            + "<p>Si no solicitaste esta invitación, puedes ignorar este correo.</p>");
+            enviar(correoDestino, asunto, html);
+            log.info("Invitación de rol enviada a {}", correoDestino);
+        } catch (Exception e) {
+            log.error("Error al enviar invitación de rol a {}: {}", correoDestino, e.getMessage());
+            throw new IllegalStateException("No se pudo enviar el correo de invitación", e);
+        }
+    }
+
     @Async("emailExecutor")
     public void enviarRolRevocado(String correoDestino, String nombreDestino, String detalle) {
         if (correoDestino == null) return;
@@ -256,5 +275,10 @@ public class ServiceCorreo {
 
     private String safeNombreTexto(String nombre) {
         return nombre != null ? nombre : "";
+    }
+
+    private String escaparHtml(String valor) {
+        return valor.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                .replace("\"", "&quot;").replace("'", "&#39;");
     }
 }

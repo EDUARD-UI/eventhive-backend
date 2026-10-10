@@ -27,6 +27,8 @@ EventHive utiliza estos roles:
     definidos.
 -   **OPERADOR:** integrante de una organización que puede ejecutar
     tareas operativas delegadas por esta.
+-   **MARKETING:** gestiona los planes de promoción pagada, las campañas
+    asociadas a eventos y los banners del home.
 -   **CLIENTE:** usuario que consulta eventos, compra entradas, sigue
     organizaciones y utiliza las funciones disponibles para asistentes.
 
@@ -40,7 +42,7 @@ El Administrador puede:
 
 -   Gestionar moderadores.
 -   Administrar categorías.
--   Administrar promociones globales.
+-   Gestionar invitaciones de moderadores y usuarios de Marketing.
 -   Consultar estadísticas generales.
 -   Consultar y gestionar organizaciones.
 -   Aprobar, rechazar o solicitar correcciones en solicitudes de
@@ -72,7 +74,7 @@ El dashboard debe mostrar indicadores agregados de la plataforma:
 -   Eventos suspendidos.
 -   Tickets vendidos.
 -   Ventas totales.
--   Promociones activas.
+-   Eventos con promoción pagada.
 
 Los indicadores deben obtenerse mediante consultas agregadas y no
 mediante la carga completa de las entidades.
@@ -135,20 +137,22 @@ en lugar de eliminarla físicamente.
 Las imágenes de categorías pueden almacenarse en un bucket público
 separado de los documentos privados.
 
-## 8. Promociones
+## 8. Marketing y promoción pagada
 
-Las promociones administradas globalmente pueden incluir:
+El rol MARKETING administra una tabla de planes con precio, comisión por
+venta, condición Premium, pauta en redes y disponibilidad. El plan Impulso
+Digital inicia en $500.000 y el plan Sold Out Absoluto en $1.000.000.
+Administración invita a los roles MODERADOR y MARKETING; un Representante
+invita OPERADORES.
 
--   Nombre.
--   Descripción.
--   Tipo de beneficio.
--   Valor o porcentaje.
--   Fecha de inicio.
--   Fecha de finalización.
--   Estado.
--   Reglas de aplicación.
+Una promoción pagada destaca el evento, pero solamente los eventos con un
+pago confirmado del plan Premium aparecen en la lista del carrusel. El
+carrusel no rota ni selecciona eventos al azar. La comisión pactada se
+conserva al contratar el plan para que un cambio posterior de tarifa no
+recalcule ventas previas.
 
-Las promociones deben validarse antes de aplicarse a una compra.
+Los descuentos sobre ventas de boletos no forman parte del flujo de
+promoción y no reducen el precio durante el checkout.
 
 ## 9. Estadísticas de moderación
 

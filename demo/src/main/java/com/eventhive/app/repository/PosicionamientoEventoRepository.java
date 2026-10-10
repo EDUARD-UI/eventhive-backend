@@ -25,6 +25,8 @@ public interface PosicionamientoEventoRepository extends JpaRepository<Posiciona
     // Panel del organizador
     List<PosicionamientoEvento> findByOrganizadorIdOrderByFechaContratacionDesc(Long organizadorId);
 
+    List<PosicionamientoEvento> findByEstadoOrderByFechaContratacionDesc(EstadoPosicionamiento estado);
+
     // Ingresos de la plataforma por venta de posicionamientos
     @Query("""
         SELECT COALESCE(SUM(p.precio), 0) FROM PosicionamientoEvento p

@@ -19,23 +19,19 @@ import com.eventhive.app.model.Evento;
 import com.eventhive.app.model.Organizacion;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.repository.EventoRepository;
-import com.eventhive.app.repository.PromocionRepository;
-import com.eventhive.app.repository.TiqueteRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
 
 @ExtendWith(MockitoExtension.class)
 class ServicePromocionSeoTest {
 
-    @Mock private PromocionRepository promocionRepository;
     @Mock private EventoRepository eventoRepository;
-    @Mock private TiqueteRepository tiqueteRepository;
     @Mock private AuthenticatedUserHelper authHelper;
     @Mock private ServiceCompra serviceCompra;
     @Mock private SupabaseStorageConfig storageConfig;
     @InjectMocks private ServicePromocion servicePromocion;
 
     @Test
-    void posicionarGuardaUrlYActivaEventoSoloTrasPagoConfirmado() {
+    void asignarImagenConservaEventoDestacadoTrasPagoConfirmado() {
         Usuario representante = new Usuario();
         representante.setId(8L);
         Organizacion organizacion = new Organizacion();
@@ -43,6 +39,7 @@ class ServicePromocionSeoTest {
         Evento evento = new Evento();
         evento.setId(17L);
         evento.setEstado(EstadoEvento.PUBLICADO);
+        evento.setPromocionado(true);
         evento.setOrganizacion(organizacion);
 
         when(authHelper.usuarioAutenticado()).thenReturn(representante);
@@ -52,7 +49,7 @@ class ServicePromocionSeoTest {
         when(eventoRepository.save(evento)).thenReturn(evento);
 
         String imageUrl = "https://project.supabase.co/storage/v1/object/public/eventos-images/featured.jpg";
-        Evento resultado = servicePromocion.posicionarEvento(17L, imageUrl);
+        Evento resultado = servicePromocion.asignarImagenDestacada(17L, imageUrl);
 
         assertTrue(resultado.getPromocionado());
         assertEquals(imageUrl, resultado.getUrlImagenDestacado());

@@ -12,7 +12,7 @@ public class ServiceMonetizacion {
 
     private static final BigDecimal CIEN = new BigDecimal("100.00");
     public static final BigDecimal COMISION_NORMAL = new BigDecimal("7.00");
-    private static final BigDecimal COMISION_PROMOCIONADA = new BigDecimal("9.00");
+    private static final BigDecimal COMISION_PROMOCIONADA = new BigDecimal("100.00");
 
     public BigDecimal obtenerPorcentajeComision(Evento evento) {
         if (evento == null) {
@@ -20,7 +20,9 @@ public class ServiceMonetizacion {
         }
 
         if (Boolean.TRUE.equals(evento.getPromocionado())) {
-            return COMISION_PROMOCIONADA;
+            return evento.getComisionPromocionPorcentaje() != null
+                    ? evento.getComisionPromocionPorcentaje()
+                    : new BigDecimal("9.00");
         }
 
         return COMISION_NORMAL;

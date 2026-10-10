@@ -2,6 +2,7 @@ package com.eventhive.app.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.verify;
@@ -28,7 +29,8 @@ import com.eventhive.app.repository.CompraRepository;
 import com.eventhive.app.repository.EventoRepository;
 import com.eventhive.app.repository.LocalidadRepository;
 import com.eventhive.app.repository.PosicionamientoEventoRepository;
-import com.eventhive.app.repository.PromocionRepository;
+import com.eventhive.app.model.PlanPromocion;
+import com.eventhive.app.repository.PlanPromocionRepository;
 import com.eventhive.app.repository.TiqueteRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
 
@@ -40,7 +42,7 @@ class ServiceCompraPagoTest {
     @Mock private LocalidadRepository localidadRepository;
     @Mock private PosicionamientoEventoRepository posicionamientoEventoRepository;
     @Mock private TiqueteRepository tiqueteRepository;
-    @Mock private PromocionRepository promocionRepository;
+    @Mock private PlanPromocionRepository planPromocionRepository;
     @Mock private AuthenticatedUserHelper authHelper;
     @Mock private ServiceNotification serviceNotification;
     @Mock private ServiceMonetizacion serviceMonetizacion;
@@ -53,6 +55,10 @@ class ServiceCompraPagoTest {
         Evento evento = evento(12L, representante);
         when(authHelper.usuarioAutenticado()).thenReturn(representante);
         when(eventoRepository.findById(12L)).thenReturn(Optional.of(evento));
+        PlanPromocion plan = new PlanPromocion();
+        plan.setPrecio(new java.math.BigDecimal("500000"));
+        plan.setActivo(true);
+        when(planPromocionRepository.findById(5L)).thenReturn(Optional.of(plan));
         when(posicionamientoEventoRepository.existsByEventoIdAndEstadoIn(any(), anyList())).thenReturn(false);
         when(posicionamientoEventoRepository.save(any(PosicionamientoEvento.class))).thenAnswer(invocation -> {
             PosicionamientoEvento pago = invocation.getArgument(0);
@@ -60,7 +66,7 @@ class ServiceCompraPagoTest {
             return pago;
         });
 
-        var resultado = serviceCompra.registrarPagoPosicionamiento(12L);
+        var resultado = serviceCompra.registrarPagoPosicionamiento(12L, 5L);
 
         assertEquals(EstadoPosicionamiento.PENDIENTE, resultado.getEstado());
         assertEquals(3L, resultado.getOrganizacionId());
@@ -68,13 +74,17 @@ class ServiceCompraPagoTest {
     }
 
     @Test
-    void confirmarPagoSimuladoNoDestacaElEventoHastaAsignarUrlSeo() {
+    void confirmarPagoSimuladoActivaElEventoPromocionado() {
         Usuario representante = representante(7L);
         Evento evento = evento(12L, representante);
         PosicionamientoEvento pago = new PosicionamientoEvento();
         pago.setId(21L);
         pago.setEvento(evento);
         pago.setOrganizador(representante);
+        PlanPromocion plan = new PlanPromocion();
+        plan.setComisionPorcentaje(new java.math.BigDecimal("10.00"));
+        pago.setPlan(plan);
+        pago.setComisionPorcentaje(plan.getComisionPorcentaje());
         pago.setEstado(EstadoPosicionamiento.PENDIENTE);
         when(authHelper.usuarioAutenticado()).thenReturn(representante);
         when(posicionamientoEventoRepository.findById(21L)).thenReturn(Optional.of(pago));
@@ -83,7 +93,7 @@ class ServiceCompraPagoTest {
         var resultado = serviceCompra.confirmarPagoPosicionamientoSimulado(21L);
 
         assertEquals(EstadoPosicionamiento.CONFIRMADO, resultado.getEstado());
-        assertFalse(Boolean.TRUE.equals(evento.getPromocionado()));
+        assertTrue(Boolean.TRUE.equals(evento.getPromocionado()));
         verify(posicionamientoEventoRepository).save(pago);
     }
 

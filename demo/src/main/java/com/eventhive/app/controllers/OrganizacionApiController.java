@@ -36,6 +36,7 @@ import com.eventhive.app.enums.EstadoOrganizacion;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.service.ServiceInvitacionOrganizacion;
+import com.eventhive.app.service.ServiceInvitacionRol;
 import com.eventhive.app.service.ServiceNivelOrganizacion;
 import com.eventhive.app.service.ServiceOrganizacion;
 import com.eventhive.app.service.ServiceSeguidor;
@@ -56,6 +57,7 @@ public class OrganizacionApiController {
     private final ServiceNivelOrganizacion serviceNivelOrganizacion;
     private final ServiceSeguidor serviceSeguidor;
     private final ServiceInvitacionOrganizacion serviceInvitacion;
+    private final ServiceInvitacionRol serviceInvitacionRol;
     private final ServiceUsuario serviceUsuario;
     private final ServiceValoracion serviceValoracion;
 
@@ -196,8 +198,8 @@ public class OrganizacionApiController {
     @PostMapping("/invitar")
     @PreAuthorize("hasRole('REPRESENTANTE')")
     public ResponseEntity<ApiResponse<Void>> invitar(@RequestParam String correo) {
-        serviceInvitacion.invitar(correo);
-        return ResponseEntity.ok(ApiResponse.ok("Invitación enviada"));
+        serviceInvitacionRol.invitar(correo, "OPERADOR");
+        return ResponseEntity.ok(ApiResponse.ok("Invitación enviada por correo; el enlace vence en 24 horas"));
     }
 
     @PatchMapping("invitaciones/{invitacionId}/aceptar")

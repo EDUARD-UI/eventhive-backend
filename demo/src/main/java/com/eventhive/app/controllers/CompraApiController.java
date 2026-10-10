@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.eventhive.app.dto.ApiResponse;
@@ -59,9 +60,9 @@ public class CompraApiController {
     @PostMapping("/eventos/{eventoId}/posicionamiento/pagos")
     @PreAuthorize("hasRole('REPRESENTANTE')")
     public ResponseEntity<ApiResponse<PagoPosicionamientoDTO>> registrarPagoPosicionamiento(
-            @PathVariable Long eventoId) {
+            @PathVariable Long eventoId, @RequestParam Long planId) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Pago simulado registrado",
-                compraService.registrarPagoPosicionamiento(eventoId)));
+                compraService.registrarPagoPosicionamiento(eventoId, planId)));
     }
 
     @GetMapping("/posicionamiento/pagos/{pagoId}")
