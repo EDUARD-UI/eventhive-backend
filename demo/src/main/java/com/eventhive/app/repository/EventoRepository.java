@@ -72,12 +72,14 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         """)
     Page<Evento> findDestacadosPublicados(Pageable pageable);
 
-    // Eventos elegibles para el carrusel principal: publicados, promoción confirmada, plan premium y con imagen destacada válida
+    // Eventos elegibles para el carrusel principal: publicados, promocionados, promoción confirmada con plan premium y con imagen destacada válida
     @Query(value = """
         SELECT DISTINCT e FROM Evento e
         JOIN PosicionamientoEvento p ON p.evento = e
+        LEFT JOIN p.plan pl
         WHERE p.estado = com.eventhive.app.enums.EstadoPosicionamiento.CONFIRMADO
-          AND p.planPremium = true
+          AND e.promocionado = true
+          AND (pl.premium = true OR p.planPremium = true)
           AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
           AND e.urlImagenDestacado IS NOT NULL
           AND TRIM(e.urlImagenDestacado) != ''

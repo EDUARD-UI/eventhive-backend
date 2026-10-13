@@ -6,6 +6,7 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.eventhive.app.enums.EstadoPosicionamiento;
 import com.eventhive.app.model.PosicionamientoEvento;
@@ -19,7 +20,14 @@ public interface PosicionamientoEventoRepository extends JpaRepository<Posiciona
     boolean existsByEventoIdAndEstado(Long eventoId, EstadoPosicionamiento estado);
 
     // Verifica si existe posicionamiento confirmado con plan premium para banner/carrusel
-    boolean existsByEventoIdAndEstadoAndPlanPremiumTrue(Long eventoId, EstadoPosicionamiento estado);
+    @Query("""
+        SELECT COUNT(p) > 0 FROM PosicionamientoEvento p
+        LEFT JOIN p.plan pl
+        WHERE p.evento.id = :eventoId
+          AND p.estado = :estado
+          AND (p.planPremium = true OR (pl IS NOT NULL AND pl.premium = true))
+        """)
+    boolean existsByEventoIdAndEstadoAndPlanPremiumTrue(@Param("eventoId") Long eventoId, @Param("estado") EstadoPosicionamiento estado);
 
     boolean existsByEventoIdAndEstadoIn(Long eventoId, List<EstadoPosicionamiento> estados);
 
