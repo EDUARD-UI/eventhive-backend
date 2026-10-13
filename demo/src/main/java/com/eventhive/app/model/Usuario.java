@@ -6,6 +6,7 @@ import java.util.Set;
 
 import com.eventhive.app.enums.PermisoEvento;
 
+import org.hibernate.annotations.BatchSize;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
@@ -45,6 +46,7 @@ public class Usuario {
 
     //solo Rol trabajador
     @ElementCollection(fetch = FetchType.LAZY)
+    @BatchSize(size = 30)
     @CollectionTable(name = "usuario_permisos_evento",
             joinColumns = @JoinColumn(name = "usuario_id"))
     @Enumerated(EnumType.STRING)

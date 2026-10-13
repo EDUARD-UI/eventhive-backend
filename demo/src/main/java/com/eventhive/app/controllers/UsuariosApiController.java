@@ -42,8 +42,17 @@ public class UsuariosApiController {
     //CONSULTAS
     @GetMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public ResponseEntity<ApiResponse<PagedResponse<UsuarioAdminDTO>>> listar(Pageable pageable) {
-        Page<UsuarioAdminDTO> page = usuarioService.obtenerTodosAdmin(pageable);
+    public ResponseEntity<ApiResponse<PagedResponse<UsuarioAdminDTO>>> listar(
+            @RequestParam(required = false) String nombre,
+            @RequestParam(required = false) Long rolId,
+            @RequestParam(required = false) String rol,
+            Pageable pageable) {
+        Page<UsuarioAdminDTO> page;
+        if ((nombre != null && !nombre.isBlank()) || rolId != null || (rol != null && !rol.isBlank())) {
+            page = usuarioService.buscarAdminPorFiltros(nombre, rolId, rol, pageable);
+        } else {
+            page = usuarioService.obtenerTodosAdmin(pageable);
+        }
         return ResponseEntity.ok(ApiResponse.ok("Usuarios obtenidos", usuarioService.toPagedAdmin(page)));
     }
 

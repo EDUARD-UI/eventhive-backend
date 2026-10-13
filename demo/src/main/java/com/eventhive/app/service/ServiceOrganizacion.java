@@ -2,6 +2,7 @@ package com.eventhive.app.service;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -307,6 +308,7 @@ public class ServiceOrganizacion {
             return EventoEntradasResumenDTO.builder()
                     .id(ev.getId())
                     .nombre(ev.getTitulo())
+                    .estado(ev.getEstado())
                     .boletasVendidas(ventasPorEvento.getOrDefault(ev.getId(), 0L))
                     .ingresosGenerados(ingresosPorEvento.getOrDefault(ev.getId(), BigDecimal.ZERO))
                     .build();
@@ -396,7 +398,7 @@ public class ServiceOrganizacion {
         dto.setId(u.getId());
         dto.setNombreCompleto(u.getNombreCompleto());
         dto.setCorreo(u.getCorreo());
-        dto.setPermisosEvento(u.getPermisosEvento());
+        dto.setPermisosEvento(u.getPermisosEvento() != null ? new HashSet<>(u.getPermisosEvento()) : new HashSet<>());
         return dto;
     }
 }

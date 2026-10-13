@@ -77,9 +77,16 @@ public class ServiceUsuario {
     public Page<UsuarioAdminDTO> buscarAdminPorFiltros(String nombre, Long rolId, String rolNombre, Pageable pageable) {
         Long resolvedRolId = rolId;
         if (resolvedRolId == null && rolNombre != null && !rolNombre.isBlank()) {
-            resolvedRolId = rolesRepository.findByNombre(rolNombre.trim().toUpperCase())
+            String limpio = rolNombre.trim().toUpperCase();
+            if (limpio.startsWith("ROLE_")) {
+                limpio = limpio.substring(5);
+            }
+            resolvedRolId = rolesRepository.findByNombre(limpio)
                     .map(Rol::getId)
                     .orElse(null);
+            if (resolvedRolId == null) {
+                return Page.empty(pageable);
+            }
         }
         return buscarPorFiltros(nombre, resolvedRolId, pageable).map(this::toAdminDTO);
     }
