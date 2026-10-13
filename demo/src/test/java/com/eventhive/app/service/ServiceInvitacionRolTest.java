@@ -2,6 +2,7 @@ package com.eventhive.app.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -25,6 +26,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.eventhive.app.dto.request.AceptarInvitacionRolRequest;
+import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.model.InvitacionRol;
 import com.eventhive.app.model.Organizacion;
 import com.eventhive.app.model.Rol;
@@ -55,13 +57,14 @@ class ServiceInvitacionRolTest {
         representante.setOrganizacion(organizacion);
 
         Usuario cliente = usuario(3L, "CLIENTE");
+        cliente.setNombreCompleto("Nombre original");
+        cliente.setTelefono("+573009998877");
+        cliente.setClave("hash-original");
         Rol rolOperador = rol("OPERADOR");
         when(authHelper.usuarioAutenticado()).thenReturn(representante);
         when(usuarios.findByCorreoIgnoreCase("cliente@example.com")).thenReturn(Optional.of(cliente));
         when(roles.findByNombre("OPERADOR")).thenReturn(Optional.of(rolOperador));
         when(invitaciones.save(any(InvitacionRol.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(passwordEncoder.encode("passwordSeguro")).thenReturn("hash-password");
-
         service.invitar("Cliente@Example.com", "OPERADOR");
 
         ArgumentCaptor<InvitacionRol> invitationCaptor = ArgumentCaptor.forClass(InvitacionRol.class);
@@ -83,15 +86,85 @@ class ServiceInvitacionRolTest {
 
         AceptarInvitacionRolRequest aceptar = new AceptarInvitacionRolRequest();
         aceptar.setToken(token);
-        aceptar.setNombre("Cliente invitado");
-        aceptar.setTelefono("+573001234567");
-        aceptar.setClave("passwordSeguro");
         service.aceptar(aceptar);
 
         assertEquals("OPERADOR", cliente.getRol().getNombre());
         assertEquals(organizacion, cliente.getOrganizacion());
-        assertEquals("hash-password", cliente.getClave());
+        assertEquals("Nombre original", cliente.getNombreCompleto());
+        assertEquals("+573009998877", cliente.getTelefono());
+        assertEquals("hash-original", cliente.getClave());
         assertTrue(invitacion.getFechaAceptacion() != null);
+    }
+
+    @Test
+    void noPermiteInvitarUnaCuentaConRolAdministrativo() {
+        Usuario administrador = usuario(2L, "ADMINISTRADOR");
+        Usuario moderador = usuario(3L, "MODERADOR");
+        when(authHelper.usuarioAutenticado()).thenReturn(administrador);
+        when(usuarios.findByCorreoIgnoreCase("cliente@example.com")).thenReturn(Optional.of(moderador));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.invitar("cliente@example.com", "MODERADOR"));
+
+        assertEquals("La persona ya tiene el rol MODERADOR", exception.getMessage());
+    }
+
+    @Test
+    void explicaPorQueNoPuedeInvitarCuentasConOtrosRolesPrivilegiados() {
+        Usuario administrador = usuario(2L, "ADMINISTRADOR");
+        when(authHelper.usuarioAutenticado()).thenReturn(administrador);
+
+        for (String rolActual : new String[] {"REPRESENTANTE", "OPERADOR", "ADMINISTRADOR", "MARKETING"}) {
+            String correo = rolActual.toLowerCase() + "@example.com";
+            Usuario existente = usuario(3L, rolActual);
+            existente.setCorreo(correo);
+            when(usuarios.findByCorreoIgnoreCase(correo)).thenReturn(Optional.of(existente));
+
+            BusinessException exception = assertThrows(BusinessException.class,
+                    () -> service.invitar(correo, "MODERADOR"));
+
+            assertTrue(exception.getMessage().contains("rol " + rolActual.toLowerCase()));
+        }
+    }
+
+    @Test
+    void nuevaCuentaInvitadaSeCreaConLosDatosRecibidos() throws Exception {
+        ReflectionTestUtils.setField(service, "frontendUrl", "https://eventhive.example");
+        Usuario administrador = usuario(2L, "ADMINISTRADOR");
+        Rol rolMarketing = rol("MARKETING");
+        when(authHelper.usuarioAutenticado()).thenReturn(administrador);
+        when(usuarios.findByCorreoIgnoreCase("nueva@example.com")).thenReturn(Optional.empty());
+        when(roles.findByNombre("MARKETING")).thenReturn(Optional.of(rolMarketing));
+        when(invitaciones.save(any(InvitacionRol.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(passwordEncoder.encode("passwordSeguro")).thenReturn("hash-password");
+
+        service.invitar("nueva@example.com", "MARKETING");
+
+        ArgumentCaptor<String> linkCaptor = ArgumentCaptor.forClass(String.class);
+        verify(serviceCorreo).enviarInvitacionRol(eq("nueva@example.com"), eq("MARKETING"), linkCaptor.capture());
+        String token = URI.create(linkCaptor.getValue()).getQuery().substring("token=".length());
+        String hash = HexFormat.of().formatHex(
+                MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8)));
+        InvitacionRol invitacion = new InvitacionRol();
+        invitacion.setCorreoInvitado("nueva@example.com");
+        invitacion.setRolDestino("MARKETING");
+        invitacion.setFechaExpiracion(LocalDateTime.now().plusHours(24));
+        when(invitaciones.findByTokenHashAndFechaAceptacionIsNull(hash)).thenReturn(Optional.of(invitacion));
+
+        AceptarInvitacionRolRequest aceptar = new AceptarInvitacionRolRequest();
+        aceptar.setToken(token);
+        aceptar.setNombre("Nueva persona");
+        aceptar.setTelefono("+573001234567");
+        aceptar.setClave("passwordSeguro");
+        service.aceptar(aceptar);
+
+        ArgumentCaptor<Usuario> usuarioCaptor = ArgumentCaptor.forClass(Usuario.class);
+        verify(usuarios).save(usuarioCaptor.capture());
+        Usuario nuevo = usuarioCaptor.getValue();
+        assertEquals("Nueva persona", nuevo.getNombreCompleto());
+        assertEquals("nueva@example.com", nuevo.getCorreo());
+        assertEquals("MARKETING", nuevo.getRol().getNombre());
+        assertEquals("hash-password", nuevo.getClave());
     }
 
     private Usuario usuario(Long id, String nombreRol) {

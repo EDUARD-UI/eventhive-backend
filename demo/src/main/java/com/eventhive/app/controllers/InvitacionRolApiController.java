@@ -55,6 +55,6 @@ public class InvitacionRolApiController {
     public ResponseEntity<ApiResponse<Void>> aceptar(@Valid @RequestBody AceptarInvitacionRolRequest request) {
         service.aceptar(request);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.ok("Cuenta creada y rol asignado"));
+                .body(ApiResponse.ok("Invitación aceptada correctamente"));
     }
 }

@@ -62,12 +62,10 @@ public class ServiceNotification {
                     "Recordatorio de evento",
                     "El evento \"" + evento.getTitulo() + "\" es mañana. ¡No lo olvides!"
             );
-
-            serviceCorreo.enviarRecordatorioEventoHoy(evento, comprador);
         }
     }
 
-    // EVENTO_CANCELADO: solo compradores + correo. EVENTO_MODIFICADO: seguidores, sin correo.
+    // EVENTO_CANCELADO: solo compradores. EVENTO_MODIFICADO: seguidores. Ambos solo dentro de la app.
     public void notificarCambioEvento(Evento evento, TipoNotification tipo) {
         if (tipo == TipoNotification.EVENTO_CANCELADO) {
             List<Usuario> compradores = tiqueteRepository.findClientesDistinctByEventoId(evento.getId());
@@ -75,7 +73,6 @@ public class ServiceNotification {
                 guardarNotificacion(comprador.getId(), evento.getOrganizacion().getId(), evento.getId(),
                         evento.getTitulo(), tipo, "Evento cancelado",
                         "El evento \"" + evento.getTitulo() + "\" ha sido cancelado.");
-                serviceCorreo.enviarEventoCancelado(evento, comprador);
             }
             return;
         }
@@ -92,7 +89,7 @@ public class ServiceNotification {
                     "Evento pendiente de revisión",
                     "El evento \"" + evento.getTitulo() + "\" fue enviado a revisión.");
         }
-        // Sin correo: la bandeja de moderación ya es el canal principal para ellos.
+        // Solo notificación interna: la bandeja de moderación es el canal principal.
     }
 
     public void notificarResultadoModeracionEvento(Usuario representante, Evento evento,
@@ -106,19 +103,18 @@ public class ServiceNotification {
 
         guardarNotificacion(representante.getId(), evento.getOrganizacion().getId(), evento.getId(),
                 evento.getTitulo(), tipo, titulo, mensaje);
-        serviceCorreo.enviarResultadoModeracionEvento(
-                representante.getCorreo(), representante.getNombreCompleto(),
-                evento.getTitulo(), aprobado, motivo);
     }
 
     // NOTIFICACIONES DE COMPRAS
 
+    // Único caso con correo: pago confirmado + boletos.
     public void notificarCompraConfirmada(Compra compra) {
         Usuario cliente = compra.getCliente();
         guardarNotificacion(cliente.getId(), null, null, null,
                 TipoNotification.COMPRA_CONFIRMADA, "Compra confirmada",
                 "Tu compra #" + compra.getId() + " fue procesada correctamente. Ya puedes consultar tus boletos.");
-        serviceCorreo.enviarConfirmacionCompra(compra);
+        serviceCorreo.enviarPagoConfirmado(compra);
+        serviceCorreo.enviarBoletos(compra);
     }
 
     public void notificarCompraCancelada(Compra compra) {
@@ -126,7 +122,6 @@ public class ServiceNotification {
         guardarNotificacion(cliente.getId(), null, null, null,
                 TipoNotification.COMPRA_CANCELADA, "Compra cancelada",
                 "Tu compra #" + compra.getId() + " fue cancelada.");
-        serviceCorreo.enviarCancelacionCompra(compra);
     }
 
     // NOTIFICACIONES DE ORGANIZACIÓN Y ROLES
@@ -135,22 +130,18 @@ public class ServiceNotification {
         guardarNotificacion(invitado.getId(), null, null, null,
                 TipoNotification.ORGANIZACION_INVITACION, "Invitación recibida",
                 "Has recibido una invitación para formar parte de " + organizacionNombre + ".");
-        serviceCorreo.enviarInvitacionOrganizacion(
-                invitado.getCorreo(), invitado.getNombreCompleto(), organizacionNombre);
     }
 
     public void notificarInvitacionAceptada(Usuario representante, String nombreAceptante) {
         guardarNotificacion(representante.getId(), null, null, null,
                 TipoNotification.ORGANIZACION_INVITACION_ACEPTADA, "Invitación aceptada",
                 nombreAceptante + " aceptó la invitación para formar parte de tu organización.");
-        // Sin correo, según matriz.
     }
 
     public void notificarInvitacionRechazada(Usuario representante, String nombreRechazante) {
         guardarNotificacion(representante.getId(), null, null, null,
                 TipoNotification.ORGANIZACION_INVITACION_RECHAZADA, "Invitación rechazada",
                 nombreRechazante + " rechazó la invitación.");
-        // Sin correo, según matriz.
     }
 
     public void notificarRolAsignado(Usuario usuario, String rolNombre, String organizacionNombre) {
@@ -158,7 +149,6 @@ public class ServiceNotification {
                 TipoNotification.ROL_ASIGNADO, "Rol asignado",
                 "Has aceptado la invitación para formar parte de " + organizacionNombre
                         + ". Tu rol ahora es " + rolNombre + ".");
-        // Sin correo, según matriz.
     }
 
     // Revocación de rol de MODERADOR (vuelve a CLIENTE)
@@ -168,16 +158,12 @@ public class ServiceNotification {
         guardarNotificacion(usuario.getId(), null, null, null,
                 TipoNotification.ROL_REVOCADO, "Rol revocado",
                 "Tu rol de moderador ha sido revocado. Ahora vuelves a tu rol de cliente.");
-        serviceCorreo.enviarRolRevocado(usuario.getCorreo(), usuario.getNombreCompleto(),
-                "Tu rol de moderador ha sido revocado. Ahora vuelves a tu rol de cliente.");
     }
 
     // Revocación de permisos de OPERADOR dentro de una organización
     public void notificarRevocacionOperador(Usuario operador, String organizacionNombre) {
         guardarNotificacion(operador.getId(), null, null, null,
                 TipoNotification.ROL_REVOCADO, "Rol revocado",
-                "Tu rol de OPERADOR en " + organizacionNombre + " ha sido revocado.");
-        serviceCorreo.enviarRolRevocado(operador.getCorreo(), operador.getNombreCompleto(),
                 "Tu rol de OPERADOR en " + organizacionNombre + " ha sido revocado.");
     }
 
@@ -191,8 +177,6 @@ public class ServiceNotification {
                 : "Tu solicitud de organización fue rechazada." + (motivo != null ? " Motivo: " + motivo : "");
 
         guardarNotificacion(representante.getId(), null, null, null, tipo, titulo, mensaje);
-        serviceCorreo.enviarResultadoSolicitudOrganizacion(
-                representante.getCorreo(), representante.getNombreCompleto(), aprobada, motivo);
     }
 
     // NOTIFICACIONES PARA ADMINISTRADORES (campana del dashboard)

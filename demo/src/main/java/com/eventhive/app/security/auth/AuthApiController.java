@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.eventhive.app.dto.request.OlvideClaveRequest;
+import com.eventhive.app.dto.request.RestablecerClaveRequest;
+import com.eventhive.app.service.ServiceRecuperacionClave;
 import com.eventhive.app.dto.ApiResponse;
 import com.eventhive.app.dto.request.LoginRequest;
 import com.eventhive.app.dto.request.RefreshRequest;
@@ -30,10 +33,12 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/auth")
 public class AuthApiController {
 
+    private final ServiceRecuperacionClave serviceRecuperacionClave;
     private final ServiceAutenticacion serviceAutenticacion;
     private final ServiceSolicitudVerificacion serviceSolicitud;
     private final ServiceUsuario serviceUsuario;
 
+    //CONSULTAS
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UsuarioSesionDTO>> me() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -46,6 +51,7 @@ public class AuthApiController {
         return ResponseEntity.ok(ApiResponse.ok("Sesión activa", usuario));
     }
 
+    //LOGEO
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<LoginResponseDTO>> login(@Valid @RequestBody LoginRequest request) {
         LoginResponseDTO response = serviceAutenticacion.autenticar(request.getCorreo(), request.getClave());
@@ -63,6 +69,7 @@ public class AuthApiController {
         return ResponseEntity.ok(ApiResponse.ok("Sesión cerrada"));
     }
 
+    //REGISTRO DE USUARIOS
     @PostMapping("/registrar-cliente")
     public ResponseEntity<ApiResponse<Void>> registrarCliente(@Valid @RequestBody RegistroRequest request) {
         serviceAutenticacion.registrarCliente(
@@ -78,6 +85,20 @@ public class AuthApiController {
         serviceSolicitud.registrarOrganizador(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("Usuario y pre-registro de organización creados con éxito. Ya puedes ingresar al Dashboard."));
+    }
+
+    //GESTION DE CLAVES
+    @PostMapping("/olvide-clave")
+    public ResponseEntity<ApiResponse<Void>> olvideClave(@Valid @RequestBody OlvideClaveRequest request) {
+        serviceRecuperacionClave.solicitar(request.getCorreo());
+        return ResponseEntity.ok(ApiResponse.ok(
+                "Si el correo está registrado, recibirás un enlace para restablecer tu contraseña."));
+    }
+
+    @PostMapping("/restablecer-clave")
+    public ResponseEntity<ApiResponse<Void>> restablecerClave(@Valid @RequestBody RestablecerClaveRequest request) {
+        serviceRecuperacionClave.restablecer(request.getToken(), request.getClave());
+        return ResponseEntity.ok(ApiResponse.ok("Contraseña actualizada correctamente"));
     }
 
 }

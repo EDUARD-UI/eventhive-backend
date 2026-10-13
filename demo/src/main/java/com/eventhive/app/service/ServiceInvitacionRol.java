@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import com.eventhive.app.dto.request.AceptarInvitacionRolRequest;
 import com.eventhive.app.dto.response.InvitacionRolDTO;
@@ -74,9 +75,9 @@ public class ServiceInvitacionRol {
         }
 
         usuarios.findByCorreoIgnoreCase(correoNormalizado).ifPresent(existente -> {
-            if (existente.getRol() == null || !"CLIENTE".equals(existente.getRol().getNombre())
-                    || existente.getOrganizacion() != null) {
-                throw new BusinessException("El correo ya está asociado a una cuenta que no puede recibir esta invitación");
+            validarRolInvitado(existente, rol);
+            if (existente.getOrganizacion() != null) {
+                throw new BusinessException("La cuenta ya pertenece a una organización");
             }
         });
         if (invitaciones.existsByCorreoInvitadoIgnoreCaseAndFechaAceptacionIsNullAndFechaExpiracionAfter(
@@ -130,20 +131,24 @@ public class ServiceInvitacionRol {
         Rol rol = roles.findByNombre(invitacion.getRolDestino())
                 .orElseThrow(() -> new ResourceNotFoundException("El rol invitado ya no está disponible"));
 
-        Usuario usuario = usuarios.findByCorreoIgnoreCase(invitacion.getCorreoInvitado()).orElseGet(Usuario::new);
-        if (usuario.getRol() != null && !"CLIENTE".equals(usuario.getRol().getNombre())) {
-            throw new BusinessException("El correo ya está asociado a otro rol");
+        Usuario usuario = usuarios.findByCorreoIgnoreCase(invitacion.getCorreoInvitado()).orElse(null);
+        boolean cuentaExistente = usuario != null;
+        if (cuentaExistente) {
+            validarRolInvitado(usuario, invitacion.getRolDestino());
+        } else {
+            validarDatosNuevaCuenta(request);
+            usuario = new Usuario();
+            usuario.setNombreCompleto(request.getNombre().trim());
+            usuario.setCorreo(invitacion.getCorreoInvitado());
+            usuario.setTelefono(request.getTelefono().trim());
+            usuario.setClave(passwordEncoder.encode(request.getClave()));
+            usuario.setActivo(true);
         }
         if (usuario.getOrganizacion() != null
                 && (invitacion.getOrganizacion() == null
                 || !usuario.getOrganizacion().getId().equals(invitacion.getOrganizacion().getId()))) {
             throw new BusinessException("La cuenta ya pertenece a una organización distinta");
         }
-        usuario.setNombreCompleto(request.getNombre().trim());
-        usuario.setCorreo(invitacion.getCorreoInvitado());
-        usuario.setTelefono(request.getTelefono().trim());
-        usuario.setClave(passwordEncoder.encode(request.getClave()));
-        usuario.setActivo(true);
         usuario.setRol(rol);
         usuario.setOrganizacion(invitacion.getOrganizacion());
         usuarios.save(usuario);
@@ -175,6 +180,36 @@ public class ServiceInvitacionRol {
 
     private boolean esRol(Usuario usuario, String nombre) {
         return usuario.getRol() != null && nombre.equals(usuario.getRol().getNombre());
+    }
+
+    private void validarRolInvitado(Usuario usuario, String rolDestino) {
+        if (usuario.getRol() == null || "CLIENTE".equals(usuario.getRol().getNombre())) {
+            return;
+        }
+
+        String rolActual = usuario.getRol().getNombre().toUpperCase(Locale.ROOT);
+        if (rolActual.equals(rolDestino)) {
+            throw new BusinessException("La persona ya tiene el rol " + rolActual);
+        }
+
+        String descripcionRol = switch (rolActual) {
+            case "REPRESENTANTE" -> "representante";
+            case "MODERADOR" -> "moderador";
+            case "OPERADOR" -> "operador";
+            case "ADMINISTRADOR" -> "administrador";
+            case "MARKETING" -> "marketing";
+            default -> rolActual;
+        };
+        throw new BusinessException("El correo ya tiene una cuenta con rol " + descripcionRol
+                + "; solo se permiten invitaciones para clientes");
+    }
+
+    private void validarDatosNuevaCuenta(AceptarInvitacionRolRequest request) {
+        if (!StringUtils.hasText(request.getNombre())
+                || !StringUtils.hasText(request.getTelefono())
+                || !StringUtils.hasText(request.getClave())) {
+            throw new BusinessException("Para crear una cuenta nueva se requieren nombre, teléfono y contraseña");
+        }
     }
 
     private boolean contiene(String[] rolesPermitidos, String rol) {
