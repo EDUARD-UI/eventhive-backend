@@ -18,5 +18,4 @@ public class EventoEntradasResumenDTO {
     private String nombre;
     private long boletasVendidas;
     private BigDecimal ingresosGenerados;
-    private List<LocalidadEntradasDTO> localidades;
 }

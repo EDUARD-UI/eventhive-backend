@@ -20,12 +20,12 @@ public interface CategoriaRepository extends JpaRepository<Categoria, Long> {
     // Verifica si existe una categoría con ese nombre
     boolean existsByNombreIgnoreCase(String nombre);
 
-    // Devuelve todas las categorías con el número total de eventos relacionados
+    // Devuelve todas las categorías con el número total de eventos publicados relacionados
     @Query(value = """
     SELECT c.id, c.nombre, c.foto, COUNT(e.id)
     FROM Categoria c
     LEFT JOIN Evento e
-        ON e.categoria.id = c.id
+        ON e.categoria.id = c.id AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
     GROUP BY c.id, c.nombre, c.foto
     ORDER BY c.nombre ASC
     """,
@@ -37,40 +37,40 @@ public interface CategoriaRepository extends JpaRepository<Categoria, Long> {
     @Query("""
     SELECT c.id, c.nombre, c.foto, COUNT(e.id)
     FROM Categoria c
-    LEFT JOIN Evento e ON e.categoria.id = c.id
+    LEFT JOIN Evento e ON e.categoria.id = c.id AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
     GROUP BY c.id, c.nombre, c.foto
     HAVING COUNT(e.id) > 0
     ORDER BY c.nombre ASC
     """)
     List<Object[]> findAllConEventos();
 
-    // Cantidad de eventos por categoría (incluye categorías sin eventos con 0)
+    // Cantidad de eventos publicados por categoría (incluye categorías sin eventos con 0)
     @Query("""
     SELECT new com.eventhive.app.dto.response.EventosPorCategoriaDTO(c.id, c.nombre, COUNT(e.id))
     FROM Categoria c
-    LEFT JOIN Evento e ON e.categoria.id = c.id
+    LEFT JOIN Evento e ON e.categoria.id = c.id AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
     GROUP BY c.id, c.nombre
     ORDER BY COUNT(e.id) DESC, c.nombre ASC
     """)
     List<com.eventhive.app.dto.response.EventosPorCategoriaDTO> contarEventosPorCategoria();
 
-    // Cantidad de eventos por categoría para una organización específica
+    // Cantidad de eventos publicados por categoría para una organización específica
     @Query("""
     SELECT new com.eventhive.app.dto.response.EventosPorCategoriaDTO(c.id, c.nombre, COUNT(e.id))
     FROM Categoria c
-    JOIN Evento e ON e.categoria.id = c.id
+    JOIN Evento e ON e.categoria.id = c.id AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
     WHERE e.organizacion.id = :organizacionId
     GROUP BY c.id, c.nombre
     ORDER BY COUNT(e.id) DESC, c.nombre ASC
     """)
     List<com.eventhive.app.dto.response.EventosPorCategoriaDTO> contarEventosPorCategoriaYOrganizacion(@org.springframework.data.repository.query.Param("organizacionId") Long organizacionId);
 
-    // Devuelve las 4 categorías destacadas con el mayor número total de eventos
+    // Devuelve las 4 categorías destacadas con el mayor número total de eventos publicados
     @Query("""
     SELECT c.id, c.nombre, c.foto, COUNT(e.id)
     FROM Categoria c
     LEFT JOIN Evento e
-        ON e.categoria.id = c.id
+        ON e.categoria.id = c.id AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
     GROUP BY c.id, c.nombre, c.foto
     ORDER BY COUNT(e.id) DESC, c.nombre ASC
     """)

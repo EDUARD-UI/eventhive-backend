@@ -75,9 +75,35 @@ public class CorreoPlantillas {
     public String recuperarClave(String nombre, String enlace, long minutosVigencia) {
         return base("Restablecer contraseña",
                 "Hola " + esc(nombre) + ",<br>Recibimos una solicitud para restablecer tu contraseña.",
-                "<p>El enlace es de un solo uso y vence en " + minutosVigencia + " minutos.</p>"
-                        + boton("Crear nueva contraseña", enlace)
+                boton("Crear nueva contraseña", enlace)
                         + "<p>Si no fuiste tú, ignora este correo: tu contraseña actual sigue siendo válida.</p>");
+    }
+
+    public String promocionConfirmada(String nombre, String eventoTitulo, String planNombre, String precio) {
+        String contenido =
+                "<div style=\"border:1px solid #e0e0e6;border-radius:8px;padding:16px;margin-top:12px;background:#fdfdff;\">"
+                + "<p style=\"margin:4px 0;\"><strong>Evento:</strong> " + esc(eventoTitulo) + "</p>"
+                + "<p style=\"margin:4px 0;\"><strong>Plan contratado:</strong> " + esc(planNombre) + "</p>"
+                + "<p style=\"margin:4px 0;\"><strong>Importe pagado:</strong> $" + esc(precio) + " COP</p>"
+                + "</div>"
+                + "<p style=\"margin-top:16px;color:#444;\">Tu evento ya se encuentra registrado con promoción activa y estado Destacado.</p>";
+
+        return base("¡Promoción confirmada!",
+                "Hola " + esc(nombre) + ",<br>El pago del plan publicitario para tu evento ha sido procesado con éxito.",
+                contenido);
+    }
+
+    public String correoAdministrativo(String remitenteAdmin, String mensajeContenido) {
+        String contenido =
+                "<div style=\"border:1px solid #e0e0e6;border-radius:8px;padding:16px;margin-top:12px;background:#fdfdff;\">"
+                + "<p style=\"white-space:pre-wrap;line-height:1.6;color:#333;\">" + esc(mensajeContenido) + "</p>"
+                + "</div>"
+                + "<p style=\"color:#777;font-size:13px;margin-top:16px;\">Comunicación iniciada por el administrador: <strong>"
+                + esc(remitenteAdmin) + "</strong></p>";
+
+        return base("Comunicado administrativo oficial",
+                "Has recibido un mensaje directo del equipo de administración de EventHive:",
+                contenido);
     }
 
     // ---------- Piezas reutilizables ----------

@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -51,10 +52,25 @@ public class UsuariosApiController {
     public ResponseEntity<ApiResponse<PagedResponse<UsuarioAdminDTO>>> filtrarUsuarios(
             @RequestParam(required = false) String nombre,
             @RequestParam(required = false) Long rolId,
+            @RequestParam(required = false) String rol,
             Pageable pageable) {
 
-        Page<UsuarioAdminDTO> page = usuarioService.buscarAdminPorFiltros(nombre, rolId, pageable);
+        Page<UsuarioAdminDTO> page = usuarioService.buscarAdminPorFiltros(nombre, rolId, rol, pageable);
         return ResponseEntity.ok(ApiResponse.ok("Resultados de búsqueda", usuarioService.toPagedAdmin(page)));
+    }
+
+    @GetMapping({"/trabajadores/marketing", "/marketing"})
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    public ResponseEntity<ApiResponse<java.util.List<UsuarioAdminDTO>>> listarTrabajadoresMarketing() {
+        return ResponseEntity.ok(ApiResponse.ok("Trabajadores de marketing obtenidos",
+                usuarioService.listarTrabajadoresMarketing()));
+    }
+
+    @PatchMapping("/{id}/revocar-marketing")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    public ResponseEntity<ApiResponse<Void>> revocarRolMarketing(@PathVariable Long id) {
+        usuarioService.revocarMarketing(id);
+        return ResponseEntity.ok(ApiResponse.ok("Rol de marketing revocado exitosamente"));
     }
 
     @GetMapping("/{id}")

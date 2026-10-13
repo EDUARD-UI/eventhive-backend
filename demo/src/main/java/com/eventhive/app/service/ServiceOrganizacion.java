@@ -68,6 +68,7 @@ public class ServiceOrganizacion {
     private final ItemCompraRepository itemCompraRepository;
     private final LocalidadRepository localidadRepository;
     private final CategoriaRepository categoriaRepository;
+    private final com.eventhive.app.repository.SolicitudVerificacionRepository solicitudRepository;
 
     //CONSULTAS
     @Transactional(readOnly = true)
@@ -239,7 +240,7 @@ public class ServiceOrganizacion {
         Long orgId = org.getId();
 
         long eventosActivos = eventoRepository.countActivosByOrganizacionId(orgId);
-        long boletasVendidas = itemCompraRepository.contarBoletasVendidasPorOrganizacion(orgId);
+        long boletasVendidas = itemCompraRepository.contarBoletasVendidasEventosPublicadosPorOrganizacion(orgId);
         long totalEventos = eventoRepository.countByOrganizacionId(orgId);
 
         return new OrganizacionEstadisticasDTO(eventosActivos, boletasVendidas, totalEventos);
@@ -256,7 +257,7 @@ public class ServiceOrganizacion {
         Organizacion org = organizacionDelUsuario();
         Long orgId = org.getId();
 
-        long boletasVendidas = itemCompraRepository.contarBoletasVendidasPorOrganizacion(orgId);
+        long boletasVendidas = itemCompraRepository.contarBoletasVendidasEventosPublicadosPorOrganizacion(orgId);
         BigDecimal totalIngresos = compraRepository.sumarNetoPorOrganizacion(orgId);
         if (totalIngresos == null) {
             totalIngresos = BigDecimal.ZERO;
@@ -270,7 +271,8 @@ public class ServiceOrganizacion {
         Organizacion org = organizacionDelUsuario();
         Long orgId = org.getId();
 
-        long totalBoletas = itemCompraRepository.contarBoletasVendidasPorOrganizacion(orgId);
+        long totalBoletas = itemCompraRepository.contarBoletasVendidasEventosPublicadosPorOrganizacion(orgId);
+        long eventosActivos = eventoRepository.countActivosByOrganizacionId(orgId);
         BigDecimal totalIngresos = compraRepository.sumarNetoPorOrganizacion(orgId);
         if (totalIngresos == null) {
             totalIngresos = BigDecimal.ZERO;
@@ -282,7 +284,8 @@ public class ServiceOrganizacion {
         if (eventos.isEmpty()) {
             return PanelEntradasDTO.builder()
                     .totalEventos(eventosPage.getTotalElements())
-                    .totalBoletasVendidas(totalBoletas)
+                    .totalEventosActivos(eventosActivos)
+                    .totalBoletasVendidasPorEventosPublicados(totalBoletas)
                     .totalIngresos(totalIngresos)
                     .eventos(new PagedResponse<>(List.of(), eventosPage.getNumber(), eventosPage.getSize(),
                             eventosPage.getTotalElements(), eventosPage.getTotalPages()))
@@ -300,48 +303,12 @@ public class ServiceOrganizacion {
             ingresosPorEvento.merge((Long) row[0], (BigDecimal) row[2], BigDecimal::add);
         }
 
-        List<Localidad> todasLocalidades = localidadRepository.findByEventoIdIn(eventoIds);
-        Map<Long, List<Localidad>> localidadesPorEvento = todasLocalidades.stream()
-                .collect(Collectors.groupingBy(loc -> loc.getEvento().getId()));
-
-        List<Long> localidadIds = todasLocalidades.stream().map(Localidad::getId).toList();
-        Map<Long, Long> ventasMap = new HashMap<>();
-        if (!localidadIds.isEmpty()) {
-            List<Object[]> ventasRows = itemCompraRepository.contarVentasPorLocalidadIds(localidadIds);
-            for (Object[] row : ventasRows) {
-                Long locId = (Long) row[0];
-                Long cantidad = ((Number) row[1]).longValue();
-                ventasMap.put(locId, cantidad);
-            }
-        }
-
         List<EventoEntradasResumenDTO> dtoList = eventos.stream().map(ev -> {
-            List<Localidad> locs = localidadesPorEvento.getOrDefault(ev.getId(), List.of());
-            List<LocalidadEntradasDTO> locDTOs = locs.stream().map(loc -> {
-                long vendidas = ventasMap.getOrDefault(loc.getId(), 0L);
-                if (vendidas == 0 && loc.getCapacidad() > loc.getDisponibles()) {
-                    vendidas = loc.getCapacidad() - loc.getDisponibles();
-                }
-                double porcentaje = loc.getCapacidad() > 0
-                        ? Math.min(100.0, Math.round(((double) vendidas / loc.getCapacidad()) * 1000.0) / 10.0)
-                        : 0.0;
-                return LocalidadEntradasDTO.builder()
-                        .id(loc.getId())
-                        .nombre(loc.getNombre())
-                        .precio(loc.getPrecio())
-                        .capacidad(loc.getCapacidad())
-                        .disponibles(loc.getDisponibles())
-                        .boletasVendidas(vendidas)
-                        .porcentajeVendido(porcentaje)
-                        .build();
-            }).toList();
-
             return EventoEntradasResumenDTO.builder()
                     .id(ev.getId())
                     .nombre(ev.getTitulo())
                     .boletasVendidas(ventasPorEvento.getOrDefault(ev.getId(), 0L))
                     .ingresosGenerados(ingresosPorEvento.getOrDefault(ev.getId(), BigDecimal.ZERO))
-                    .localidades(locDTOs)
                     .build();
         }).toList();
 
@@ -350,8 +317,9 @@ public class ServiceOrganizacion {
                 eventosPage.getTotalElements(), eventosPage.getTotalPages());
 
         return PanelEntradasDTO.builder()
-            .totalEventos(eventosPage.getTotalElements())
-                .totalBoletasVendidas(totalBoletas)
+                .totalEventos(eventosPage.getTotalElements())
+                .totalEventosActivos(eventosActivos)
+                .totalBoletasVendidasPorEventosPublicados(totalBoletas)
                 .totalIngresos(totalIngresos)
                 .eventos(pagedEventos)
                 .build();
@@ -388,6 +356,9 @@ public class ServiceOrganizacion {
         OrganizacionDTO dto = new OrganizacionDTO();
         dto.setId(o.getId());
         dto.setRepresentante(o.getRepresentante() != null ? o.getRepresentante().getNombreCompleto() : null);
+        if (o.getRepresentante() != null) {
+            dto.setRepresentanteCorreo(o.getRepresentante().getCorreo());
+        }
         dto.setRazonSocial(o.getRazonSocial());
         dto.setNit(o.getNit());
         dto.setCorreoContacto(o.getCorreoContacto());
@@ -398,10 +369,25 @@ public class ServiceOrganizacion {
         dto.setTotalValoraciones(o.getTotalValoraciones());
         dto.setTotalSeguidores(o.getTotalSeguidores());
         dto.setTotalEventosCreados(o.getTotalEventosCreados());
+        dto.setEventosActivos(eventoRepository.countActivosByOrganizacionId(o.getId()));
         dto.setEventosFinalizados(o.getEventosFinalizados());
         dto.setEventosRechazados(o.getEventosRechazados());
         dto.setNivel(o.getNivel());
         dto.setEstado(o.getEstado());
+
+        if (o.getRepresentante() != null) {
+            solicitudRepository.findFirstByRepresentanteId(o.getRepresentante().getId()).ifPresentOrElse(
+                    sol -> dto.setEstadoValidacionRut(sol.getEstado().name()),
+                    () -> dto.setEstadoValidacionRut((o.getUrlRut() != null && !o.getUrlRut().isBlank()) ? "CARGADO" : "NO_CARGADO")
+            );
+        } else {
+            dto.setEstadoValidacionRut((o.getUrlRut() != null && !o.getUrlRut().isBlank()) ? "CARGADO" : "NO_CARGADO");
+        }
+
+        if (o.getUrlRut() != null && !o.getUrlRut().isBlank()) {
+            dto.setUrlRutTemporal(storageService.generarUrlFirmada(o.getUrlRut(), 3600L));
+        }
+
         return dto;
     }
 

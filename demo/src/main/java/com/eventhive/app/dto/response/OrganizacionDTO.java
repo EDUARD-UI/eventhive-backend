@@ -16,6 +16,7 @@ public class OrganizacionDTO {
 
     // Datos legales
     private String representante;
+    private String representanteCorreo;
     private String razonSocial;
     private String nit;
     private String correoContacto;
@@ -36,8 +37,13 @@ public class OrganizacionDTO {
     private Integer totalValoraciones;
     private Integer totalSeguidores;
     private Integer totalEventosCreados;
+    private Long eventosActivos;
     private Integer eventosFinalizados;
     private Integer eventosRechazados;
     private NivelOrganizador nivel;
     private EstadoOrganizacion estado;
+
+    // Información de verificación y RUT
+    private String estadoValidacionRut;
+    private String urlRutTemporal;
 }

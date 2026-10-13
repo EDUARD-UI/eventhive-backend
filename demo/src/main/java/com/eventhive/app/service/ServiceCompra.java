@@ -47,6 +47,7 @@ public class ServiceCompra {
     private final AuthenticatedUserHelper authHelper;
     private final ServiceNotification serviceNotification;
     private final ServiceMonetizacion serviceMonetizacion;
+    private final ServiceCorreo serviceCorreo;
     private final ObjectProvider<ServiceCompra> self;
 
     private static final int MAX_BOLETAS_POR_COMPRA = 5;
@@ -139,6 +140,12 @@ public class ServiceCompra {
         PosicionamientoEvento pago = posicionamientoEventoRepository.findById(pagoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Pago de posicionamiento no encontrado"));
         validarPropietarioPosicionamiento(pago.getEvento(), usuario);
+
+        // Idempotencia: si ya está confirmado, retornar de forma consistente
+        if (pago.getEstado() == EstadoPosicionamiento.CONFIRMADO) {
+            return pagoPosicionamientoToDTO(pago);
+        }
+
         if (pago.getEstado() != EstadoPosicionamiento.PENDIENTE) {
             throw new BusinessException("El pago ya no está pendiente");
         }
@@ -147,12 +154,19 @@ public class ServiceCompra {
         evento.setPromocionado(true);
         if (pago.getPlan() != null) {
             evento.setComisionPromocionPorcentaje(pago.getComisionPorcentaje());
-            if (evento.getUrlImagenDestacado() == null || evento.getUrlImagenDestacado().isBlank()) {
-                evento.setUrlImagenDestacado(evento.getFoto());
-            }
         }
+        // No se asigna foto a urlImagenDestacado automáticamente; Marketing es el encargado
         eventoRepository.save(evento);
-        return pagoPosicionamientoToDTO(posicionamientoEventoRepository.save(pago));
+        PosicionamientoEvento guardado = posicionamientoEventoRepository.save(pago);
+
+        // Envío de correo sin interrumpir confirmación en caso de fallo SMTP
+        try {
+            serviceCorreo.enviarPromocionConfirmada(guardado);
+        } catch (Exception ex) {
+            // Un fallo de correo no revierte el pago confirmado
+        }
+
+        return pagoPosicionamientoToDTO(guardado);
     }
 
     @Transactional(readOnly = true)
@@ -183,7 +197,7 @@ public class ServiceCompra {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Compra intentarCrearCompra(CompraRequestDTO request, Usuario usuario) {
         List<ItemCompra> items = new ArrayList<>();
-        BigDecimal total = BigDecimal.ZERO;
+        BigDecimal precioBaseTotal = BigDecimal.ZERO;
         Long eventoIdCompra = null;
 
         for (CompraRequestDTO.ItemRequest itemReq : request.getItems()) {
@@ -199,19 +213,23 @@ public class ServiceCompra {
             }
 
             descontarDisponibles(localidad, itemReq.getCantidad());
-            BigDecimal precio = localidad.getPrecio();
-            items.add(buildItem(localidad, itemReq.getCantidad(), precio));
+            BigDecimal precioBase = localidad.getPrecio();
+            items.add(buildItem(localidad, itemReq.getCantidad(), precioBase));
 
-            total = total.add(precio.multiply(BigDecimal.valueOf(itemReq.getCantidad())));
+            precioBaseTotal = precioBaseTotal.add(precioBase.multiply(BigDecimal.valueOf(itemReq.getCantidad())));
         }
 
         Evento evento = items.get(0).getEvento();
 
+        // Fórmula: precio base = localidad, comisión comercial = base * porcentaje / 100
+        // Total comprador = base + comisión comercial.
+        // Neto organizador = base (no se le descuenta comisión al organizador).
         BigDecimal porcentajeComision = serviceMonetizacion.obtenerPorcentajeComision(evento);
-        BigDecimal comisionEventhive = serviceMonetizacion.calcularComision(total, porcentajeComision);
-        BigDecimal netoOrganizador = serviceMonetizacion.calcularNetoOrganizador(total, comisionEventhive);
+        BigDecimal comisionEventhive = serviceMonetizacion.calcularComision(precioBaseTotal, porcentajeComision);
+        BigDecimal netoOrganizador = serviceMonetizacion.calcularNetoOrganizador(precioBaseTotal);
+        BigDecimal totalComprador = serviceMonetizacion.calcularTotalComprador(precioBaseTotal, comisionEventhive);
 
-        Compra guardada = guardarCompra(usuario, items, total, porcentajeComision,
+        Compra guardada = guardarCompra(usuario, items, totalComprador, porcentajeComision,
                 comisionEventhive, netoOrganizador, request.getIdempotencyKey());
 
         generarTiquetes(items, guardada);
@@ -391,6 +409,8 @@ public class ServiceCompra {
                 .id(compra.getId())
                 .fechaCompra(compra.getFechaCompra())
                 .total(compra.getTotal())
+                .comisionEventhive(compra.getComisionEventhive())
+                .netoOrganizador(compra.getNetoOrganizador())
                 .metodoPago(compra.getMetodoPago())
                 .items(itemsToDTO(compra.getItems()))
                 .build();

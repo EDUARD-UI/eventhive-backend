@@ -4,8 +4,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-// Vista de usuario para el panel administrativo: sin correo ni estado.
-// "organizacion" es null cuando el usuario no está vinculado a ninguna (el front muestra "Sin organización").
+// Vista de usuario para el panel administrativo.
+// "organizacion" es null cuando el usuario no está vinculado a ninguna.
 @Getter
 @Setter
 @NoArgsConstructor
@@ -13,6 +13,7 @@ public class UsuarioAdminDTO {
 
     private Long id;
     private String nombre;
+    private String correo;
     private String telefono;
     private String rolNombre;
     private String imagenPerfil;

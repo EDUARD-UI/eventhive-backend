@@ -14,6 +14,8 @@ public class CompraResponseDTO {
     private final Long id;
     private final LocalDateTime fechaCompra;
     private final BigDecimal total;
+    private final BigDecimal comisionEventhive;
+    private final BigDecimal netoOrganizador;
     private final String metodoPago;
     private final List<ItemCompraDTO> items;
 }

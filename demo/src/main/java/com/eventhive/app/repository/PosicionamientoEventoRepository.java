@@ -1,13 +1,14 @@
 package com.eventhive.app.repository;
 
-import com.eventhive.app.enums.EstadoPosicionamiento;
-import com.eventhive.app.model.PosicionamientoEvento;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+
+import com.eventhive.app.enums.EstadoPosicionamiento;
+import com.eventhive.app.model.PosicionamientoEvento;
 
 public interface PosicionamientoEventoRepository extends JpaRepository<PosicionamientoEvento, Long> {
 
@@ -16,6 +17,9 @@ public interface PosicionamientoEventoRepository extends JpaRepository<Posiciona
 
     // Evita contratar un segundo posicionamiento sobre el mismo evento
     boolean existsByEventoIdAndEstado(Long eventoId, EstadoPosicionamiento estado);
+
+    // Verifica si existe posicionamiento confirmado con plan premium para banner/carrusel
+    boolean existsByEventoIdAndEstadoAndPlanPremiumTrue(Long eventoId, EstadoPosicionamiento estado);
 
     boolean existsByEventoIdAndEstadoIn(Long eventoId, List<EstadoPosicionamiento> estados);
 

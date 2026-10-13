@@ -48,6 +48,7 @@ public class ServiceUsuario {
     private final ListaDeseoRepository listaDeseoRepository;
     private final SupabaseStorageService storageService;
     private final com.eventhive.app.config.SupabaseStorageConfig storageConfig;
+    private final com.eventhive.app.repository.EventoRepository eventoRepository;
 
     //CONSULTAS Y FILTROS
     @Transactional(readOnly = true)
@@ -69,7 +70,25 @@ public class ServiceUsuario {
 
     @Transactional(readOnly = true)
     public Page<UsuarioAdminDTO> buscarAdminPorFiltros(String nombre, Long rolId, Pageable pageable) {
-        return buscarPorFiltros(nombre, rolId, pageable).map(this::toAdminDTO);
+        return buscarAdminPorFiltros(nombre, rolId, null, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<UsuarioAdminDTO> buscarAdminPorFiltros(String nombre, Long rolId, String rolNombre, Pageable pageable) {
+        Long resolvedRolId = rolId;
+        if (resolvedRolId == null && rolNombre != null && !rolNombre.isBlank()) {
+            resolvedRolId = rolesRepository.findByNombre(rolNombre.trim().toUpperCase())
+                    .map(Rol::getId)
+                    .orElse(null);
+        }
+        return buscarPorFiltros(nombre, resolvedRolId, pageable).map(this::toAdminDTO);
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<UsuarioAdminDTO> listarTrabajadoresMarketing() {
+        return usuarioRepository.findAllByRolNombre("MARKETING").stream()
+                .map(this::toAdminDTO)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -83,7 +102,7 @@ public class ServiceUsuario {
         Page<Organizacion> page = estado == null
                 ? organizacionRepository.findAllConRepresentante(pageable)
                 : organizacionRepository.findByEstadoConRepresentante(estado, pageable);
-        return page.map(this::toOrganizacionPublicaDTO);
+        return enriquecerOrganizacionesConEventosActivos(page);
     }
 
     @Transactional(readOnly = true)
@@ -94,7 +113,7 @@ public class ServiceUsuario {
         Page<Organizacion> page = estado == null
                 ? organizacionRepository.findByRazonSocial(texto, pageable)
                 : organizacionRepository.findByRazonSocialAndEstado(texto, estado, pageable);
-        return page.map(this::toOrganizacionPublicaDTO);
+        return enriquecerOrganizacionesConEventosActivos(page);
     }
 
     @Transactional(readOnly = true)
@@ -102,7 +121,22 @@ public class ServiceUsuario {
         Page<Organizacion> page = estado == null
                 ? organizacionRepository.findTopOrganizaciones(pageable)
                 : organizacionRepository.findTopByEstado(estado, pageable);
-        return page.map(this::toOrganizacionPublicaDTO);
+        return enriquecerOrganizacionesConEventosActivos(page);
+    }
+
+    private Page<OrganizacionPublicaDTO> enriquecerOrganizacionesConEventosActivos(Page<Organizacion> page) {
+        java.util.List<Long> ids = page.getContent().stream().map(Organizacion::getId).toList();
+        java.util.Map<Long, Long> activosMap = ids.isEmpty() ? java.util.Map.of() :
+                eventoRepository.countActivosByOrganizacionIds(ids).stream()
+                        .collect(java.util.stream.Collectors.toMap(
+                                (Object[] r) -> (Long) r[0],
+                                (Object[] r) -> (Long) r[1]));
+
+        return page.map(o -> {
+            OrganizacionPublicaDTO dto = toOrganizacionPublicaDTO(o);
+            dto.setEventosActivos(activosMap.getOrDefault(o.getId(), 0L));
+            return dto;
+        });
     }
 
     @Transactional(readOnly = true)
@@ -224,6 +258,21 @@ public class ServiceUsuario {
         serviceNotification.notificarRevocacionRol(actualizado);
     }
 
+    @Transactional
+    public void revocarMarketing(Long usuarioId) {
+        Usuario usuario = obtenerUsuarioPorId(usuarioId);
+        if (usuario.getRol() == null || !"MARKETING".equalsIgnoreCase(usuario.getRol().getNombre())) {
+            throw new BusinessException("El usuario no tiene asignado el rol MARKETING");
+        }
+
+        Rol cliente = rolesRepository.findByNombre("CLIENTE")
+                .orElseThrow(() -> new ResourceNotFoundException("Rol CLIENTE no existe"));
+
+        usuario.setRol(cliente);
+        Usuario actualizado = usuarioRepository.save(usuario);
+        serviceNotification.notificarRevocacionRol(actualizado);
+    }
+
     //cambio de clave
     @Transactional
     public void cambiarClave(String claveActual, String claveNueva) {
@@ -264,6 +313,7 @@ public class ServiceUsuario {
         UsuarioAdminDTO dto = new UsuarioAdminDTO();
         dto.setId(u.getId());
         dto.setNombre(u.getNombreCompleto());
+        dto.setCorreo(u.getCorreo());
         dto.setTelefono(u.getTelefono());
         dto.setImagenPerfil(u.getImagenPerfil());
         dto.setRolNombre(u.getRol() != null ? u.getRol().getNombre() : null);

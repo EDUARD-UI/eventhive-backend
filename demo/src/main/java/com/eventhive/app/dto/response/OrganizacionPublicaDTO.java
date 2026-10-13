@@ -29,6 +29,7 @@ public class OrganizacionPublicaDTO {
     private Integer totalValoraciones;
     private Integer totalSeguidores;
     private Integer totalEventosCreados;
+    private Long eventosActivos;
     private NivelOrganizador nivel;
     private EstadoOrganizacion estado;
 }

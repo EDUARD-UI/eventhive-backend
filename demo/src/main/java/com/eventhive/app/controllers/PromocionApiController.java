@@ -23,7 +23,7 @@ public class PromocionApiController {
     private final ServicePromocion servicePromocion;
 
     @PostMapping("/{eventoId}/posicionar")
-    @PreAuthorize("hasRole('REPRESENTANTE')")
+    @PreAuthorize("hasAnyRole('MARKETING','ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> asignarImagenDestacada(
             @PathVariable Long eventoId, @Valid @RequestBody PosicionamientoSeoRequest request) {
         servicePromocion.asignarImagenDestacada(eventoId, request.getUrlImagenDestacado());

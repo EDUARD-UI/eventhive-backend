@@ -54,14 +54,13 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         """)
   Page<Evento> findPublicadosVisibles(Pageable pageable);
 
-    // Eventos destacados: solo los PROMOCIONADOS que además están PUBLICADOS.
+    // Eventos destacados: eventos con posicionamiento confirmado que además están PUBLICADOS.
     @Query(value = """
         SELECT DISTINCT e FROM Evento e
         JOIN FETCH e.categoria
         JOIN FETCH e.organizacion o
         JOIN PosicionamientoEvento p ON p.evento = e
         WHERE p.estado = com.eventhive.app.enums.EstadoPosicionamiento.CONFIRMADO
-          AND p.planPremium = true
           AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
         ORDER BY e.fecha ASC, e.hora ASC, e.id ASC
         """,
@@ -69,10 +68,22 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         SELECT COUNT(DISTINCT e) FROM Evento e
         JOIN PosicionamientoEvento p ON p.evento = e
         WHERE p.estado = com.eventhive.app.enums.EstadoPosicionamiento.CONFIRMADO
-          AND p.planPremium = true
           AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
         """)
     Page<Evento> findDestacadosPublicados(Pageable pageable);
+
+    // Eventos elegibles para el carrusel principal: publicados, promoción confirmada, plan premium y con imagen destacada válida
+    @Query(value = """
+        SELECT DISTINCT e FROM Evento e
+        JOIN PosicionamientoEvento p ON p.evento = e
+        WHERE p.estado = com.eventhive.app.enums.EstadoPosicionamiento.CONFIRMADO
+          AND p.planPremium = true
+          AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
+          AND e.urlImagenDestacado IS NOT NULL
+          AND TRIM(e.urlImagenDestacado) != ''
+        ORDER BY e.fecha ASC, e.hora ASC, e.id ASC
+        """)
+    List<Evento> findCarruselPublicados();
 
     // Lista eventos publicados filtrados por categoría.
     @Query(value = """
@@ -233,7 +244,20 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
                                      @Param("horaActual") LocalTime horaActual,
                                      @Param("estado") EstadoEvento estado);
 
-    // Lista eventos próximos publicados ordenados por fecha y hora.
+    // Conteo en lote de eventos activos por lista de organizaciones (evita consultas N+1)
+    @Query("""
+        SELECT e.organizacion.id, COUNT(e)
+        FROM Evento e
+        WHERE e.organizacion.id IN :organizacionIds
+          AND e.estado IN (
+              com.eventhive.app.enums.EstadoEvento.PENDIENTE_REVISION,
+              com.eventhive.app.enums.EstadoEvento.EN_CORRECCION,
+              com.eventhive.app.enums.EstadoEvento.PUBLICADO)
+        GROUP BY e.organizacion.id
+        """)
+    List<Object[]> countActivosByOrganizacionIds(@Param("organizacionIds") List<Long> organizacionIds);
+
+    // Lista eventos próximos publicados ordenados por proximidad temporal (fecha y hora ascendente)
     @Query(value = """
     SELECT e FROM Evento e
     JOIN FETCH e.categoria
@@ -243,7 +267,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
             e.fecha > :hoy
             OR (e.fecha = :hoy AND e.hora >= :hora)
           )
-    ORDER BY e.promocionado DESC, e.fecha ASC, e.hora ASC, e.id ASC
+    ORDER BY e.fecha ASC, e.hora ASC, e.id ASC
     """,
     countQuery = """
     SELECT COUNT(e) FROM Evento e

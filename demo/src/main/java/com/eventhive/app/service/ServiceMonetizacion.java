@@ -28,19 +28,34 @@ public class ServiceMonetizacion {
         return COMISION_NORMAL;
     }
 
-    public BigDecimal calcularComision(BigDecimal total, BigDecimal porcentaje) {
-        if (total == null || total.signum() < 0) {
-            throw new BusinessException("El total de la compra no es válido");
+    public BigDecimal calcularComision(BigDecimal baseTotal, BigDecimal porcentaje) {
+        if (baseTotal == null || baseTotal.signum() < 0) {
+            throw new BusinessException("El importe base de la compra no es válido");
         }
 
         if (porcentaje == null || porcentaje.compareTo(BigDecimal.ZERO) < 0 || porcentaje.compareTo(COMISION_PROMOCIONADA) > 0) {
             throw new BusinessException("El porcentaje de comisión no es válido");
         }
 
-        return total.multiply(porcentaje).divide(CIEN, 2, RoundingMode.HALF_UP);
+        return baseTotal.multiply(porcentaje).divide(CIEN, 2, RoundingMode.HALF_UP);
     }
 
+    public BigDecimal calcularTotalComprador(BigDecimal baseTotal, BigDecimal comision) {
+        if (baseTotal == null || comision == null) {
+            throw new BusinessException("Los importes no pueden ser nulos");
+        }
+        return baseTotal.add(comision).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    public BigDecimal calcularNetoOrganizador(BigDecimal baseTotal) {
+        if (baseTotal == null || baseTotal.signum() < 0) {
+            throw new BusinessException("El importe base de la organización no es válido");
+        }
+        return baseTotal.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    @Deprecated
     public BigDecimal calcularNetoOrganizador(BigDecimal total, BigDecimal comision) {
-        return total.subtract(comision).setScale(2, RoundingMode.HALF_UP);
+        return total.setScale(2, RoundingMode.HALF_UP);
     }
 }

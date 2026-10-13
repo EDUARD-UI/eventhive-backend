@@ -83,12 +83,23 @@ public class ServiceEstadisticasAdmin {
     }
 
     public IngresosPlataformaDTO ingresosPlataforma() {
+        java.math.BigDecimal totalBrutoBoletas = compraRepository.sumarTotalBrutoConfirmado();
         java.math.BigDecimal comisiones = compraRepository.sumarComisionesConfirmadas();
         java.math.BigDecimal comisionesPosicionados = compraRepository
                 .sumarComisionesPosicionados(ServiceMonetizacion.COMISION_NORMAL);
-        java.math.BigDecimal posicionamientos = posicionamientoEventoRepository.sumarIngresosConfirmados();
+        java.math.BigDecimal ingresosPagoPromocion = posicionamientoEventoRepository.sumarIngresosConfirmados();
+        java.math.BigDecimal netoOrganizaciones = compraRepository.sumarTotalNetoOrganizadores();
 
-        return new IngresosPlataformaDTO(
-                comisiones, comisionesPosicionados, posicionamientos, comisiones.add(posicionamientos));
+        java.math.BigDecimal ventaBrutaTotal = totalBrutoBoletas.add(ingresosPagoPromocion);
+        java.math.BigDecimal totalIngresos = comisiones.add(ingresosPagoPromocion);
+
+        return IngresosPlataformaDTO.builder()
+                .comisionesVentas(comisiones)
+                .comisionesPosicionados(comisionesPosicionados)
+                .ingresosPagoPromocion(ingresosPagoPromocion)
+                .ventaBrutaTotal(ventaBrutaTotal)
+                .totalIngresos(totalIngresos)
+                .ingresosOrganizaciones(netoOrganizaciones)
+                .build();
     }
 }

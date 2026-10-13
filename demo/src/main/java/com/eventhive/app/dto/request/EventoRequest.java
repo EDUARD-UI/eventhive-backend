@@ -22,12 +22,14 @@ public class EventoRequest {
     @NotBlank @Size(max = 200)
     private String lugar;
 
-    @NotNull
-    @FutureOrPresent(message = "La fecha del evento no puede ser en el pasado")
+    @NotNull(message = "La fecha del evento es obligatoria")
     private LocalDate fecha;
 
-    @NotNull
+    @NotNull(message = "La hora del evento es obligatoria")
     private LocalTime hora;
+
+    private LocalDate fechaFin;
+    private LocalTime horaFin;
 
     @NotNull
     private Long categoriaId;

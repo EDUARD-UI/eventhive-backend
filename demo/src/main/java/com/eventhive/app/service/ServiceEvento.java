@@ -160,21 +160,36 @@ public class ServiceEvento {
         return eventoRepository.findByCategoriaVisibles(categoriaId, OrdenEventos.estable(pageable));
     }
 
+    private static final java.time.ZoneId ZONA_EVENTHIVE = java.time.ZoneId.of("America/Bogota");
+
     @Transactional(readOnly = true)
     public Page<Evento> listarEventosProximos(Pageable pageable) {
+        java.time.ZonedDateTime ahoraZona = java.time.ZonedDateTime.now(ZONA_EVENTHIVE);
         return eventoRepository.findProximosPublicados(
-                LocalDate.now(),
-                LocalTime.now(),
+                ahoraZona.toLocalDate(),
+                ahoraZona.toLocalTime(),
                 pageable);
     }
 
     @Transactional(readOnly = true)
+    public List<com.eventhive.app.dto.response.EventoCarruselDTO> obtenerEventosCarrusel() {
+        return eventoRepository.findCarruselPublicados().stream()
+                .map(e -> new com.eventhive.app.dto.response.EventoCarruselDTO(e.getUrlImagenDestacado()))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public Page<Evento> listarPorOrganizacion(Long organizacionId, Pageable pageable) {
-        return listarPorOrganizacion(organizacionId, null, null, pageable);
+        return listarPorOrganizacion(organizacionId, null, null, null, pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<Evento> listarPorOrganizacion(Long organizacionId, Long categoriaId, EstadoEvento estado, Pageable pageable) {
+        return listarPorOrganizacion(organizacionId, categoriaId, estado, null, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Evento> listarPorOrganizacion(Long organizacionId, Long categoriaId, EstadoEvento estado, String titulo, Pageable pageable) {
         Specification<Evento> spec = (root, query, cb) -> {
             if (Long.class != query.getResultType() && long.class != query.getResultType()) {
                 root.fetch("categoria", JoinType.INNER);
@@ -187,6 +202,9 @@ public class ServiceEvento {
             }
             if (estado != null) {
                 predicates.add(cb.equal(root.get("estado"), estado));
+            }
+            if (titulo != null && !titulo.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("titulo")), "%" + titulo.trim().toLowerCase() + "%"));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };
@@ -270,6 +288,8 @@ public class ServiceEvento {
             throw new BusinessException("La organización está suspendida y no puede crear eventos");
         }
 
+        validarFechasCreacion(request);
+
         Evento evento = new Evento();
         mapearCamposRequest(evento, request, categoria);
         evento.setOrganizacion(organizacion);
@@ -302,6 +322,8 @@ public class ServiceEvento {
         if (evento.getEstado() == EstadoEvento.CANCELADO) {
             throw new BusinessException("Los eventos cancelados no pueden modificarse");
         }
+
+        validarFechasActualizacion(evento, request);
 
         EstadoEvento estadoAnterior = evento.getEstado();
         Categoria categoria = resolverCategoria(request.getCategoriaId());
@@ -664,8 +686,6 @@ public class ServiceEvento {
     }
 
     private void mapearCamposRequest(Evento evento, EventoRequest req, Categoria categoria) {
-        validarFechaHoraEvento(req.getFecha(), req.getHora());
-
         evento.setTitulo(req.getTitulo());
         evento.setDescripcion(req.getDescripcion());
         evento.setFecha(req.getFecha());
@@ -678,10 +698,59 @@ public class ServiceEvento {
         evento.setUbicacion(punto);
     }
 
-    private void validarFechaHoraEvento(LocalDate fecha, LocalTime hora) {
-        LocalDateTime fechaHora = LocalDateTime.of(fecha, hora);
-        if (fechaHora.isBefore(LocalDateTime.now())) {
-            throw new BusinessException("La fecha y hora del evento no pueden estar en el pasado");
+    public void validarFechasCreacion(EventoRequest req) {
+        if (req.getFecha() == null || req.getHora() == null) {
+            throw new BusinessException("La fecha y la hora de inicio del evento son obligatorias");
+        }
+
+        java.time.ZonedDateTime ahoraZona = java.time.ZonedDateTime.now(ZONA_EVENTHIVE);
+        LocalDate hoy = ahoraZona.toLocalDate();
+        LocalTime horaActual = ahoraZona.toLocalTime();
+
+        if (req.getFecha().isBefore(hoy)) {
+            throw new BusinessException("La fecha de inicio no puede ser anterior al día actual");
+        }
+
+        if (req.getFecha().isEqual(hoy) && req.getHora().isBefore(horaActual)) {
+            throw new BusinessException("Si el evento inicia hoy, la hora de inicio debe ser posterior a la hora actual");
+        }
+
+        validarFechaFin(req.getFecha(), req.getHora(), req.getFechaFin(), req.getHoraFin());
+    }
+
+    public void validarFechasActualizacion(Evento eventoExistente, EventoRequest req) {
+        if (req.getFecha() == null || req.getHora() == null) {
+            throw new BusinessException("La fecha y la hora de inicio del evento son obligatorias");
+        }
+
+        java.time.ZonedDateTime ahoraZona = java.time.ZonedDateTime.now(ZONA_EVENTHIVE);
+        LocalDateTime ahora = ahoraZona.toLocalDateTime();
+        LocalDateTime inicioExistente = LocalDateTime.of(eventoExistente.getFecha(), eventoExistente.getHora());
+
+        boolean yaInicioOcurrio = inicioExistente.isBefore(ahora);
+
+        if (yaInicioOcurrio) {
+            boolean intentoCambiarInicio = !req.getFecha().isEqual(eventoExistente.getFecha())
+                    || !req.getHora().equals(eventoExistente.getHora());
+            if (intentoCambiarInicio) {
+                throw new BusinessException("No se puede modificar la fecha u hora de inicio de un evento que ya inició o ha ocurrido");
+            }
+            validarFechaFin(eventoExistente.getFecha(), eventoExistente.getHora(), req.getFechaFin(), req.getHoraFin());
+        } else {
+            validarFechasCreacion(req);
+        }
+    }
+
+    private void validarFechaFin(LocalDate fechaInicio, LocalTime horaInicio, LocalDate fechaFin, LocalTime horaFin) {
+        if (fechaFin != null) {
+            if (fechaFin.isBefore(fechaInicio)) {
+                throw new BusinessException("La fecha y hora de finalización debe ser posterior a la fecha y hora de inicio");
+            }
+            if (fechaFin.isEqual(fechaInicio)) {
+                if (horaFin != null && !horaFin.isAfter(horaInicio)) {
+                    throw new BusinessException("La fecha y hora de finalización debe ser posterior a la fecha y hora de inicio");
+                }
+            }
         }
     }
 

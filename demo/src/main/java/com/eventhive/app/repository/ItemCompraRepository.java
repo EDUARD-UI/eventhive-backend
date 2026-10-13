@@ -13,7 +13,7 @@ import com.eventhive.app.model.ItemCompra;
 
 public interface ItemCompraRepository extends JpaRepository<ItemCompra, Long> {
 
-    // Top de eventos por entradas vendidas (desempate por valor de ventas). Usar PageRequest.of(0, 5).
+    // Top de eventos por entradas vendidas (solo eventos PUBLICADOS y compras CONFIRMADAS).
     @Query("""
         SELECT new com.eventhive.app.dto.response.TopEventoVentasDTO(
             e.id, e.titulo, o.id, o.razonSocial,
@@ -23,12 +23,13 @@ public interface ItemCompraRepository extends JpaRepository<ItemCompra, Long> {
         JOIN i.evento e
         JOIN e.organizacion o
         WHERE c.estado = com.eventhive.app.enums.EstadoCompra.CONFIRMADA
+          AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
         GROUP BY e.id, e.titulo, o.id, o.razonSocial
         ORDER BY SUM(i.cantidad) DESC, SUM(i.cantidad * i.precioUnitario) DESC, e.id ASC
         """)
     List<TopEventoVentasDTO> topEventosPorVentas(Pageable pageable);
 
-    // Top de organizaciones por entradas vendidas. Usar PageRequest.of(0, 5).
+    // Top de organizaciones por entradas vendidas de sus eventos promocionados (solo eventos promocionados PUBLICADOS y compras CONFIRMADAS).
     @Query("""
         SELECT new com.eventhive.app.dto.response.TopOrganizacionVentasDTO(
             o.id, o.razonSocial,
@@ -38,6 +39,8 @@ public interface ItemCompraRepository extends JpaRepository<ItemCompra, Long> {
         JOIN i.evento e
         JOIN e.organizacion o
         WHERE c.estado = com.eventhive.app.enums.EstadoCompra.CONFIRMADA
+          AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
+          AND e.promocionado = true
         GROUP BY o.id, o.razonSocial
         ORDER BY SUM(i.cantidad) DESC, SUM(i.cantidad * i.precioUnitario) DESC, o.id ASC
         """)
@@ -69,6 +72,18 @@ public interface ItemCompraRepository extends JpaRepository<ItemCompra, Long> {
           AND c.estado = com.eventhive.app.enums.EstadoCompra.CONFIRMADA
         """)
     long contarBoletasVendidasPorOrganizacion(@Param("organizacionId") Long organizacionId);
+
+    // Total de boletas vendidas correspondientes exclusivamente a eventos publicados (compras CONFIRMADAS)
+    @Query("""
+        SELECT COALESCE(SUM(i.cantidad), 0)
+        FROM ItemCompra i
+        JOIN i.compra c
+        JOIN i.evento e
+        WHERE e.organizacion.id = :organizacionId
+          AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
+          AND c.estado = com.eventhive.app.enums.EstadoCompra.CONFIRMADA
+        """)
+    long contarBoletasVendidasEventosPublicadosPorOrganizacion(@Param("organizacionId") Long organizacionId);
 
     @Query("""
         SELECT i.evento.id, COALESCE(SUM(i.cantidad), 0)

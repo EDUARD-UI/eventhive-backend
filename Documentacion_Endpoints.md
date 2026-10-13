@@ -212,7 +212,7 @@ En caso de error, la respuesta suele devolver:
 ```
 
 #### `GET /api/usuarios/buscar`
-- Recibe: `nombre`, `rolId`, y paginación.
+- Recibe: query params opcionales `nombre` (coincidencia parcial insensible a mayúsculas), `rolId` (numérico), `rol` (nombre textual del rol, ej. "MARKETING", "CLIENTE", "ADMINISTRADOR") y paginación (`page`, `size`, `sort`).
 - Devuelve: `ApiResponse<PagedResponse<UsuarioAdminDTO>>`
 - Permisos: ADMINISTRADOR.
 - Ejemplo de respuesta:
@@ -226,12 +226,13 @@ En caso de error, la respuesta suele devolver:
       {
         "id": 2,
         "nombre": "Luis",
+        "correo": "luis@eventhive.com",
         "telefono": "+56987654321",
-        "rolNombre": "OPERADOR",
-        "organizacion": {
-          "id": 10,
-          "razonSocial": "Eventica SpA"
-        }
+        "rolNombre": "MARKETING",
+        "foto": "https://storage.example/foto/user_2.jpg",
+        "urlFoto": "https://storage.example/foto/user_2.jpg",
+        "fechaCreacion": "2026-09-15T08:30:00",
+        "organizacion": null
       }
     ],
     "pageNumber": 0,
@@ -246,6 +247,7 @@ En caso de error, la respuesta suele devolver:
 - Recibe: `id` en path.
 - Devuelve: `ApiResponse<UsuarioAdminDTO>`
 - Permisos: ADMINISTRADOR.
+- Descripción: detalle de solo lectura para el panel de administración, incluyendo correo electrónico, teléfono, rol, organización y foto de perfil.
 - Ejemplo de respuesta:
 
 ```json
@@ -255,13 +257,58 @@ En caso de error, la respuesta suele devolver:
   "data": {
     "id": 3,
     "nombre": "María",
+    "correo": "maria@eventhive.com",
     "telefono": "+56911112222",
     "rolNombre": "REPRESENTANTE",
+    "foto": "https://storage.example/foto/user_3.jpg",
+    "urlFoto": "https://storage.example/foto/user_3.jpg",
+    "fechaCreacion": "2026-09-10T11:00:00",
     "organizacion": {
       "id": 10,
       "razonSocial": "Eventica SpA"
     }
   }
+}
+```
+
+#### `GET /api/usuarios/trabajadores/marketing`
+- Recibe: sin parámetros.
+- Devuelve: `ApiResponse<List<UsuarioAdminDTO>>`
+- Permisos: ADMINISTRADOR.
+- Descripción: lista los integrantes del equipo que poseen el rol MARKETING, permitiendo identificar su correo electrónico, nombre y fotografía para la gestión del panel.
+- Ejemplo de respuesta:
+
+```json
+{
+  "success": true,
+  "mensaje": "Trabajadores de marketing obtenidos",
+  "data": [
+    {
+      "id": 5,
+      "nombre": "Laura Gómez",
+      "correo": "laura.marketing@eventhive.com",
+      "telefono": "+56977778888",
+      "rolNombre": "MARKETING",
+      "foto": "https://storage.example/foto/user_5.jpg",
+      "urlFoto": "https://storage.example/foto/user_5.jpg",
+      "fechaCreacion": "2026-09-01T09:00:00",
+      "organizacion": null
+    }
+  ]
+}
+```
+
+#### `PATCH /api/usuarios/{id}/revocar-marketing`
+- Recibe: `id` del usuario en path.
+- Devuelve: `ApiResponse<Void>`
+- Permisos: ADMINISTRADOR.
+- Descripción: revoca el rol de MARKETING asignando al usuario el rol CLIENTE y conservando el resto de su información. Si el usuario no tiene el rol MARKETING, rechaza la operación con error 400 descriptivo.
+- Ejemplo de respuesta:
+
+```json
+{
+  "success": true,
+  "mensaje": "Rol de marketing revocado exitosamente"
 }
 ```
 
@@ -451,13 +498,41 @@ En caso de error, la respuesta suele devolver:
 #### `GET /api/eventos/destacados`
 - Recibe: paginación opcional (`page`, `size`, `sort`); `size` es 10 por defecto.
 - Devuelve: `ApiResponse<PagedResponse<EventoDestacadoDTO>>`.
-- Descripción: lista únicamente eventos `PUBLICADO` con `promocionado: true`, ordenados por fecha, hora e ID ascendente.
-- Cada evento contiene los mismos campos de `EventoDTO` y `urlImagenDestacado`. La URL destacada solo se incluye en esta ruta; los otros endpoints de eventos no la devuelven.
+- Descripción: lista eventos `PUBLICADO` que cuentan con una promoción pagada y confirmada (`promocionado: true`), independientemente de si el plan contratado es Estándar o Premium. Se ordenan por fecha, hora e ID ascendente.
+- Cada elemento contiene los datos de `EventoDTO` y la propiedad `urlImagenDestacado` (si fue asignada por Marketing).
+
+#### `GET /api/eventos/carrusel`
+- Recibe: sin parámetros.
+- Devuelve: `ApiResponse<List<EventoCarruselDTO>>`
+- Permisos: público.
+- Descripción: proporciona los banners elegibles para el carrusel principal de la plataforma.
+  - Reglas de negocio:
+    1. El evento debe estar en estado `PUBLICADO`.
+    2. Debe contar con una promoción pagada y confirmada (`CONFIRMADO`).
+    3. El plan de promoción contratado debe ser de tipo `premium = true`.
+    4. Debe poseer una imagen destacada válida y no vacía asignada por Marketing (`url_imagen_destacado`).
+  - Formato de respuesta: devuelve exclusivamente la propiedad `url_imagen_promocionado` (sin título, descripción, fecha ni campos adicionales).
+- Ejemplo de respuesta:
+
+```json
+{
+  "success": true,
+  "mensaje": "Eventos para el carrusel obtenidos",
+  "data": [
+    {
+      "url_imagen_promocionado": "https://storage.example/eventos/banner-destacado-1.jpg"
+    },
+    {
+      "url_imagen_promocionado": "https://storage.example/eventos/banner-destacado-2.jpg"
+    }
+  ]
+}
+```
 
 #### `GET /api/eventos/proximos`
-- Recibe: paginación.
+- Recibe: paginación (`page`, `size`, `sort`).
 - Devuelve: `ApiResponse<PagedResponse<EventoDTO>>`
-- Descripción: lista eventos próximos a la fecha actual.
+- Descripción: lista los eventos en estado `PUBLICADO` cuya fecha y hora de inicio sea igual o posterior al momento actual según la zona horaria oficial `America/Bogota`. Se ordenan estrictamente por proximidad temporal ascendente (`fecha ASC, hora ASC, id ASC`). No se priorizan eventos promocionados ni premium; la cercanía de fecha y hora es el único criterio de prelación.
 - Ejemplo de respuesta:
 
 ```json
@@ -589,10 +664,11 @@ En caso de error, la respuesta suele devolver:
 ```
 
 #### `GET /api/eventos/organizador`
-- Recibe: paginación.
+- Recibe: query params opcionales `categoriaId` (Long), `estado` (enum `EstadoEvento`: BORRADOR, PUBLICADO, FINALIZADO, etc.), `titulo` (coincidencia parcial en el título) y paginación estándar (`page`, `size`, `sort`).
 - Devuelve: `ApiResponse<PagedResponse<EventoDTO>>`
-- Permisos: REPRESENTANTE o OPERADOR.
-- Descripción: lista los eventos de la organización del usuario autenticado.
+- Permisos: REPRESENTANTE o OPERADOR de la organización.
+- Descripción: lista los eventos pertenecientes a la organización del usuario autenticado, permitiendo combinar filtros por categoría, estado y búsqueda por título de forma eficiente.
+- Ejemplo de petición: `/api/eventos/organizador?categoriaId=1&estado=PUBLICADO&titulo=Jazz&page=0&size=10`
 - Ejemplo de respuesta:
 
 ```json
@@ -830,10 +906,14 @@ En caso de error, la respuesta suele devolver:
 
 #### `POST /api/eventos`
 - Recibe: multipart/form-data con:
-  - `datos`: `EventoRequest`
+  - `datos`: `EventoRequest` (incluyendo `fecha`, `hora`, y opcionalmente `fechaFin` y `horaFin`).
   - `foto`: archivo opcional
 - Devuelve: `ApiResponse<EventoDTO>`
 - Permisos: REPRESENTANTE o OPERADOR.
+- Validaciones de fechas (zona horaria oficial `America/Bogota`):
+  - La fecha de inicio (`fecha`) no puede ser anterior al día actual.
+  - Si el evento comienza en la fecha actual (hoy), la hora de inicio (`hora`) debe ser estrictamente posterior a la hora actual.
+  - Si se proporciona `fechaFin`, debe ser posterior a la fecha y hora de inicio (`fecha` + `hora`). Si coincide en día, `horaFin` debe ser posterior a `hora`.
 - Ejemplo de respuesta:
 
 ```json
@@ -848,6 +928,8 @@ En caso de error, la respuesta suele devolver:
     "foto": "https://storage.example/eventos/festival-jazz.jpg",
     "fecha": "2026-10-14",
     "hora": "19:30:00",
+    "fechaFin": "2026-10-14",
+    "horaFin": "23:00:00",
     "estado": "BORRADOR",
     "latitud": -33.4489,
     "longitud": -70.6693,
@@ -870,6 +952,10 @@ En caso de error, la respuesta suele devolver:
   - `foto`: archivo opcional
 - Devuelve: `ApiResponse<EventoDTO>`
 - Permisos: REPRESENTANTE o OPERADOR.
+- Validaciones de edición y preservación histórica:
+  - Si el evento aún no ha iniciado, aplican las mismas validaciones de fecha de inicio futura y hora válida.
+  - Si el evento ya inició o es un evento pasado, se permite modificar sus otros campos (título, descripción, lugar, imagen, etc.), pero el backend congela y protege su inicio histórico (`fecha` y `hora`), rechazando con `BusinessException` cualquier intento de alterar retroactivamente su inicio.
+  - Si se envía `fechaFin`, debe ser posterior al inicio.
 - Ejemplo de respuesta:
 
 ```json
@@ -1068,6 +1154,17 @@ En caso de error, la respuesta suele devolver:
 
 ### Base: `/api/compras`
 
+#### Reglas de precios y comisiones de boletas
+- El precio configurado en cada localidad representa el **precio base** de la organización.
+- La comisión comercial de EventHive se **adiciona** al precio base y la asume íntegramente el comprador.
+- **Fórmulas oficiales:**
+  - `precioBase = sum(localidad.precio * cantidad)`
+  - `comisionEventhive = precioBase * comisionPorcentaje / 100`
+  - `totalComprador = precioBase + comisionEventhive`
+  - `netoOrganizador = precioBase`
+- La comisión **no se deduce** de los ingresos de la organización.
+- Todo cálculo se efectúa estrictamente en el backend.
+
 #### `GET /api/compras`
 - Recibe: paginación.
 - Devuelve: `ApiResponse<PagedResponse<CompraResponseDTO>>`
@@ -1083,7 +1180,9 @@ En caso de error, la respuesta suele devolver:
       {
         "id": 101,
         "fechaCompra": "2026-09-20T14:30:00",
-        "total": 50000,
+        "total": 55000,
+        "comisionEventhive": 5000,
+        "netoOrganizador": 50000,
         "metodoPago": "TARJETA",
         "items": [
           {
@@ -1119,7 +1218,9 @@ En caso de error, la respuesta suele devolver:
   "data": {
     "id": 101,
     "fechaCompra": "2026-09-20T14:30:00",
-    "total": 50000,
+    "total": 55000,
+    "comisionEventhive": 5000,
+    "netoOrganizador": 50000,
     "metodoPago": "TARJETA",
     "items": [
       {
@@ -1148,7 +1249,9 @@ En caso de error, la respuesta suele devolver:
   "data": {
     "id": 102,
     "fechaCompra": "2026-09-21T10:15:00",
-    "total": 25000,
+    "total": 27500,
+    "comisionEventhive": 2500,
+    "netoOrganizador": 25000,
     "metodoPago": "TARJETA",
     "items": [
       {
@@ -1169,7 +1272,7 @@ En caso de error, la respuesta suele devolver:
 - Recibe: `eventoId` en path y `planId` como query param.
 - Devuelve: `ApiResponse<PagoPosicionamientoDTO>`.
 - Permisos: REPRESENTANTE de la organización propietaria.
-- Descripción: registra un pago simulado `PENDIENTE` con el precio del plan seleccionado; el cliente no envía el precio.
+- Descripción: solo permite contratar promociones para eventos en estado `PUBLICADO`. Registra un pago `PENDIENTE` con el precio fijo del plan configurado en el backend (el frontend no puede alterar importes).
 
 #### `GET /api/compras/posicionamiento/pagos/{pagoId}`
 - Recibe: `pagoId` en path.
@@ -1180,7 +1283,10 @@ En caso de error, la respuesta suele devolver:
 - Recibe: `pagoId` en path.
 - Devuelve: `ApiResponse<PagoPosicionamientoDTO>`.
 - Permisos: REPRESENTANTE de la organización propietaria.
-- Descripción: al confirmar el pago simulado el evento queda destacado y se aplica la comisión congelada al contratar. Si el plan es Premium, entra al carrusel.
+- Descripción: procesa la confirmación del pago de manera **idempotente** (si ya estaba confirmado, retorna exitosamente sin duplicar correos ni mutaciones).
+  - Al confirmarse, el evento se marca como promocionado (`promocionado = true`), lo cual lo clasifica como **Destacado** (tanto para planes estándar como premium).
+  - No asigna automáticamente la fotografía a `urlImagenDestacado`. Si el plan es Premium (`premium = true`), Marketing debe asignar posteriormente la imagen destacada para que el evento aparezca en el carrusel principal (`GET /api/eventos/carrusel`).
+  - Envía correo de confirmación de forma segura (sin revertir el pago confirmado en caso de incidencia en el servicio de correo).
 
 #### `DELETE /api/compras/{id}`
 - Recibe: `id` en path.
@@ -1343,7 +1449,7 @@ En caso de error, la respuesta suele devolver:
 #### `GET /api/categorias`
 - Recibe: paginación.
 - Devuelve: `ApiResponse<PagedResponse<CategoriaDTO>>`
-- `totalEventos` cuenta todos los eventos asociados a la categoría, sin filtrar por estado.
+- `totalEventos`: cuenta exclusivamente los eventos en estado `PUBLICADO` asociados a la categoría (excluye eventos en borrador, cancelados o suspendidos).
 - Ejemplo de respuesta:
 
 ```json
@@ -1356,7 +1462,7 @@ En caso de error, la respuesta suele devolver:
         "id": 1,
         "nombre": "Música",
         "imagenUrl": "https://.../musica.jpg",
-        "totalEventos": 45
+        "totalEventos": 12
       }
     ],
     "pageNumber": 0,
@@ -1386,6 +1492,8 @@ En caso de error, la respuesta suele devolver:
 #### `GET /api/categorias/destacadas`
 - Recibe: sin parámetros.
 - Devuelve: `ApiResponse<List<CategoriaDTO>>`
+- Descripción: lista las 4 categorías con mayor cantidad de eventos `PUBLICADO`.
+- `totalEventos`: refleja exclusivamente la cantidad de eventos publicados.
 - Ejemplo de respuesta:
 
 ```json
@@ -1393,8 +1501,8 @@ En caso de error, la respuesta suele devolver:
   "success": true,
   "mensaje": "Categorías destacadas",
   "data": [
-    { "id": 1, "nombre": "Música", "imagenUrl": "https://.../musica.jpg", "totalEventos": 45 },
-    { "id": 3, "nombre": "Arte", "imagenUrl": "https://.../arte.jpg", "totalEventos": 21 }
+    { "id": 1, "nombre": "Música", "imagenUrl": "https://.../musica.jpg", "totalEventos": 12 },
+    { "id": 3, "nombre": "Arte", "imagenUrl": "https://.../arte.jpg", "totalEventos": 6 }
   ]
 }
 ```
@@ -1402,6 +1510,8 @@ En caso de error, la respuesta suele devolver:
 #### `GET /api/categorias/con-eventos`
 - Recibe: sin parámetros.
 - Devuelve: `ApiResponse<List<CategoriaConteoDTO>>`
+- Descripción: lista las categorías que poseen al menos un evento en estado `PUBLICADO`.
+- `totalEventos`: conteo exclusivo de eventos publicados.
 - Ejemplo de respuesta:
 
 ```json
@@ -1412,7 +1522,7 @@ En caso de error, la respuesta suele devolver:
     {
       "id": 1,
       "nombre": "Música",
-      "totalEventos": 45
+      "totalEventos": 12
     }
   ]
 }
@@ -1421,6 +1531,7 @@ En caso de error, la respuesta suele devolver:
 #### `GET /api/categorias/{id}`
 - Recibe: `id` en path.
 - Devuelve: `ApiResponse<CategoriaConteoDTO>`
+- `totalEventos`: conteo exclusivo de eventos en estado `PUBLICADO`.
 - Ejemplo de respuesta:
 
 ```json
@@ -1430,7 +1541,7 @@ En caso de error, la respuesta suele devolver:
   "data": {
     "id": 1,
     "nombre": "Música",
-    "totalEventos": 45
+    "totalEventos": 12
   }
 }
 ```
@@ -1484,7 +1595,7 @@ En caso de error, la respuesta suele devolver:
 ### Base: `/api/organizaciones`
 
 #### `GET /api/organizaciones`
-- Recibe: parámetro opcional `estado` y paginación (`page`, `size`, `sort`).
+- Recibe: parámetro opcional `estado` (enum `EstadoOrganizacion`: PENDIENTE_REVISION, APROBADA, RECHAZADA, SUSPENDIDA) y paginación (`page`, `size`, `sort`).
 - Devuelve: `ApiResponse<PagedResponse<OrganizacionPublicaDTO>>`
 - Ejemplo de respuesta:
 
@@ -1503,6 +1614,7 @@ En caso de error, la respuesta suele devolver:
         "totalValoraciones": 25,
         "totalSeguidores": 340,
         "totalEventosCreados": 18,
+        "eventosActivos": 4,
         "nivel": "NIVEL_2",
         "estado": "APROBADA"
       }
@@ -1537,6 +1649,7 @@ En caso de error, la respuesta suele devolver:
         "totalValoraciones": 25,
         "totalSeguidores": 340,
         "totalEventosCreados": 18,
+        "eventosActivos": 4,
         "nivel": "NIVEL_2",
         "estado": "APROBADA"
       }
@@ -1555,6 +1668,7 @@ En caso de error, la respuesta suele devolver:
 - Recibe: `organizacionId` en path.
 - Devuelve: `ApiResponse<OrganizacionDTO>`
 - Permisos: ADMINISTRADOR.
+- Descripción: consulta privada y protegida de la organización para validación y auditoría administrativa. El RUT se expone mediante `urlRutTemporal` con token de acceso seguro y expiración temporal (1 hora).
 - Ejemplo de respuesta:
 
 ```json
@@ -1564,6 +1678,7 @@ En caso de error, la respuesta suele devolver:
   "data": {
     "id": 10,
     "representante": "Carlos Pérez",
+    "representanteCorreo": "carlos.perez@eventica.cl",
     "razonSocial": "Eventica SpA",
     "nit": "76.123.456-7",
     "correoContacto": "contacto@eventica.cl",
@@ -1573,10 +1688,13 @@ En caso de error, la respuesta suele devolver:
     "totalValoraciones": 25,
     "totalSeguidores": 340,
     "totalEventosCreados": 18,
+    "eventosActivos": 4,
     "eventosFinalizados": 12,
     "eventosRechazados": 1,
     "nivel": "NIVEL_2",
-    "estado": "APROBADA"
+    "estado": "APROBADA",
+    "estadoValidacionRut": "PENDIENTE",
+    "urlRutTemporal": "https://supabase.co/storage/v1/object/sign/documentos-rut/rut_10.pdf?token=..."
   }
 }
 ```
@@ -1748,9 +1866,47 @@ Los operadores se agregan mediante invitación por correo, aceptan o rechazan la
 
 #### `GET /api/organizaciones/mi-organizacion/estadisticas`
 - Recibe: paginación estándar (`page`, `size`, `sort`).
-- Devuelve: `ApiResponse<PanelEntradasDTO>` con total de eventos, boletas, ingresos netos y eventos paginados con sus ventas.
+- Devuelve: `ApiResponse<PanelEntradasDTO>`
 - Permisos: REPRESENTANTE u OPERADOR asociado a la organización.
-- Los ingresos son el neto para la organización después de la comisión de Eventhive.
+- Reglas de negocio:
+  - `totalBoletas` / `totalBoletasVendidasPorEventosPublicados`: total de boletas vendidas correspondientes **exclusivamente a eventos publicados** (`PUBLICADO`) en compras y pagos confirmados (excluyendo compras pendientes, canceladas o fallidas).
+  - `ingresosNetos`: suma de los ingresos netos de la organización (el precio base de las localidades vendidas, sin descontar comisiones adicionales asumidas por el comprador).
+  - `totalEventosActivos`: número de eventos en estado `PUBLICADO` de la organización.
+  - `eventos`: paginación de `EventoEntradasResumenDTO` con resumen por evento (`id`, `titulo`, `fecha`, `hora`, `estado`, `boletasVendidas`, `ingresosNetos`), omitiendo desglose por localidades por optimización del contrato.
+- Ejemplo de respuesta:
+
+```json
+{
+  "success": true,
+  "mensaje": "Estadísticas de la organización obtenidas",
+  "data": {
+    "totalEventos": 4,
+    "totalEventosActivos": 4,
+    "totalBoletas": 240,
+    "totalBoletasVendidasPorEventosPublicados": 240,
+    "ingresosNetos": 12000000,
+    "eventos": {
+      "content": [
+        {
+          "id": 15,
+          "titulo": "Festival de Jazz",
+          "fecha": "2026-10-14",
+          "hora": "19:30:00",
+          "estado": "PUBLICADO",
+          "boletasVendidas": 240,
+          "ingresosNetos": 12000000
+        }
+      ],
+      "pageNumber": 0,
+      "pageSize": 10,
+      "totalElements": 1,
+      "totalPages": 1,
+      "hasNext": false,
+      "hasPrevious": false
+    }
+  }
+}
+```
 
 #### `GET /api/organizaciones/mi-organizacion/valoraciones`
 - Recibe: paginación estándar (`page`, `size`, `sort`).
@@ -2643,19 +2799,49 @@ descuentos de compra ya no están disponibles ni se aplican al checkout.
 - En producción debe reemplazarse la confirmación simulada por una confirmación de pasarela.
 
 #### `GET /api/eventos/destacados`
-- Devuelve únicamente eventos publicados con pago confirmado cuyo plan comprado era Premium.
-- La lista está ordenada por fecha del evento; no hay selección aleatoria ni rotación.
+- Devuelve todos los eventos publicados con promoción pagada y confirmada (`promocionado: true`), ya sea con plan Estándar o Premium.
+- La lista está ordenada por fecha y hora del evento ascendente.
 
-#### `POST /api/promociones/eventos/{eventoId}/posicionar`
+#### `GET /api/eventos/carrusel`
+- Exclusivo para eventos publicados con promoción pagada y confirmada que hayan contratado un plan con `premium = true` y que tengan asignada su `url_imagen_destacado` por Marketing.
+- Devuelve exclusivamente el array con la propiedad `url_imagen_promocionado`.
+
+#### `PUT /api/promociones/eventos/{eventoId}/posicionar`
 - Body: `{ "urlImagenDestacado": "https://..." }`.
-- Permisos: REPRESENTANTE propietario con pago confirmado.
-- Asigna o actualiza la imagen del evento destacado; no activa ni cancela el pago.
+- Permisos: MARKETING o ADMINISTRADOR (el cliente o la organización no pueden asignar directamente esta imagen).
+- Requiere que el evento esté en estado `PUBLICADO`, tenga un pago de posicionamiento `CONFIRMADO` y que el plan contratado tenga `premium = true`.
+- Valida que la URL pertenezca al dominio configurado de Supabase Storage.
 
 ### Dashboard MARKETING
 
-- `GET /api/marketing/planes`: lista todos los planes.
-- `PUT /api/marketing/planes/{id}`: actualiza nombre, precio, comisión porcentual, Premium, pauta en redes y estado activo.
-- `GET /api/marketing/eventos-promocionados`: lista eventos/organizaciones con pago confirmado, plan y características contratadas.
+#### `POST /api/marketing/planes`
+- Recibe: body JSON `PlanPromocionRequest` con:
+  - `nombre` (obligatorio, no vacío)
+  - `codigo` (obligatorio, único en el sistema)
+  - `precio` (obligatorio, no negativo)
+  - `detallePublicidad` (texto descriptivo)
+  - `premium` (booleano)
+  - `pautaRedes` / `llevaPautaRedes` (booleano)
+  - `comisionPorcentaje` (opcional, 0 por defecto)
+- Devuelve: `ApiResponse<PlanPromocionDTO>`
+- Permisos: MARKETING o ADMINISTRADOR.
+- Descripción: crea un nuevo plan publicitario de precio fijo.
+
+#### `GET /api/marketing/planes`
+- Lista todos los planes configurados en el sistema.
+- Permisos: MARKETING o ADMINISTRADOR.
+
+#### `PUT /api/marketing/planes/{id}`
+- Recibe: `id` del plan en path y body `PlanPromocionRequest`.
+- Devuelve: `ApiResponse<PlanPromocionDTO>`
+- Permisos: MARKETING o ADMINISTRADOR.
+- Descripción: actualiza nombre, código, precio fijo, Premium, pauta en redes y detalle publicitario.
+
+#### `GET /api/marketing/eventos-promocionados`
+- Permisos: MARKETING o ADMINISTRADOR.
+- Lista eventos y organizaciones con pago confirmado, plan contratado y estado de campaña.
+
+#### Banners del Home
 - `GET /api/banners-home/admin` y las operaciones de escritura de `/api/banners-home` permiten ADMINISTRADOR y MARKETING.
 
 La aplicación usa `spring.jpa.hibernate.ddl-auto=none`. Antes de desplegar
@@ -2746,11 +2932,16 @@ de un solo uso y vence 24 horas después del envío.
 - Público; devuelve el correo, rol y fecha de expiración para mostrar el formulario.
 
 #### `POST /api/invitaciones/roles/aceptar`
-- Público. Body: `{ "token": "...", "nombre": "Nombre", "telefono": "+573001112233", "clave": "contraseña segura" }`.
-- Crea la cuenta nueva o actualiza la cuenta CLIENTE existente con el rol invitado.
+- Público. Para una cuenta nueva, body: `{ "token": "...", "nombre": "Nombre", "telefono": "+573001112233", "clave": "contraseña segura" }`. Para una cuenta CLIENTE existente basta con `{ "token": "..." }`.
+- La cuenta CLIENTE conserva nombre, teléfono y contraseña; al aceptar se cambia su rol y, para OPERADOR, se vincula a la organización que envió la invitación. Los demás roles existentes (REPRESENTANTE, MODERADOR, OPERADOR, ADMINISTRADOR o MARKETING) no pueden aceptar otra invitación.
 
 #### `GET /api/invitaciones/roles/enviadas`
 - ADMINISTRADOR o REPRESENTANTE. Devuelve la lista paginada de invitaciones enviadas por la persona autenticada.
+
+#### Preparación de despliegue y prueba SMTP
+- Antes del primer despliegue, ejecutar una vez `demo/src/main/resources/db/migration/20261012_correo_invitaciones.sql` contra PostgreSQL/Supabase. `spring.jpa.hibernate.ddl-auto=none` está configurado, así que las tablas no se crean automáticamente.
+- Configurar `MAIL_HOST` (opcional; por defecto `smtp-relay.brevo.com`), `MAIL_PORT` (opcional; por defecto `587`), `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` (remitente verificado por Brevo), `MAIL_FROM_NAME` (opcional; por defecto `EventHive`) y `FRONTEND_URL` (origen del frontend que recibe los enlaces).
+- Para probar el envío real, autenticar un ADMINISTRADOR y llamar a `POST /api/invitaciones/roles` con `{"correo":"destino@correo.com","rol":"MARKETING"}`; un REPRESENTANTE puede probar con `"rol":"OPERADOR"`. Un envío SMTP fallido responde con error y no deja guardada la invitación.
 
 ---
 
@@ -2823,8 +3014,30 @@ Todos los endpoints son de solo lectura, no reciben parámetros y requieren rol 
 ]
 ```
 
+#### `GET /api/admin/estadisticas/ingresos-plataforma`
+- Devuelve: `ApiResponse<IngresosPlataformaDTO>` con el desglose de métricas financieras de la plataforma:
+  - `ventaBrutaTotal`: suma total de la venta bruta de boletas (incluyendo la comisión comercial pagada por el comprador) más los pagos confirmados de promociones.
+  - `comisionesVentas`: comisiones comerciales de EventHive obtenidas exclusivamente de la venta de boletas.
+  - `ingresosPagoPromocion`: recaudación total generada por la contratación de planes de promoción pagados y confirmados.
+  - `ingresosOrganizaciones`: importe neto correspondiente a las organizaciones por sus ventas de boletas.
+  - `totalIngresos`: ingresos brutos de la plataforma (`comisionesVentas` + `ingresosPagoPromocion`).
+  - Nota: la métrica obsoleta de tickets emitidos fue retirada del modelo financiero.
+- Ejemplo de `data`:
+
+```json
+{
+  "totalIngresos": 250000.00,
+  "comisionesVentas": 50000.00,
+  "ingresosPagoPromocion": 200000.00,
+  "ingresosOrganizaciones": 500000.00,
+  "ventaBrutaTotal": 750000.00,
+  "comisionesPosicionados": 15000.00
+}
+```
+
 #### `GET /api/admin/estadisticas/top-eventos-ventas`
-- Devuelve: `ApiResponse<List<TopEventoVentasDTO>>` con los cinco eventos con más ventas.
+- Devuelve: `ApiResponse<List<TopEventoVentasDTO>>` con los cinco eventos con mayor volumen de ventas de entradas.
+- Regla: se calcula **exclusivamente sobre eventos en estado `PUBLICADO`** con compras confirmadas.
 - Ejemplo de `data`:
 
 ```json
@@ -2841,7 +3054,8 @@ Todos los endpoints son de solo lectura, no reciben parámetros y requieren rol 
 ```
 
 #### `GET /api/admin/estadisticas/top-organizaciones-ventas`
-- Devuelve: `ApiResponse<List<TopOrganizacionVentasDTO>>` con las cinco organizaciones con más ventas.
+- Devuelve: `ApiResponse<List<TopOrganizacionVentasDTO>>` con las cinco organizaciones con mayor recaudación.
+- Regla: se calcula a partir de las ventas de sus **eventos promocionados que se encuentren en estado `PUBLICADO`**.
 - Ejemplo de `data`:
 
 ```json
@@ -2857,7 +3071,48 @@ Todos los endpoints son de solo lectura, no reciben parámetros y requieren rol 
 
 ---
 
-## 20. Palabras prohibidas
+## 20. Envío de correos administrativos
+
+### Base: `/api/admin/correos`
+
+#### `POST /api/admin/correos/enviar`
+- Recibe: body JSON `CorreoAdministrativoRequest` con:
+  - `destinatario`: correo electrónico válido (obligatorio).
+  - `asunto`: asunto del mensaje (obligatorio, no vacío).
+  - `mensaje`: cuerpo del correo electrónico en texto plano o HTML (obligatorio, no vacío).
+- Devuelve: `ApiResponse<Map<String, Object>>`
+- Permisos: ADMINISTRADOR.
+- Descripción: envía un correo administrativo oficial a través del servicio integrado (Brevo SMTP).
+  - Remitente oficial: la dirección autorizada del sistema (`MAIL_FROM`). No se permite suplantación arbitraria de remitente.
+  - Registro de auditoría: el administrador autenticado queda registrado como el iniciador del envío (`iniciadoPor`).
+  - Respuesta: devuelve el estado de aceptación de la solicitud de envío (`ACEPTADO`).
+- Ejemplo de petición:
+
+```json
+{
+  "destinatario": "representante@organizacion.com",
+  "asunto": "Validación de documentación RUT - EventHive",
+  "mensaje": "Estimado organizador, le informamos que su RUT ha sido validado satisfactoriamente."
+}
+```
+
+- Ejemplo de respuesta:
+
+```json
+{
+  "success": true,
+  "mensaje": "Solicitud de envío de correo administrativo aceptada",
+  "data": {
+    "destinatario": "representante@organizacion.com",
+    "iniciadoPor": "admin@eventhive.com",
+    "estado": "ACEPTADO"
+  }
+}
+```
+
+---
+
+## 21. Palabras prohibidas
 
 ### Base: `/api/administracion/palabras-prohibidas`
 
@@ -2928,7 +3183,7 @@ Todos los endpoints de este módulo requieren rol ADMINISTRADOR. `PalabraProhibi
 
 ---
 
-## 21. Banners del Home
+## 22. Banners del Home
 
 ### Base: `/api/banners-home`
 
@@ -2997,20 +3252,20 @@ Este módulo administra los dos espacios promocionales propios de Eventhive. No 
 
 ---
 
-## 22. Resumen de permisos por rol
+## 23. Resumen de permisos por rol
 
-- Público: registro/login, consulta pública de eventos y organizaciones, banners del home
+- Público: registro/login, consulta pública de eventos y organizaciones, banners del home, carrusel de eventos
 - Autenticado: perfil, compras, lista de deseos, notificaciones, seguimientos
 - CLIENTE: compras, boletos, valoraciones
 - REPRESENTANTE: gestión de eventos, organización, contratación de promoción pagada y verificación
 - OPERADOR: gestión de eventos y localidades
 - MODERADOR: revisión y moderación de eventos
-- MARKETING: planes y comisiones de promoción, campañas de eventos pagados y banners del home
-- ADMINISTRADOR: administración general, invitaciones de moderadores/marketing, categorías, palabras prohibidas y verificación de organizaciones
+- MARKETING: planes y comisiones de promoción, campañas de eventos pagados, asignación de imagen de banner/carrusel y banners del home
+- ADMINISTRADOR: administración general, invitaciones de moderadores/marketing, revocación de roles, métricas comerciales, categorías, palabras prohibidas, consulta privada de organizaciones con RUT seguro y verificación
 
 ---
 
-## 23. Nota práctica
+## 24. Nota práctica
 
 Si quieres, este documento puede ampliarse con:
 

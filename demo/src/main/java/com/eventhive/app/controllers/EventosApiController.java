@@ -25,9 +25,11 @@ import org.springframework.web.multipart.MultipartFile;
 import com.eventhive.app.dto.ApiResponse;
 import com.eventhive.app.dto.PagedResponse;
 import com.eventhive.app.dto.request.EventoRequest;
+import com.eventhive.app.dto.response.EventoCarruselDTO;
 import com.eventhive.app.dto.response.EventoDTO;
 import com.eventhive.app.dto.response.EventoDestacadoDTO;
 import com.eventhive.app.dto.response.EventoMapaDTO;
+import com.eventhive.app.enums.EstadoEvento;
 import com.eventhive.app.service.ServiceEvento;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
 
@@ -57,7 +59,7 @@ public class EventosApiController {
 
     // Eventos destacados: solo promocionados que además están PUBLICADOS.
     @GetMapping("/destacados")
-        public ResponseEntity<ApiResponse<PagedResponse<EventoDestacadoDTO>>> eventosDestacados(
+    public ResponseEntity<ApiResponse<PagedResponse<EventoDestacadoDTO>>> eventosDestacados(
             @PageableDefault(size = 10) Pageable pageable) {
 
         return ResponseEntity.ok(ApiResponse.ok(
@@ -66,7 +68,16 @@ public class EventosApiController {
         ));
     }
 
-    //eventos cercanos a la fecha actual
+    // Carrusel principal: eventos publicados, promoción confirmada premium y con imagen destacada
+    @GetMapping("/carrusel")
+    public ResponseEntity<ApiResponse<List<EventoCarruselDTO>>> carrusel() {
+        return ResponseEntity.ok(ApiResponse.ok(
+                "Eventos del carrusel obtenidos",
+                serviceEvento.obtenerEventosCarrusel()
+        ));
+    }
+
+    // Eventos cercanos a la fecha actual por proximidad temporal
     @GetMapping("/proximos")
     public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> eventosProximos(
             @PageableDefault(size = 10) Pageable pageable) {
@@ -94,10 +105,14 @@ public class EventosApiController {
 
     @GetMapping("/organizador")
     @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
-    public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> eventosPorOrganizacion(Pageable pageable) {
+    public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> eventosPorOrganizacion(
+            @RequestParam(required = false) Long categoriaId,
+            @RequestParam(required = false) EstadoEvento estado,
+            @RequestParam(required = false) String titulo,
+            Pageable pageable) {
         Long organizacionId = authHelper.usuarioAutenticado().getOrganizacion().getId();
         return ResponseEntity.ok(ApiResponse.ok("Eventos obtenidos",
-                serviceEvento.toPagedDTO(serviceEvento.listarPorOrganizacion(organizacionId, pageable))));
+                serviceEvento.toPagedDTO(serviceEvento.listarPorOrganizacion(organizacionId, categoriaId, estado, titulo, pageable))));
     }
 
     @GetMapping("/admin/{id}")

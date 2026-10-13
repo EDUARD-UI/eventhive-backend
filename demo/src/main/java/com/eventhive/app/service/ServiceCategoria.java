@@ -49,7 +49,7 @@ public class ServiceCategoria {
         return new CategoriaConteoDTO(
             categoria.getId(),
             categoria.getNombre(),
-            eventoRepository.countByCategoriaId(id));
+            eventoRepository.countByCategoriaIdAndEstado(id, com.eventhive.app.enums.EstadoEvento.PUBLICADO));
     }
 
     //devuelve solo id y nombre de todas las categorias

@@ -80,6 +80,40 @@ public class ServiceCorreo {
         sender.enviarAsync(usuario.getCorreo(), "Restablecer contraseña — EventHive", html);
     }
 
+    // PROMOCIONES
+    public void enviarPromocionConfirmada(com.eventhive.app.model.PosicionamientoEvento pago) {
+        if (pago == null || pago.getOrganizador() == null) return;
+        Usuario organizador = pago.getOrganizador();
+        if (sinCorreo(organizador)) return;
+
+        String html = plantillas.promocionConfirmada(
+                organizador.getNombreCompleto(),
+                pago.getEvento() != null ? pago.getEvento().getTitulo() : "",
+                pago.getPlan() != null ? pago.getPlan().getNombre() : "Plan Promocional",
+                pago.getPrecio() != null ? pago.getPrecio().toPlainString() : "0.00");
+
+        sender.enviarAsync(organizador.getCorreo(), "Promoción confirmada — EventHive", html);
+    }
+
+    // CORREOS ADMINISTRATIVOS
+    public void enviarCorreoAdministrativo(String destino, String asunto, String mensaje, Usuario admin) {
+        if (destino == null || destino.isBlank()) {
+            throw new com.eventhive.app.exception.BusinessException("El correo destinatario es obligatorio");
+        }
+        if (asunto == null || asunto.isBlank()) {
+            throw new com.eventhive.app.exception.BusinessException("El asunto es obligatorio");
+        }
+        if (mensaje == null || mensaje.isBlank()) {
+            throw new com.eventhive.app.exception.BusinessException("El mensaje es obligatorio");
+        }
+        String remitenteInfo = admin != null
+                ? admin.getNombreCompleto() + " (" + admin.getCorreo() + ")"
+                : "Administrador de EventHive";
+        String html = plantillas.correoAdministrativo(remitenteInfo, mensaje);
+        // Envío síncrono para verificar aceptación del servidor de correo
+        sender.enviar(destino.trim(), asunto.trim(), html);
+    }
+
     //METOODS AUXILIARES
 
     private Boleto aBoleto(Tiquete t) {

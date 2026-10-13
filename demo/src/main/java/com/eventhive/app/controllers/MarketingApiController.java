@@ -2,10 +2,12 @@ package com.eventhive.app.controllers;
 
 import java.util.List;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,7 +25,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/marketing")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('MARKETING')")
+@PreAuthorize("hasAnyRole('MARKETING','ADMINISTRADOR')")
 public class MarketingApiController {
 
     private final ServiceMarketing service;
@@ -31,6 +33,13 @@ public class MarketingApiController {
     @GetMapping("/planes")
     public ResponseEntity<ApiResponse<List<PlanPromocionDTO>>> listarPlanes() {
         return ResponseEntity.ok(ApiResponse.ok("Planes de promoción obtenidos", service.listarPlanes()));
+    }
+
+    @PostMapping("/planes")
+    public ResponseEntity<ApiResponse<PlanPromocionDTO>> crearPlan(
+            @Valid @RequestBody PlanPromocionRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok("Plan de promoción creado correctamente", service.crearPlan(request)));
     }
 
     @PutMapping("/planes/{id}")
