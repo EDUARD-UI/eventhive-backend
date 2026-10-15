@@ -2,6 +2,7 @@ package com.eventhive.app.service;
 
 import java.time.LocalDateTime;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.LockedException;
@@ -10,6 +11,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.eventhive.app.dto.response.LoginResponseDTO;
@@ -36,19 +38,23 @@ public class ServiceAutenticacion {
     private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
+    private final ObjectProvider<ServiceAutenticacion> self;
 
-    @Transactional
+    @Transactional(noRollbackFor = {BadCredentialsException.class})
     public LoginResponseDTO autenticar(String correo, String clave) {
         Authentication auth;
         try {
             auth = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(correo, clave));
         } catch (BadCredentialsException ex) {
-            registrarIntentoFallido(correo);
+            if (self != null && self.getIfAvailable() != null) {
+                self.getIfAvailable().registrarIntentoFallido(correo);
+            } else {
+                registrarIntentoFallido(correo);
+            }
             throw new BadCredentialsException("Credenciales incorrectas");
         } catch (LockedException ex) {
-            throw new BusinessException(
-                    "Cuenta bloqueada temporalmente por múltiples intentos fallidos. Intenta de nuevo en unos minutos.");
+            throw ex;
         }
 
         UserDetails userDetails = (UserDetails) auth.getPrincipal();
@@ -107,7 +113,8 @@ public class ServiceAutenticacion {
                 .build();
     }
 
-    private void registrarIntentoFallido(String correo) {
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void registrarIntentoFallido(String correo) {
         usuarioRepository.findByCorreo(correo)
                 .ifPresent(usuario -> {
                     usuario.setIntentosFallidos(usuario.getIntentosFallidos() + 1);

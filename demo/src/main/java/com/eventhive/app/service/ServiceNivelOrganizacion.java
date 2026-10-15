@@ -46,7 +46,9 @@ public class ServiceNivelOrganizacion {
         if (sugerenciaRepository.existsByOrganizacionIdAndEstado(organizacion.getId(), EstadoSolicitud.PENDIENTE))
             return;
 
+        if (organizacion.getFechaCreacion() == null) return;
         int indice = organizacion.getNivel().ordinal();
+        if (indice >= FINALIZADOS_REQUERIDOS.length || indice >= ANTIGUEDAD_DIAS_REQUERIDA.length) return;
         long antiguedadDias = ChronoUnit.DAYS.between(organizacion.getFechaCreacion(), LocalDateTime.now());
 
         boolean cumple = organizacion.getEventosFinalizados() >= FINALIZADOS_REQUERIDOS[indice]

@@ -277,7 +277,7 @@ public class ServiceUsuario {
 
         usuario.setRol(cliente);
         Usuario actualizado = usuarioRepository.save(usuario);
-        serviceNotification.notificarRevocacionRol(actualizado);
+        serviceNotification.notificarRevocacionRol(actualizado, "marketing");
     }
 
     //cambio de clave

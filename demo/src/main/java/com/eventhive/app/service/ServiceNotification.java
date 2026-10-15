@@ -151,13 +151,18 @@ public class ServiceNotification {
                         + ". Tu rol ahora es " + rolNombre + ".");
     }
 
-    // Revocación de rol de MODERADOR (vuelve a CLIENTE)
-    public void notificarRevocacionRol(Usuario usuario) {
+    // Revocación de rol (MODERADOR, MARKETING, etc.)
+    public void notificarRevocacionRol(Usuario usuario, String rolNombre) {
         if (usuario == null || usuario.getId() == null) return;
 
+        String nombre = rolNombre != null ? rolNombre.toLowerCase() : "moderador";
         guardarNotificacion(usuario.getId(), null, null, null,
                 TipoNotification.ROL_REVOCADO, "Rol revocado",
-                "Tu rol de moderador ha sido revocado. Ahora vuelves a tu rol de cliente.");
+                "Tu rol de " + nombre + " ha sido revocado. Ahora vuelves a tu rol de cliente.");
+    }
+
+    public void notificarRevocacionRol(Usuario usuario) {
+        notificarRevocacionRol(usuario, "moderador");
     }
 
     // Revocación de permisos de OPERADOR dentro de una organización
@@ -209,7 +214,7 @@ public class ServiceNotification {
     public List<NotificationDTO> obtenerMisNotificaciones() {
         Usuario usuario = authHelper.usuarioAutenticado();
         return notificationRepository
-                .findByUsuarioIdOrderByFechaCreacionDesc(usuario.getId())
+                .findTop50ByUsuarioIdOrderByFechaCreacionDesc(usuario.getId())
                 .stream().map(this::toDTO).toList();
     }
 

@@ -20,11 +20,14 @@ COPY --from=build /workspace/target/app-0.0.1-SNAPSHOT.jar /app/app.jar
 EXPOSE 8080
 
 ENTRYPOINT ["java", \
-    "-Xms128m", \
-    "-Xmx300m", \
-    "-Xss512k", \
+    "-Xms64m", \
+    "-Xmx220m", \
+    "-Xss256k", \
     "-XX:+UseSerialGC", \
-    "-XX:MaxMetaspaceSize=128m", \
+    "-XX:MaxMetaspaceSize=144m", \
+    "-XX:ReservedCodeCacheSize=48m", \
+    "-XX:+ExitOnOutOfMemoryError", \
     "-XX:ActiveProcessorCount=1", \
     "-jar", \
     "/app/app.jar"]
+

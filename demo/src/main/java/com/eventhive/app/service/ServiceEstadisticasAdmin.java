@@ -83,12 +83,16 @@ public class ServiceEstadisticasAdmin {
     }
 
     public IngresosPlataformaDTO ingresosPlataforma() {
-        java.math.BigDecimal totalBrutoBoletas = compraRepository.sumarTotalBrutoConfirmado();
-        java.math.BigDecimal comisiones = compraRepository.sumarComisionesConfirmadas();
-        java.math.BigDecimal comisionesPosicionados = compraRepository
-                .sumarComisionesPosicionados(ServiceMonetizacion.COMISION_NORMAL);
-        java.math.BigDecimal ingresosPagoPromocion = posicionamientoEventoRepository.sumarIngresosConfirmados();
-        java.math.BigDecimal netoOrganizaciones = compraRepository.sumarTotalNetoOrganizadores();
+        java.math.BigDecimal totalBrutoBoletas = java.util.Objects.requireNonNullElse(
+                compraRepository.sumarTotalBrutoConfirmado(), java.math.BigDecimal.ZERO);
+        java.math.BigDecimal comisiones = java.util.Objects.requireNonNullElse(
+                compraRepository.sumarComisionesConfirmadas(), java.math.BigDecimal.ZERO);
+        java.math.BigDecimal comisionesPosicionados = java.util.Objects.requireNonNullElse(
+                compraRepository.sumarComisionesPosicionados(ServiceMonetizacion.COMISION_NORMAL), java.math.BigDecimal.ZERO);
+        java.math.BigDecimal ingresosPagoPromocion = java.util.Objects.requireNonNullElse(
+                posicionamientoEventoRepository.sumarIngresosConfirmados(), java.math.BigDecimal.ZERO);
+        java.math.BigDecimal netoOrganizaciones = java.util.Objects.requireNonNullElse(
+                compraRepository.sumarTotalNetoOrganizadores(), java.math.BigDecimal.ZERO);
 
         java.math.BigDecimal ventaBrutaTotal = totalBrutoBoletas.add(ingresosPagoPromocion);
         java.math.BigDecimal totalIngresos = comisiones.add(ingresosPagoPromocion);

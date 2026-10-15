@@ -59,10 +59,14 @@ public class ValoracionesApiController {
     @PreAuthorize("hasRole('CLIENTE')")
     public ResponseEntity<ApiResponse<Void>> actualizarValoracion(
             @PathVariable Long id,
-            @RequestParam String comentario,
-            @RequestParam long calificacion) {
+            @RequestBody(required = false) ValoracionRequest body,
+            @RequestParam(required = false) String comentario,
+            @RequestParam(required = false) Long calificacion) {
 
-        serviceValoracion.actualizarValoracion(id, authHelper.usuarioAutenticado(), comentario, calificacion);
+        String com = (body != null && body.getComentario() != null) ? body.getComentario() : comentario;
+        long cal = (body != null && body.getCalificacion() != null) ? body.getCalificacion() : (calificacion != null ? calificacion : 0L);
+
+        serviceValoracion.actualizarValoracion(id, authHelper.usuarioAutenticado(), com, cal);
         return ResponseEntity.ok(ApiResponse.ok("Valoración actualizada exitosamente"));
     }
 

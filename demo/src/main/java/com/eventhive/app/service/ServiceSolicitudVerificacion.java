@@ -185,6 +185,9 @@ public class ServiceSolicitudVerificacion {
         solicitud.setFechaResolucion(LocalDateTime.now());
         solicitud.setAdministradorQueResolvi(authHelper.usuarioAutenticado());
         solicitudRepository.save(solicitud);
+
+        serviceNotification.notificarSolicitudOrganizacion(solicitud.getRepresentanteLegal(), false,
+                motivo != null ? "Corrección solicitada: " + motivo : "Corrección de datos solicitada");
     }
 
     @Transactional

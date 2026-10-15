@@ -40,6 +40,7 @@ public class ServiceModeracion {
         return eventoRepository.findByEstadoConReferencias(EstadoEvento.PENDIENTE_REVISION, pageable);
     }
 
+    @Transactional(readOnly = true)
     public Page<ModeracionEventoDTO> historialDeModeraciones(Long eventoId, Pageable pageable) {
         Evento evento = obtenerPorId(eventoId);
         Usuario usuario = authHelper.usuarioAutenticado();

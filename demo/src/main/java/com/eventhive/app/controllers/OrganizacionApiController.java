@@ -203,15 +203,16 @@ public class OrganizacionApiController {
     }
 
     @PatchMapping("invitaciones/{invitacionId}/aceptar")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Void>> aceptarInvitacion(@PathVariable Long invitacionId) {
         serviceInvitacion.aceptar(invitacionId);
         return ResponseEntity.ok(ApiResponse.ok("Invitación aceptada"));
     }
 
-    @PatchMapping("invitaciones/{operadorId}/rechazar")
+    @PatchMapping("invitaciones/{invitacionId}/rechazar")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Void>> rechazarInvitacion(@PathVariable Long operadorId) {
-        serviceInvitacion.rechazar(operadorId);
+    public ResponseEntity<ApiResponse<Void>> rechazarInvitacion(@PathVariable Long invitacionId) {
+        serviceInvitacion.rechazar(invitacionId);
         return ResponseEntity.ok(ApiResponse.ok("Invitación rechazada"));
     }
 

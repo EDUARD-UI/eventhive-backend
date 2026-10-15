@@ -50,9 +50,11 @@ public class RolesApiController {
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> actualizarRol(
             @PathVariable Long id,
-            @RequestParam String nombre) {
+            @RequestBody(required = false) RolRequest body,
+            @RequestParam(required = false) String nombre) {
 
-        serviceRoles.actualizarRol(id, nombre);
+        String nom = (body != null && body.getNombre() != null) ? body.getNombre() : nombre;
+        serviceRoles.actualizarRol(id, nom);
         return ResponseEntity.ok(ApiResponse.ok("Rol actualizado exitosamente"));
     }
 

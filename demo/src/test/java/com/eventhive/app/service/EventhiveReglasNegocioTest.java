@@ -335,7 +335,7 @@ class EventhiveReglasNegocioTest {
 
         assertEquals("CLIENTE", usuario.getRol().getNombre());
         verify(usuarioRepository).save(usuario);
-        verify(serviceNotification).notificarRevocacionRol(usuario);
+        verify(serviceNotification).notificarRevocacionRol(usuario, "marketing");
     }
 
     @Test

@@ -22,7 +22,7 @@ public class ServiceRoles {
     private final UsuarioRepository usuarioRepository;
 
     private static final Set<String> ROLES_SISTEMA = Set.of(
-            "ADMINISTRADOR", "MODERADOR", "REPRESENTANTE", "OPERADOR", "CLIENTE"
+            "ADMINISTRADOR", "MODERADOR", "REPRESENTANTE", "OPERADOR", "CLIENTE", "MARKETING"
     );
 
     //CONSULTAS

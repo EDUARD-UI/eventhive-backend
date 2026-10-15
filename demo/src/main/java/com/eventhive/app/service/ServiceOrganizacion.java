@@ -301,7 +301,9 @@ public class ServiceOrganizacion {
 
         Map<Long, BigDecimal> ingresosPorEvento = new HashMap<>();
         for (Object[] row : compraRepository.sumarNetoPorEventos(eventoIds)) {
-            ingresosPorEvento.merge((Long) row[0], (BigDecimal) row[2], BigDecimal::add);
+            if (row != null && row.length >= 3 && row[0] != null && row[2] != null) {
+                ingresosPorEvento.merge((Long) row[0], (BigDecimal) row[2], BigDecimal::add);
+            }
         }
 
         List<EventoEntradasResumenDTO> dtoList = eventos.stream().map(ev -> {
