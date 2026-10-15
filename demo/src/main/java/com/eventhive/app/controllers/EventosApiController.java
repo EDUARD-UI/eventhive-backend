@@ -68,8 +68,8 @@ public class EventosApiController {
         ));
     }
 
-    // Carrusel principal: eventos publicados, promoción confirmada premium y con imagen destacada
-    @GetMapping("/carrusel")
+    // Carrusel principal: eventos publicados, promoción activa y con imagen destacada
+    @GetMapping({"/carrusel", "/carousel"})
     public ResponseEntity<ApiResponse<List<EventoCarruselDTO>>> carrusel() {
         return ResponseEntity.ok(ApiResponse.ok(
                 "Eventos del carrusel obtenidos",

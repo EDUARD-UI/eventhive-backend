@@ -174,7 +174,12 @@ public class ServiceEvento {
     @Transactional(readOnly = true)
     public List<com.eventhive.app.dto.response.EventoCarruselDTO> obtenerEventosCarrusel() {
         return eventoRepository.findCarruselPublicados().stream()
-                .map(e -> new com.eventhive.app.dto.response.EventoCarruselDTO(e.getUrlImagenDestacado()))
+                .map(e -> {
+                    String url = (e.getUrlImagenDestacado() != null && !e.getUrlImagenDestacado().isBlank())
+                            ? e.getUrlImagenDestacado()
+                            : e.getFoto();
+                    return new com.eventhive.app.dto.response.EventoCarruselDTO(e.getId(), url);
+                })
                 .toList();
     }
 
