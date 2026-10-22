@@ -1,5 +1,6 @@
 package com.eventhive.app.repository;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -13,7 +14,12 @@ public interface InvitacionRolRepository extends JpaRepository<InvitacionRol, Lo
     Optional<InvitacionRol> findByTokenHashAndFechaAceptacionIsNull(String tokenHash);
 
     boolean existsByCorreoInvitadoIgnoreCaseAndFechaAceptacionIsNullAndFechaExpiracionAfter(
-            String correoInvitado, java.time.LocalDateTime now);
+            String correoInvitado, LocalDateTime now);
+
+    Optional<InvitacionRol> findByCorreoInvitadoIgnoreCaseAndFechaAceptacionIsNullAndFechaExpiracionAfter(
+            String correoInvitado, LocalDateTime now);
 
     Page<InvitacionRol> findByInvitadoPorIdOrderByFechaInvitacionDesc(Long invitadoPorId, Pageable pageable);
+
+    Page<InvitacionRol> findByOrganizacionIdOrderByFechaInvitacionDesc(Long organizacionId, Pageable pageable);
 }

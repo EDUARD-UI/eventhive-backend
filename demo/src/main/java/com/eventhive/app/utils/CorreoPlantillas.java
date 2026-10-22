@@ -64,9 +64,20 @@ public class CorreoPlantillas {
     }
 
     public String invitacionRol(String rol, String enlace, int horasVigencia) {
+        return invitacionRol(rol, null, enlace, horasVigencia);
+    }
+
+    public String invitacionRol(String rol, String organizacionNombre, String enlace, int horasVigencia) {
+        String mensajeRol;
+        if (organizacionNombre != null && !organizacionNombre.isBlank()) {
+            mensajeRol = "Recibiste una invitación para unirte a <strong>" + esc(organizacionNombre)
+                    + "</strong> en EventHive con el rol <strong>" + esc(rol) + "</strong>.";
+        } else {
+            mensajeRol = "Recibiste una invitación para crear una cuenta EventHive con el rol <strong>"
+                    + esc(rol) + "</strong>.";
+        }
         return base("Completa tu registro",
-                "Recibiste una invitación para crear una cuenta EventHive con el rol <strong>"
-                        + esc(rol) + "</strong>.",
+                mensajeRol,
                 "<p>El enlace es de un solo uso y vence en " + horasVigencia + " horas.</p>"
                         + boton("Aceptar invitación", enlace)
                         + "<p>Si no solicitaste esta invitación, puedes ignorar este correo.</p>");

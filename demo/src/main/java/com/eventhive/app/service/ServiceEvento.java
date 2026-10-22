@@ -39,6 +39,7 @@ import com.eventhive.app.enums.PermisoEvento;
 import com.eventhive.app.enums.TipoNotification;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
+import org.springframework.security.access.AccessDeniedException;
 import com.eventhive.app.model.Categoria;
 import com.eventhive.app.model.Evento;
 import com.eventhive.app.model.Localidad;
@@ -543,7 +544,7 @@ public class ServiceEvento {
                 && usuario.getOrganizacion().getId().equals(evento.getOrganizacion().getId());
 
         if (!perteneceALaOrganizacion) {
-            throw new BusinessException("No autorizado para modificar este evento");
+            throw new AccessDeniedException("No autorizado para modificar o acceder a este evento");
         }
         validarPermisoSobreEvento(usuario, permisoRequerido);
     }
@@ -551,13 +552,14 @@ public class ServiceEvento {
     private void validarPermisoSobreEvento(Usuario usuario, PermisoEvento permisoRequerido) {
         Organizacion organizacion = usuario.getOrganizacion();
         if (organizacion == null)
-            throw new BusinessException("No perteneces a ninguna organización");
+            throw new AccessDeniedException("No perteneces a ninguna organización");
 
-        boolean esRepresentante = organizacion.getRepresentante().getId().equals(usuario.getId());
+        boolean esRepresentante = organizacion.getRepresentante() != null
+                && organizacion.getRepresentante().getId().equals(usuario.getId());
         if (esRepresentante) return; // el representante tiene control total
 
-        if (!usuario.getPermisosEvento().contains(permisoRequerido))
-            throw new BusinessException("No tienes permiso para realizar esta acción");
+        if (usuario.getPermisosEvento() == null || !usuario.getPermisosEvento().contains(permisoRequerido))
+            throw new AccessDeniedException("No tienes permiso para realizar esta acción: " + permisoRequerido);
     }
 
     private Categoria resolverCategoria(Long categoriaId) {

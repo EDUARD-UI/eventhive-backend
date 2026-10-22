@@ -128,7 +128,10 @@ public class OrganizacionApiController {
     @GetMapping("/invitaciones-enviadas")
     @PreAuthorize("hasRole('REPRESENTANTE')")
     public ResponseEntity<ApiResponse<PagedResponse<InvitacionOrganizacionDTO>>> invitacionesEnviadas(Pageable pageable) {
-        Page<InvitacionOrganizacionDTO> page = serviceInvitacion.listarInvitacionesOrganizacion(pageable);
+        Page<InvitacionOrganizacionDTO> page = serviceInvitacionRol.listarInvitacionesDeMiOrganizacion(pageable);
+        if (page.isEmpty()) {
+            page = serviceInvitacion.listarInvitacionesOrganizacion(pageable);
+        }
         return ResponseEntity.ok(ApiResponse.ok("Invitaciones de la organización obtenidas",
                 new PagedResponse<>(page.getContent(), page.getNumber(), page.getSize(),
                         page.getTotalElements(), page.getTotalPages())));
@@ -197,8 +200,16 @@ public class OrganizacionApiController {
 
     @PostMapping("/invitar")
     @PreAuthorize("hasRole('REPRESENTANTE')")
-    public ResponseEntity<ApiResponse<Void>> invitar(@RequestParam String correo) {
-        serviceInvitacionRol.invitar(correo, "OPERADOR");
+    public ResponseEntity<ApiResponse<Void>> invitar(
+            @RequestParam(required = false) String correo,
+            @RequestBody(required = false) com.eventhive.app.dto.request.InvitacionRolRequest body) {
+        String correoFinal = (correo != null && !correo.isBlank())
+                ? correo.trim()
+                : (body != null ? body.getCorreo() : null);
+        if (correoFinal == null || correoFinal.isBlank()) {
+            throw new BusinessException("El correo del invitado es obligatorio");
+        }
+        serviceInvitacionRol.invitar(correoFinal, "OPERADOR");
         return ResponseEntity.ok(ApiResponse.ok("Invitación enviada por correo; el enlace vence en 24 horas"));
     }
 

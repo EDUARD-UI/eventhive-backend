@@ -3252,24 +3252,363 @@ Este módulo administra los dos espacios promocionales propios de Eventhive. No 
 
 ---
 
-## 23. Resumen de permisos por rol
+## 23. Invitaciones a roles y flujo seguro
 
-- Público: registro/login, consulta pública de eventos y organizaciones, banners del home, carrusel de eventos
-- Autenticado: perfil, compras, lista de deseos, notificaciones, seguimientos
-- CLIENTE: compras, boletos, valoraciones
-- REPRESENTANTE: gestión de eventos, organización, contratación de promoción pagada y verificación
-- OPERADOR: gestión de eventos y localidades
-- MODERADOR: revisión y moderación de eventos
-- MARKETING: planes y comisiones de promoción, campañas de eventos pagados, asignación de imagen de banner/carrusel y banners del home
-- ADMINISTRADOR: administración general, invitaciones de moderadores/marketing, revocación de roles, métricas comerciales, categorías, palabras prohibidas, consulta privada de organizaciones con RUT seguro y verificación
+### Base: `/api/invitaciones/roles`
+
+#### `POST /api/invitaciones/roles`
+- **Roles autorizados**: `ADMINISTRADOR`, `REPRESENTANTE`.
+- **Content-Type**: `application/json`.
+- **Body**: `InvitacionRolRequest`:
+  ```json
+  {
+    "correo": "usuario@example.com",
+    "rol": "MODERADOR"
+  }
+  ```
+- **Reglas de autorización y negocio**:
+  - `ADMINISTRADOR`: solo puede invitar a `MODERADOR` o `MARKETING`. La organización asociada es `null`. No puede concederse a sí mismo privilegios ni invitar `ADMINISTRADOR` ni `OPERADOR`.
+  - `REPRESENTANTE`: solo puede invitar a `OPERADOR` para su propia organización (determinada por el representante autenticado). No puede invitar moderadores, marketing ni administradores.
+  - La cuenta de destino no debe poseer ya un rol administrativo o estar vinculada a una organización distinta.
+  - Si ya existe una invitación pendiente para ese correo, el sistema realiza un reenvío seguro: invalida el token previo, genera un nuevo token criptográfico de 32 bytes con expiración de 24 horas y reenvía el correo, previniendo duplicados en la base de datos.
+  - Si el envío de correo falla (SMTP), la transacción se revierte por completo evitando dejar invitaciones huérfanas.
+- **Respuesta**: HTTP 201 Created.
+  ```json
+  {
+    "success": true,
+    "mensaje": "Invitación enviada por correo"
+  }
+  ```
+
+#### `GET /api/invitaciones/roles/validar`
+- **Roles autorizados**: Público (cualquier usuario con enlace de invitación).
+- **Parámetro**: `token` (query param, string).
+- **Descripción**: Comprueba la autenticidad y vigencia de la invitación mediante el hash SHA-256 del token.
+- **Devuelve**: `ApiResponse<InvitacionRolDTO>`
+- **Ejemplo de respuesta**:
+  ```json
+  {
+    "success": true,
+    "mensaje": "Invitación válida",
+    "data": {
+      "correo": "persona@example.com",
+      "rol": "OPERADOR",
+      "fechaExpiracion": "2026-10-22T18:00:00",
+      "organizacionNombre": "Organización Viva",
+      "estado": "PENDIENTE"
+    }
+  }
+  ```
+
+#### `GET /api/invitaciones/roles/enviadas`
+- **Roles autorizados**: `ADMINISTRADOR`, `REPRESENTANTE`.
+- **Parámetros**: Parámetros estándar de paginación (`page`, `size`, `sort`).
+- **Descripción**: Si el solicitante es representante, devuelve las invitaciones enviadas para su organización; si es administrador, devuelve las invitaciones emitidas por la administración.
+- **Devuelve**: `ApiResponse<PagedResponse<InvitacionRolEnviadaDTO>>`
+- **Ejemplo de respuesta**:
+  ```json
+  {
+    "success": true,
+    "mensaje": "Invitaciones enviadas",
+    "data": {
+      "content": [
+        {
+          "id": 1,
+          "correo": "operador@eventos.com",
+          "rol": "OPERADOR",
+          "fechaInvitacion": "2026-10-21T18:30:00",
+          "fechaExpiracion": "2026-10-22T18:30:00",
+          "fechaAceptacion": null,
+          "estado": "PENDIENTE",
+          "organizacionNombre": "Eventos SAS"
+        }
+      ],
+      "pageNumber": 0,
+      "pageSize": 10,
+      "totalElements": 1,
+      "totalPages": 1,
+      "hasNext": false,
+      "hasPrevious": false
+    }
+  }
+  ```
+
+#### `POST /api/invitaciones/roles/aceptar`
+- **Roles autorizados**: Público / Destinatario de la invitación.
+- **Body**: `AceptarInvitacionRolRequest`:
+  ```json
+  {
+    "token": "dGhpcy1pcy1hLXNlY3VyZS10b2tlbi0yNTYtYml0cw",
+    "nombre": "Carlos Gómez",
+    "telefono": "+573001234567",
+    "clave": "ContraseñaSegura123!"
+  }
+  ```
+- **Reglas**:
+  - Si el correo ya tiene una cuenta `CLIENTE`, se asocia directamente el nuevo rol y la organización definida por la invitación; los datos personales y contraseña existentes no se sobreescriben.
+  - Si el usuario no existe, se crea la cuenta con estado activo y las credenciales proporcionadas.
+  - El rol y la organización provienen exclusivamente del registro backend de la invitación; el frontend no puede alterar el rol asignado.
+  - La invitación queda marcada con `fechaAceptacion` inmediata, impidiendo su reutilización.
+- **Respuesta**: HTTP 201 Created.
+  ```json
+  {
+    "success": true,
+    "mensaje": "Invitación aceptada correctamente"
+  }
+  ```
 
 ---
 
-## 24. Nota práctica
+## 24. Correos administrativos oficiales
 
-Si quieres, este documento puede ampliarse con:
+### Base: `/api/admin/correos`
 
-1. Ejemplos reales de JSON de request/response por endpoint
-2. Una versión Swagger/OpenAPI
-3. Una tabla más estructurada por módulo
-4. Colección Postman para probar cada endpoint
+#### `POST /api/admin/correos/enviar`
+- **Roles autorizados**: `ADMINISTRADOR`.
+- **Descripción**: Envía un comunicado oficial por correo electrónico a un destinatario determinado. Este endpoint es estrictamente para comunicación y **no** asigna roles ni genera tokens de privilegios.
+- **Body**: `CorreoAdministrativoRequest`:
+  ```json
+  {
+    "destinatario": "usuario@example.com",
+    "asunto": "Aviso importante de administración",
+    "mensaje": "Se informa que su cuenta requiere actualización de información fiscal."
+  }
+  ```
+- **Respuesta**: HTTP 200 OK.
+  ```json
+  {
+    "success": true,
+    "mensaje": "Solicitud de envío de correo administrativo aceptada",
+    "data": {
+      "destinatario": "usuario@example.com",
+      "iniciadoPor": "admin@eventhive.com",
+      "estado": "ACEPTADO"
+    }
+  }
+  ```
+
+#### `POST /api/admin/correos/invitar`
+- **Roles autorizados**: `ADMINISTRADOR`.
+- **Descripción**: Endpoint administrativo para emitir invitaciones con asignación de rol (`MODERADOR` o `MARKETING`).
+- **Body**: `InvitacionRolRequest`:
+  ```json
+  {
+    "correo": "nuevo.moderador@eventhive.com",
+    "rol": "MODERADOR"
+  }
+  ```
+- **Respuesta**: HTTP 201 Created.
+  ```json
+  {
+    "success": true,
+    "mensaje": "Invitación administrativa enviada por correo"
+  }
+  ```
+
+---
+
+## 25. Gestión de operadores e invitaciones de organización
+
+### Base: `/api/organizaciones`
+
+#### `POST /api/organizaciones/invitar`
+- **Roles autorizados**: `REPRESENTANTE`.
+- **Parámetros**: Admite query param `?correo=...` o cuerpo JSON `{"correo": "..."}`.
+- **Descripción**: El representante invita exclusivamente a un `OPERADOR` para unirse a su propia organización.
+- **Respuesta**: HTTP 200 OK.
+  ```json
+  {
+    "success": true,
+    "mensaje": "Invitación enviada por correo; el enlace vence en 24 horas"
+  }
+  ```
+
+#### `GET /api/organizaciones/invitaciones-enviadas`
+- **Roles autorizados**: `REPRESENTANTE`.
+- **Descripción**: Consulta el historial y estado de invitaciones emitidas para la organización del representante.
+- **Devuelve**: `ApiResponse<PagedResponse<InvitacionOrganizacionDTO>>`
+- **Respuesta**: HTTP 200 OK.
+
+#### `GET /api/organizaciones/mis-operadores`
+- **Roles autorizados**: `REPRESENTANTE`.
+- **Descripción**: Lista todos los operadores activos pertenecientes a la organización del representante con sus respectivos permisos granulares sobre eventos.
+- **Devuelve**: `ApiResponse<PagedResponse<OperadorDTO>>`
+- **Ejemplo de respuesta**:
+  ```json
+  {
+    "success": true,
+    "mensaje": "Operadores obtenidos",
+    "data": {
+      "content": [
+        {
+          "id": 14,
+          "nombreCompleto": "Andrés Operador",
+          "correo": "andres@eventos.com",
+          "permisosEvento": ["CHECK_IN", "CREAR_EVENTO", "EDITAR_EVENTO"]
+        }
+      ],
+      "pageNumber": 0,
+      "pageSize": 10,
+      "totalElements": 1,
+      "totalPages": 1
+    }
+  }
+  ```
+
+#### `PATCH /api/organizaciones/operadores/{operadorId}/actualizar-permisos`
+- **Roles autorizados**: `REPRESENTANTE`.
+- **Descripción**: Permite al representante asignar o revocar permisos a un operador de su propia organización. Permisos soportados: `CHECK_IN`, `CREAR_EVENTO`, `EDITAR_EVENTO`, `CANCELAR_EVENTO`. Un operador sin un permiso específico recibirá HTTP 403 Forbidden si intenta invocar las acciones restringidas.
+- **Body**: `PermisosOperadorRequest`:
+  ```json
+  {
+    "permisos": ["CHECK_IN", "EDITAR_EVENTO"]
+  }
+  ```
+- **Respuesta**: HTTP 200 OK.
+  ```json
+  {
+    "success": true,
+    "mensaje": "Permisos actualizados"
+  }
+  ```
+
+#### `DELETE /api/organizaciones/expulsar-operador/{operadorId}`
+- **Roles autorizados**: `REPRESENTANTE`.
+- **Descripción**: Desvincula al operador de la organización, remueve todos sus permisos sobre eventos y restablece su rol a `CLIENTE`.
+- **Respuesta**: HTTP 200 OK.
+  ```json
+  {
+    "success": true,
+    "mensaje": "Operador removido de la organización"
+  }
+  ```
+
+---
+
+## 26. Marketing y Posicionamiento de Eventos
+
+### Base: `/api/marketing`, `/api/promociones`, `/api/compras`
+
+#### `GET /api/promociones/planes`
+- **Roles autorizados**: Público / Autenticado.
+- **Descripción**: Devuelve la lista de planes publicitarios activos disponibles para contratación.
+- **Devuelve**: `ApiResponse<List<PlanPromocionDTO>>`
+- **Respuesta**: HTTP 200 OK.
+
+#### `GET /api/marketing/planes`
+- **Roles autorizados**: `MARKETING`, `ADMINISTRADOR`.
+- **Descripción**: Devuelve la totalidad de planes promocionales (activos e inactivos) para gestión publicitaria.
+- **Respuesta**: HTTP 200 OK.
+
+#### `POST /api/marketing/planes`
+- **Roles autorizados**: `MARKETING`, `ADMINISTRADOR`.
+- **Descripción**: Crea un nuevo plan publicitario.
+- **Body**: `PlanPromocionRequest` (`codigo`, `nombre`, `precio`, `comisionPorcentaje`, `premium`, `pautaRedes`, `detallePublicidad`, `activo`).
+- **Respuesta**: HTTP 201 Created.
+
+#### `PUT /api/marketing/planes/{id}`
+- **Roles autorizados**: `MARKETING`, `ADMINISTRADOR`.
+- **Descripción**: Actualiza los atributos de un plan promocional existente.
+- **Respuesta**: HTTP 200 OK.
+
+#### `GET /api/marketing/eventos-promocionados`
+- **Roles autorizados**: `MARKETING`, `ADMINISTRADOR`.
+- **Descripción**: Lista todos los eventos que cuentan con una promoción confirmada y pagada.
+- **Devuelve**: `ApiResponse<List<EventoPromocionadoMarketingDTO>>`
+- **Respuesta**: HTTP 200 OK.
+
+#### `POST /api/promociones/eventos/{eventoId}/posicionar`
+- **Roles autorizados**: `MARKETING`, `ADMINISTRADOR`.
+- **Descripción**: Asigna la URL de la imagen destacada (del bucket Supabase de eventos) a un evento que cuenta con promoción confirmada de tipo Premium.
+- **Body**: `PosicionamientoSeoRequest`:
+  ```json
+  {
+    "urlImagenDestacado": "https://[supabase-url]/storage/v1/object/public/eventos-images/destacado_123.jpg"
+  }
+  ```
+- **Respuesta**: HTTP 200 OK.
+
+#### `POST /api/compras/eventos/{eventoId}/posicionamiento/pagos?planId={planId}`
+- **Roles autorizados**: `REPRESENTANTE`.
+- **Descripción**: Inicia la contratación de un plan publicitario para un evento publicado perteneciente a la organización del representante autenticado.
+- **Devuelve**: `ApiResponse<PagoPosicionamientoDTO>` con estado `PENDIENTE`.
+- **Respuesta**: HTTP 201 Created.
+
+#### `PATCH /api/compras/posicionamiento/pagos/{pagoId}/confirmar-simulado`
+- **Roles autorizados**: `REPRESENTANTE`.
+- **Descripción**: Confirma el pago simulado del plan contratado, marcando el pago como `CONFIRMADO`, activando `evento.promocionado = true` y enviando notificación de correo confirmada.
+- **Respuesta**: HTTP 200 OK.
+
+---
+
+## 27. Resumen de permisos por rol
+
+- **Público**:
+  - Registro y login (`/api/auth/login`, `/api/auth/registro`).
+  - Consulta pública de eventos (`GET /api/eventos`, `GET /api/eventos/destacados`, `GET /api/eventos/carrusel`, `GET /api/eventos/mapa`).
+  - Banners del home (`GET /api/banners-home`).
+  - Consulta de organizaciones públicas (`GET /api/organizaciones`).
+  - Validación y aceptación de invitaciones por token (`GET /api/invitaciones/roles/validar`, `POST /api/invitaciones/roles/aceptar`).
+  - Consulta de planes disponibles de promoción (`GET /api/promociones/planes`).
+- **Autenticado (Cualquier rol con sesión activa)**:
+  - Perfil propio y cambio de clave (`/api/usuarios/perfil`, `/api/usuarios/perfil/cambiar-clave`).
+  - Lista de deseos y seguimiento de organizaciones.
+  - Consulta y descarga de boletos adquiridos (`/api/boletos/mis-boletos`).
+  - Historial de compras (`GET /api/compras`).
+- **CLIENTE**:
+  - Compra de tiquetes y confirmación de pagos.
+  - Emisión de valoraciones sobre organizaciones.
+- **REPRESENTANTE**:
+  - Administración del perfil de su organización (`PUT /api/organizaciones/mi-organizacion`).
+  - Consulta de estadísticas y ventas de la organización.
+  - Invitación de operadores exclusivamente para su organización (`POST /api/organizaciones/invitar`).
+  - Consulta de invitaciones emitidas (`GET /api/organizaciones/invitaciones-enviadas`).
+  - Gestión de operadores y asignación granular de permisos (`GET /api/organizaciones/mis-operadores`, `PATCH .../actualizar-permisos`, `DELETE .../expulsar-operador/{id}`).
+  - Control total sobre creación, edición, publicación y cancelación de eventos de su organización.
+  - Contratación y confirmación de planes publicitarios de posicionamiento para sus eventos.
+- **OPERADOR**:
+  - Actúa exclusivamente bajo los permisos asignados por su representante:
+    - `CREAR_EVENTO`: creación de eventos en borrador para su organización.
+    - `EDITAR_EVENTO`: modificación de eventos, localidades y envío a revisión.
+    - `CANCELAR_EVENTO`: cancelación, suspensión o retiro de eventos.
+    - `CHECK_IN`: validación de tiquetes y registro de ingreso a eventos.
+  - Si carece de alguno de estos permisos o intenta operar eventos de otra organización, el backend responde con **HTTP 403 Forbidden**.
+  - No puede invitar usuarios, modificar permisos ni alterar su propio rol.
+- **MODERADOR**:
+  - Bandeja de eventos pendientes de revisión (`GET /api/moderaciones/eventos/pendientes`).
+  - Aprobación o solicitud de correcciones en eventos (`PATCH .../aprobar`, `PATCH .../solicitar-correccion`).
+  - Consulta de eventos administrativos.
+- **MARKETING**:
+  - Gestión de planes promocionales y comisiones (`/api/marketing/planes`).
+  - Consulta de campañas y eventos con promoción pagada (`GET /api/marketing/eventos-promocionados`).
+  - Asignación de imagen destacada a eventos con plan promocional confirmado (`POST /api/promociones/eventos/{id}/posicionar`).
+- **ADMINISTRADOR**:
+  - Invitación y asignación de roles a `MODERADOR` y `MARKETING` vía `/api/invitaciones/roles` y `/api/admin/correos/invitar`.
+  - Envío de comunicados oficiales administrativos (`POST /api/admin/correos/enviar`).
+  - Revocación de roles y eliminación administrativa de cuentas.
+  - Aprobación de organizaciones, validación de RUT y gestión de niveles.
+  - Administración de banners del home, categorías y palabras prohibidas.
+  - Métricas globales de la plataforma.
+
+---
+
+## 28. Variables de entorno y configuración SMTP con Brevo
+
+Para la operación en producción (por ejemplo en Render) y desarrollo local, se deben definir las siguientes variables de entorno:
+
+| Variable | Descripción | Valor recomendado / Ejemplo |
+|---|---|---|
+| `MAIL_HOST` | Host del servidor relay SMTP de Brevo | `smtp-relay.brevo.com` |
+| `MAIL_PORT` | Puerto SMTP con STARTTLS | `587` |
+| `MAIL_USERNAME` | Usuario SMTP (clave de API Brevo o login de relay) | `7a1b2c...@smtp-brevo.com` |
+| `MAIL_PASSWORD` | Contraseña SMTP (Master SMTP Key de Brevo) | `xsmtpsib-...` |
+| `MAIL_FROM` | Remitente verificado en la consola de Brevo | `notificaciones@eventhive.live` |
+| `MAIL_FROM_NAME` | Nombre visible del remitente en los correos | `EventHive` |
+| `MAIL_MAX_REINTENTOS` | Número de intentos automáticos ante fallos de conexión SMTP | `2` |
+| `FRONTEND_URL` | URL base del frontend para enlaces de invitación | `https://eventhive-ruby-zeta.vercel.app` |
+| `DB_URL` | URL de conexión JDBC a PostgreSQL (Supabase / Neon) | `jdbc:postgresql://...` |
+| `DB_USERNAME` | Usuario de base de datos PostgreSQL | `postgres` |
+| `DB_PASSWORD` | Contraseña de base de datos PostgreSQL | `...` |
+| `JWT_SECRET` | Clave secreta para firma HMAC de tokens JWT | `64+ caracteres aleatorios` |
+| `SUPABASE_URL` | URL del proyecto Supabase Storage | `https://[ref].supabase.co` |
+| `SUPABASE_SECRET_KEY` | Llave de servicio de Supabase | `...` |

@@ -6,6 +6,7 @@ import com.eventhive.app.enums.EstadoCompra;
 import com.eventhive.app.enums.PermisoEvento;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
+import org.springframework.security.access.AccessDeniedException;
 import com.eventhive.app.model.Evento;
 import com.eventhive.app.model.Localidad;
 import com.eventhive.app.model.Tiquete;
@@ -63,17 +64,18 @@ public class ServiceBoletos {
     private void validarPermisoCheckIn(Tiquete tiquete) {
         Usuario operador = authHelper.usuarioAutenticado();
         if (operador.getOrganizacion() == null) {
-            throw new BusinessException("El usuario no pertenece a una organización");
+            throw new AccessDeniedException("El usuario no pertenece a una organización");
         }
 
         Long organizacionID = tiquete.getEvento().getOrganizacion().getId();
         if (!operador.getOrganizacion().getId().equals(organizacionID)) {
-            throw new ResourceNotFoundException("Ups, No esta autorizado para operar este tiquete");
+            throw new AccessDeniedException("No está autorizado para operar este tiquete");
         }
 
-        boolean esRepresentante = operador.getOrganizacion().getRepresentante().getId().equals(operador.getId());
-        if (!esRepresentante && !operador.getPermisosEvento().contains(PermisoEvento.CHECK_IN)) {
-            throw new BusinessException("No tienes permiso de check-in en esta organización");
+        boolean esRepresentante = operador.getOrganizacion().getRepresentante() != null
+                && operador.getOrganizacion().getRepresentante().getId().equals(operador.getId());
+        if (!esRepresentante && (operador.getPermisosEvento() == null || !operador.getPermisosEvento().contains(PermisoEvento.CHECK_IN))) {
+            throw new AccessDeniedException("No tienes permiso de check-in en esta organización");
         }
     }
 

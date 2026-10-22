@@ -8,18 +8,22 @@ import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.Locale;
+import java.util.Set;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.eventhive.app.dto.request.AceptarInvitacionRolRequest;
+import com.eventhive.app.dto.response.InvitacionOrganizacionDTO;
 import com.eventhive.app.dto.response.InvitacionRolDTO;
 import com.eventhive.app.dto.response.InvitacionRolEnviadaDTO;
+import com.eventhive.app.enums.EstadoInvitacion;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.InvitacionRol;
@@ -52,9 +56,16 @@ public class ServiceInvitacionRol {
 
     @Transactional
     public void invitar(String correo, String rolDestino) {
+        if (correo == null || correo.isBlank() || !correo.contains("@")) {
+            throw new BusinessException("El correo proporcionado es inválido");
+        }
+        if (rolDestino == null || rolDestino.isBlank()) {
+            throw new BusinessException("El rol destino es obligatorio");
+        }
+
         Usuario remitente = authHelper.usuarioAutenticado();
         String correoNormalizado = correo.trim().toLowerCase(Locale.ROOT);
-        String rol = rolDestino.toUpperCase(Locale.ROOT);
+        String rol = rolDestino.trim().toUpperCase(Locale.ROOT);
         Organizacion organizacion = null;
 
         if (esRol(remitente, "ADMINISTRADOR")) {
@@ -71,7 +82,7 @@ public class ServiceInvitacionRol {
                 throw new BusinessException("Solo el representante de una organización puede invitar operadores");
             }
         } else {
-            throw new BusinessException("No tienes permisos para invitar este rol");
+            throw new AccessDeniedException("No tienes permisos para invitar este rol");
         }
 
         usuarios.findByCorreoIgnoreCase(correoNormalizado).ifPresent(existente -> {
@@ -80,10 +91,6 @@ public class ServiceInvitacionRol {
                 throw new BusinessException("La cuenta ya pertenece a una organización");
             }
         });
-        if (invitaciones.existsByCorreoInvitadoIgnoreCaseAndFechaAceptacionIsNullAndFechaExpiracionAfter(
-                correoNormalizado, LocalDateTime.now())) {
-            throw new BusinessException("Ya existe una invitación pendiente para este correo");
-        }
 
         roles.findByNombre(rol)
                 .orElseThrow(() -> new ResourceNotFoundException("Rol " + rol + " no configurado"));
@@ -92,13 +99,28 @@ public class ServiceInvitacionRol {
         SECURE_RANDOM.nextBytes(bytes);
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
 
-        InvitacionRol invitacion = new InvitacionRol();
-        invitacion.setCorreoInvitado(correoNormalizado);
-        invitacion.setRolDestino(rol);
-        invitacion.setTokenHash(hash(token));
-        invitacion.setFechaExpiracion(LocalDateTime.now().plusHours(24));
-        invitacion.setInvitadoPor(remitente);
-        invitacion.setOrganizacion(organizacion);
+        // Prevención de duplicados con reenvío seguro e invalidación del token anterior
+        InvitacionRol invitacion = invitaciones.findByCorreoInvitadoIgnoreCaseAndFechaAceptacionIsNullAndFechaExpiracionAfter(
+                correoNormalizado, LocalDateTime.now()).orElse(null);
+
+        if (invitacion != null) {
+            invitacion.setRolDestino(rol);
+            invitacion.setTokenHash(hash(token));
+            invitacion.setFechaInvitacion(LocalDateTime.now());
+            invitacion.setFechaExpiracion(LocalDateTime.now().plusHours(24));
+            invitacion.setInvitadoPor(remitente);
+            invitacion.setOrganizacion(organizacion);
+        } else {
+            invitacion = new InvitacionRol();
+            invitacion.setCorreoInvitado(correoNormalizado);
+            invitacion.setRolDestino(rol);
+            invitacion.setTokenHash(hash(token));
+            invitacion.setFechaInvitacion(LocalDateTime.now());
+            invitacion.setFechaExpiracion(LocalDateTime.now().plusHours(24));
+            invitacion.setInvitadoPor(remitente);
+            invitacion.setOrganizacion(organizacion);
+        }
+
         invitaciones.save(invitacion);
 
         String link = frontendUrl.replaceAll("/+$", "") + "/aceptar-invitacion?token=" + token;
@@ -108,21 +130,57 @@ public class ServiceInvitacionRol {
     @Transactional(readOnly = true)
     public InvitacionRolDTO validar(String token) {
         InvitacionRol invitacion = obtenerValida(token);
+        String orgNombre = invitacion.getOrganizacion() != null ? invitacion.getOrganizacion().getRazonSocial() : null;
         return new InvitacionRolDTO(invitacion.getCorreoInvitado(), invitacion.getRolDestino(),
-                invitacion.getFechaExpiracion());
+                invitacion.getFechaExpiracion(), orgNombre, "PENDIENTE");
     }
 
     @Transactional(readOnly = true)
     public Page<InvitacionRolEnviadaDTO> listarEnviadas(Pageable pageable) {
         Usuario remitente = authHelper.usuarioAutenticado();
-        if (!esRol(remitente, "ADMINISTRADOR") && !esRol(remitente, "REPRESENTANTE")) {
-            throw new BusinessException("No tienes permiso para consultar invitaciones");
+        if (esRol(remitente, "REPRESENTANTE")) {
+            Organizacion org = remitente.getOrganizacion();
+            if (org == null) {
+                throw new BusinessException("No tienes una organización para administrar");
+            }
+            return invitaciones.findByOrganizacionIdOrderByFechaInvitacionDesc(org.getId(), pageable)
+                    .map(this::toEnviadaDTO);
+        } else if (esRol(remitente, "ADMINISTRADOR")) {
+            return invitaciones.findByInvitadoPorIdOrderByFechaInvitacionDesc(remitente.getId(), pageable)
+                    .map(this::toEnviadaDTO);
+        } else {
+            throw new AccessDeniedException("No tienes permiso para consultar invitaciones");
         }
-        return invitaciones.findByInvitadoPorIdOrderByFechaInvitacionDesc(remitente.getId(), pageable)
-                .map(invitacion -> new InvitacionRolEnviadaDTO(
-                        invitacion.getId(), invitacion.getCorreoInvitado(), invitacion.getRolDestino(),
-                        invitacion.getFechaInvitacion(), invitacion.getFechaExpiracion(),
-                        invitacion.getFechaAceptacion()));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<InvitacionOrganizacionDTO> listarInvitacionesDeMiOrganizacion(Pageable pageable) {
+        Usuario remitente = authHelper.usuarioAutenticado();
+        if (!esRol(remitente, "REPRESENTANTE")) {
+            throw new AccessDeniedException("Solo los representantes pueden consultar invitaciones de organización");
+        }
+        Organizacion org = remitente.getOrganizacion();
+        if (org == null) {
+            throw new BusinessException("No tienes una organización para administrar");
+        }
+        return invitaciones.findByOrganizacionIdOrderByFechaInvitacionDesc(org.getId(), pageable)
+                .map(inv -> {
+                    InvitacionOrganizacionDTO dto = new InvitacionOrganizacionDTO();
+                    dto.setId(inv.getId());
+                    dto.setCorreoInvitado(inv.getCorreoInvitado());
+                    dto.setOrganizacionNombre(inv.getOrganizacion() != null ? inv.getOrganizacion().getRazonSocial() : "");
+                    dto.setInvitadoPorNombre(inv.getInvitadoPor() != null ? inv.getInvitadoPor().getNombreCompleto() : "");
+                    if (inv.getFechaAceptacion() != null) {
+                        dto.setEstado(EstadoInvitacion.ACEPTADA);
+                    } else if (!inv.getFechaExpiracion().isAfter(LocalDateTime.now())) {
+                        dto.setEstado(EstadoInvitacion.RECHAZADA);
+                    } else {
+                        dto.setEstado(EstadoInvitacion.PENDIENTE);
+                    }
+                    dto.setFechaInvitacion(inv.getFechaInvitacion());
+                    dto.setFechaRespuesta(inv.getFechaAceptacion());
+                    return dto;
+                });
     }
 
     @Transactional
@@ -151,6 +209,7 @@ public class ServiceInvitacionRol {
         }
         usuario.setRol(rol);
         usuario.setOrganizacion(invitacion.getOrganizacion());
+        usuario.setPermisosEvento(Set.of());
         usuarios.save(usuario);
 
         invitacion.setFechaAceptacion(LocalDateTime.now());
@@ -169,6 +228,20 @@ public class ServiceInvitacionRol {
         return invitacion;
     }
 
+    private InvitacionRolEnviadaDTO toEnviadaDTO(InvitacionRol invitacion) {
+        String orgNombre = invitacion.getOrganizacion() != null ? invitacion.getOrganizacion().getRazonSocial() : null;
+        return new InvitacionRolEnviadaDTO(
+                invitacion.getId(),
+                invitacion.getCorreoInvitado(),
+                invitacion.getRolDestino(),
+                invitacion.getFechaInvitacion(),
+                invitacion.getFechaExpiracion(),
+                invitacion.getFechaAceptacion(),
+                InvitacionRolEnviadaDTO.calcularEstado(invitacion.getFechaAceptacion(), invitacion.getFechaExpiracion()),
+                orgNombre
+        );
+    }
+
     private String hash(String token) {
         try {
             return HexFormat.of().formatHex(
@@ -179,11 +252,11 @@ public class ServiceInvitacionRol {
     }
 
     private boolean esRol(Usuario usuario, String nombre) {
-        return usuario.getRol() != null && nombre.equals(usuario.getRol().getNombre());
+        return usuario.getRol() != null && nombre.equalsIgnoreCase(usuario.getRol().getNombre());
     }
 
     private void validarRolInvitado(Usuario usuario, String rolDestino) {
-        if (usuario.getRol() == null || "CLIENTE".equals(usuario.getRol().getNombre())) {
+        if (usuario.getRol() == null || "CLIENTE".equalsIgnoreCase(usuario.getRol().getNombre())) {
             return;
         }
 
@@ -214,7 +287,7 @@ public class ServiceInvitacionRol {
 
     private boolean contiene(String[] rolesPermitidos, String rol) {
         for (String permitido : rolesPermitidos) {
-            if (permitido.equals(rol)) {
+            if (permitido.equalsIgnoreCase(rol)) {
                 return true;
             }
         }

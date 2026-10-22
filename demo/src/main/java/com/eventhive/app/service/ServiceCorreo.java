@@ -66,11 +66,17 @@ public class ServiceCorreo {
     }
 
     // INVITACION CON ROLES
-
     // Síncrono a propósito: si el correo falla, la invitación no debe quedar creada.
     public void enviarInvitacionRol(String correoDestino, String rol, String enlace) {
-        String html = plantillas.invitacionRol(rol, enlace, 24);
-        sender.enviar(correoDestino, "Invitación para unirte a EventHive como " + rol, html);
+        enviarInvitacionRol(correoDestino, rol, null, enlace);
+    }
+
+    public void enviarInvitacionRol(String correoDestino, String rol, String organizacionNombre, String enlace) {
+        String html = plantillas.invitacionRol(rol, organizacionNombre, enlace, 24);
+        String asunto = (organizacionNombre != null && !organizacionNombre.isBlank())
+                ? "Invitación para unirte a " + organizacionNombre + " en EventHive como " + rol
+                : "Invitación para unirte a EventHive como " + rol;
+        sender.enviar(correoDestino, asunto, html);
     }
 
     // CUENTA

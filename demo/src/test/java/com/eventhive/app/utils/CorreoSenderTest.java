@@ -38,6 +38,7 @@ class CorreoSenderTest {
         correoSender = new CorreoSender(mailSender);
         ReflectionTestUtils.setField(correoSender, "remitente", "no-reply@example.com");
         ReflectionTestUtils.setField(correoSender, "nombreRemitente", "EventHive");
+        ReflectionTestUtils.setField(correoSender, "maxReintentos", 1);
     }
 
     @Test

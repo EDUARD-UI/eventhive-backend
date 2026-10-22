@@ -36,8 +36,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
+        String mensaje = (ex.getMessage() != null && !ex.getMessage().isBlank())
+                ? ex.getMessage()
+                : "No tienes permiso para realizar esta acción";
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ApiResponse.error("No tienes permiso para realizar esta acción"));
+                .body(ApiResponse.error(mensaje));
     }
 
     @ExceptionHandler(BadCredentialsException.class)
