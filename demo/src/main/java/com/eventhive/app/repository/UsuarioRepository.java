@@ -50,7 +50,7 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     // representante) y permisos de evento ya inicializados, para poder usarlo fuera de
     // una sesion de Hibernate sin LazyInitializationException.
     @Query("""
-        SELECT u FROM Usuario u
+        SELECT DISTINCT u FROM Usuario u
         JOIN FETCH u.rol
         LEFT JOIN FETCH u.organizacion o
         LEFT JOIN FETCH o.representante

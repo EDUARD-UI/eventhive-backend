@@ -47,6 +47,7 @@ public class ServiceInvitacionRol {
     private final InvitacionRolRepository invitaciones;
     private final UsuarioRepository usuarios;
     private final RolesRepository roles;
+    private final com.eventhive.app.repository.OrganizacionRepository organizacionRepository;
     private final AuthenticatedUserHelper authHelper;
     private final PasswordEncoder passwordEncoder;
     private final ServiceCorreo serviceCorreo;
@@ -77,6 +78,10 @@ public class ServiceInvitacionRol {
                 throw new BusinessException("Los representantes solo pueden invitar OPERADOR");
             }
             organizacion = remitente.getOrganizacion();
+            if (organizacion == null) {
+                organizacion = organizacionRepository.findByRepresentanteIdConRepresentante(remitente.getId())
+                        .orElse(null);
+            }
             if (organizacion == null || organizacion.getRepresentante() == null
                     || !organizacion.getRepresentante().getId().equals(remitente.getId())) {
                 throw new BusinessException("Solo el representante de una organización puede invitar operadores");
@@ -123,7 +128,10 @@ public class ServiceInvitacionRol {
 
         invitaciones.save(invitacion);
 
-        String link = frontendUrl.replaceAll("/+$", "") + "/aceptar-invitacion?token=" + token;
+        String baseUrl = (frontendUrl != null && !frontendUrl.isBlank())
+                ? frontendUrl
+                : "https://eventhive-ruby-zeta.vercel.app";
+        String link = baseUrl.replaceAll("/+$", "") + "/aceptar-invitacion?token=" + token;
         serviceCorreo.enviarInvitacionRol(invitacion.getCorreoInvitado(), rol, link);
     }
 
@@ -140,6 +148,9 @@ public class ServiceInvitacionRol {
         Usuario remitente = authHelper.usuarioAutenticado();
         if (esRol(remitente, "REPRESENTANTE")) {
             Organizacion org = remitente.getOrganizacion();
+            if (org == null) {
+                org = organizacionRepository.findByRepresentanteIdConRepresentante(remitente.getId()).orElse(null);
+            }
             if (org == null) {
                 throw new BusinessException("No tienes una organización para administrar");
             }
@@ -160,6 +171,9 @@ public class ServiceInvitacionRol {
             throw new AccessDeniedException("Solo los representantes pueden consultar invitaciones de organización");
         }
         Organizacion org = remitente.getOrganizacion();
+        if (org == null) {
+            org = organizacionRepository.findByRepresentanteIdConRepresentante(remitente.getId()).orElse(null);
+        }
         if (org == null) {
             throw new BusinessException("No tienes una organización para administrar");
         }

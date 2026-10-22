@@ -38,6 +38,8 @@ class CorreoSenderTest {
         correoSender = new CorreoSender(mailSender);
         ReflectionTestUtils.setField(correoSender, "remitente", "no-reply@example.com");
         ReflectionTestUtils.setField(correoSender, "nombreRemitente", "EventHive");
+        ReflectionTestUtils.setField(correoSender, "mailUsername", "test-user@eventhive.live");
+        ReflectionTestUtils.setField(correoSender, "mailPassword", "test-smtp-password");
         ReflectionTestUtils.setField(correoSender, "maxReintentos", 1);
     }
 
@@ -64,6 +66,13 @@ class CorreoSenderTest {
                 .thenReturn(new MimeMessage(Session.getInstance(new Properties())));
         doThrow(new MailSendException("SMTP no disponible")).when(mailSender).send(any(MimeMessage.class));
 
+        assertThrows(CorreoException.class,
+                () -> correoSender.enviar("persona@example.com", "Invitación", "<p>Hola</p>"));
+    }
+
+    @Test
+    void fallaCuandoCredencialesSmtpEstanVacias() {
+        ReflectionTestUtils.setField(correoSender, "mailUsername", "");
         assertThrows(CorreoException.class,
                 () -> correoSender.enviar("persona@example.com", "Invitación", "<p>Hola</p>"));
     }

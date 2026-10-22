@@ -21,6 +21,11 @@ public interface OrganizacionRepository extends JpaRepository<Organizacion, Long
     @Query("SELECT o FROM Organizacion o LEFT JOIN FETCH o.representante WHERE o.id = :id")
     java.util.Optional<Organizacion> findByIdConRepresentante(@org.springframework.data.repository.query.Param("id") Long id);
 
+    @Query("SELECT o FROM Organizacion o LEFT JOIN FETCH o.representante WHERE o.representante.id = :representanteId")
+    java.util.Optional<Organizacion> findByRepresentanteIdConRepresentante(@org.springframework.data.repository.query.Param("representanteId") Long representanteId);
+
+    java.util.Optional<Organizacion> findByRepresentanteId(Long representanteId);
+
     @Query(value = "SELECT o FROM Organizacion o LEFT JOIN FETCH o.representante",
            countQuery = "SELECT COUNT(o) FROM Organizacion o")
     Page<Organizacion> findAllConRepresentante(Pageable pageable);

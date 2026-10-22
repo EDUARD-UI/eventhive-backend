@@ -85,12 +85,10 @@ public class SupabaseStorageService {
                 bucket + "/";
 
         if (referencia.startsWith(prefijo)) {
-
             nombreArchivo =
                     referencia.substring(
                             prefijo.length()
                     );
-
         } else if (
                 referencia.contains(
                         "/object/public/"
@@ -98,17 +96,25 @@ public class SupabaseStorageService {
                                 + "/"
                 )
         ) {
-
             String parte =
                     "/object/public/"
                             + bucket
                             + "/";
-
             nombreArchivo =
                     referencia.substring(
                             referencia.indexOf(parte)
                                     + parte.length()
                     );
+        } else if (referencia.contains("/object/sign/" + bucket + "/")) {
+            String parte = "/object/sign/" + bucket + "/";
+            nombreArchivo = referencia.substring(referencia.indexOf(parte) + parte.length());
+            int queryIdx = nombreArchivo.indexOf('?');
+            if (queryIdx >= 0) {
+                nombreArchivo = nombreArchivo.substring(0, queryIdx);
+            }
+        } else if (referencia.contains("/object/authenticated/" + bucket + "/")) {
+            String parte = "/object/authenticated/" + bucket + "/";
+            nombreArchivo = referencia.substring(referencia.indexOf(parte) + parte.length());
         }
 
         String url =
@@ -132,34 +138,39 @@ public class SupabaseStorageService {
                         headers
                 );
 
-        ResponseEntity<Map> response =
-                restTemplate.exchange(
-                        url,
-                        HttpMethod.POST,
-                        request,
-                        Map.class
+        try {
+            ResponseEntity<Map> response =
+                    restTemplate.exchange(
+                            url,
+                            HttpMethod.POST,
+                            request,
+                            Map.class
+                    );
+
+            Object signedUrl =
+                    response.getBody() == null
+                            ? null
+                            : response.getBody()
+                            .get("signedURL");
+
+            if (!(signedUrl instanceof String)
+                    || ((String) signedUrl).isBlank()) {
+
+                throw new BusinessException(
+                        "Supabase no devolvió una URL firmada válida"
                 );
+            }
 
-        Object signedUrl =
-                response.getBody() == null
-                        ? null
-                        : response.getBody()
-                        .get("signedURL");
+            String value =
+                    (String) signedUrl;
 
-        if (!(signedUrl instanceof String)
-                || ((String) signedUrl).isBlank()) {
-
-            throw new BusinessException(
-                    "Supabase no devolvió una URL firmada válida"
-            );
+            return value.startsWith("http")
+                    ? value
+                    : config.getUrl() + value;
+        } catch (org.springframework.web.client.RestClientException ex) {
+            log.warn("Fallo al obtener URL firmada de Supabase para '{}': {}", nombreArchivo, ex.getMessage());
+            throw new BusinessException("No se pudo obtener URL firmada del documento de Supabase");
         }
-
-        String value =
-                (String) signedUrl;
-
-        return value.startsWith("http")
-                ? value
-                : config.getUrl() + value;
     }
 
 
@@ -250,7 +261,7 @@ public class SupabaseStorageService {
             MultipartFile archivo
     ) {
 
-        validarImagen(archivo, false);
+        validarImagen(archivo, true);
 
         return subirArchivo(
                 archivo,
@@ -264,7 +275,7 @@ public class SupabaseStorageService {
             MultipartFile archivo
     ) {
 
-        validarImagen(archivo, false);
+        validarImagen(archivo, true);
 
         return subirArchivo(
                 archivo,
@@ -395,6 +406,7 @@ public class SupabaseStorageService {
             );
         }
 
+        String url = "";
         try {
 
             String extension =
@@ -406,7 +418,7 @@ public class SupabaseStorageService {
                     ? nombreFijo
                     : prefijo + UUID.randomUUID() + extension;
 
-            String url =
+            url =
                     config.getUrl()
                             + "/storage/v1/object/"
                             + bucket
@@ -422,9 +434,7 @@ public class SupabaseStorageService {
                     construirHeaders(
                             contentType
                     );
-            if (nombreFijo != null) {
-                headers.set("x-upsert", "true");
-            }
+            headers.set("x-upsert", "true");
 
             /*
              * MultipartFile ya está respaldado por el
@@ -441,13 +451,25 @@ public class SupabaseStorageService {
                             headers
                     );
 
-            ResponseEntity<String> response =
-                    restTemplate.exchange(
-                            url,
-                            HttpMethod.PUT,
-                            request,
-                            String.class
-                    );
+            ResponseEntity<String> response;
+            try {
+                // Supabase Storage REST API utiliza POST /storage/v1/object/{bucket}/{path} para subir objetos
+                response = restTemplate.exchange(
+                        url,
+                        HttpMethod.POST,
+                        request,
+                        String.class
+                );
+            } catch (org.springframework.web.client.RestClientResponseException e) {
+                // Si POST falla por método o conflicto, intentar fallback a PUT con x-upsert
+                log.warn("POST a Supabase Storage falló con código {}. Intentando fallback a PUT...", e.getStatusCode());
+                response = restTemplate.exchange(
+                        url,
+                        HttpMethod.PUT,
+                        request,
+                        String.class
+                );
+            }
 
             if (!response.getStatusCode()
                     .is2xxSuccessful()) {
@@ -471,6 +493,14 @@ public class SupabaseStorageService {
                     + "/"
                     + nombreArchivo;
 
+        } catch (org.springframework.web.client.RestClientResponseException e) {
+            log.error("Error devuelto por Supabase Storage al subir '{}' en bucket '{}' [{}]: {} - {}",
+                    archivo.getOriginalFilename(), bucket, url, e.getStatusCode(), e.getResponseBodyAsString());
+            throw new BusinessException("Error en almacenamiento de imágenes: " + e.getResponseBodyAsString());
+        } catch (org.springframework.web.client.RestClientException e) {
+            log.error("Fallo de comunicación con Supabase Storage al subir '{}' en bucket '{}' [{}]: {}",
+                    archivo.getOriginalFilename(), bucket, url, e.getMessage());
+            throw new BusinessException("No fue posible comunicarse con el servicio de almacenamiento de imágenes");
         } catch (IOException e) {
 
             throw new BusinessException(

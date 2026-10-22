@@ -13,14 +13,18 @@ import com.eventhive.app.model.SolicitudVerificacion;
 
 public interface SolicitudVerificacionRepository extends JpaRepository<SolicitudVerificacion, Long> {
 
-    // Obtiene la última solicitud de verificación de un representante
+    // Obtiene la última solicitud de verificación de un representante (seguro ante múltiples solicitudes)
     @Query("""
         SELECT s FROM SolicitudVerificacion s
         JOIN FETCH s.representanteLegal
         WHERE s.representanteLegal.id = :representanteId
         ORDER BY s.fechaSolicitud DESC
         """)
-    Optional<SolicitudVerificacion> findFirstByRepresentanteId(@Param("representanteId") Long representanteId);
+    java.util.List<SolicitudVerificacion> findAllByRepresentanteIdOrderByFechaSolicitudDesc(@Param("representanteId") Long representanteId);
+
+    default Optional<SolicitudVerificacion> findFirstByRepresentanteId(Long representanteId) {
+        return findAllByRepresentanteIdOrderByFechaSolicitudDesc(representanteId).stream().findFirst();
+    }
 
 
     // Lista solicitudes de verificación por estado, de la más antigua a la más reciente.

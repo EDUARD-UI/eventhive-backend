@@ -31,9 +31,40 @@ public class CorreoSender {
     @Value("${eventhive.mail.max-reintentos:2}")
     private int maxReintentos;
 
+    @Value("${spring.mail.host:smtp-relay.brevo.com}")
+    private String mailHost;
+
+    @Value("${spring.mail.port:587}")
+    private int mailPort;
+
+    @Value("${spring.mail.username:}")
+    private String mailUsername;
+
+    @Value("${spring.mail.password:}")
+    private String mailPassword;
+
+    @jakarta.annotation.PostConstruct
+    public void validarConfiguracionAlArrancar() {
+        if (!StringUtils.hasText(mailUsername) || !StringUtils.hasText(mailPassword)) {
+            log.warn("ADVERTENCIA SMTP: Credenciales no configuradas (MAIL_USERNAME / MAIL_PASSWORD vacías). Los envíos reales de correo fallarán hasta que se configuren en las variables de entorno de Render.");
+        } else {
+            log.info("Configuración SMTP de Brevo lista: host='{}', puerto={}, remitente='{}' (autenticación configurada)",
+                    sanitizarLog(mailHost), mailPort, sanitizarLog(remitente));
+        }
+    }
+
     // Síncrono: propaga CorreoException si el servidor SMTP rechaza el correo tras los reintentos.
     public void enviar(String destino, String asunto, String html) {
         validarParametros(destino, asunto, html);
+
+        if (!StringUtils.hasText(mailUsername) || !StringUtils.hasText(mailPassword)) {
+            log.error("Fallo de envío SMTP: Variables de entorno MAIL_USERNAME o MAIL_PASSWORD no configuradas en Render.");
+            throw new CorreoException("El servicio de correo no está disponible: faltan credenciales SMTP (MAIL_USERNAME / MAIL_PASSWORD)");
+        }
+
+        if (remitente != null && (remitente.endsWith(".local") || remitente.endsWith("@localhost"))) {
+            log.error("ATENCIÓN: Se intentó enviar correo con remitente ficticio/local '{}'. Brevo rechazará este envío en producción.", remitente);
+        }
 
         int intentos = Math.max(1, maxReintentos);
         Exception ultimoError = null;
@@ -52,8 +83,8 @@ public class CorreoSender {
                 return;
             } catch (Exception e) {
                 ultimoError = e;
-                log.warn("Fallo en intento {}/{} al enviar correo '{}' a {}: {}",
-                        intento, intentos, sanitizarLog(asunto), sanitizarLog(destino), sanitizarLog(e.getMessage()));
+                log.error("Fallo en intento {}/{} al enviar correo '{}' a {}. Causa: {}",
+                        intento, intentos, sanitizarLog(asunto), sanitizarLog(destino), sanitizarLog(e.getMessage()), e);
 
                 if (intento < intentos) {
                     try {
@@ -65,7 +96,8 @@ public class CorreoSender {
                 }
             }
         }
-        throw new CorreoException("No se pudo enviar el correo a " + destino.trim(), ultimoError);
+        String detalleError = ultimoError != null ? ultimoError.getMessage() : "Fallo de conexión o autenticación SMTP";
+        throw new CorreoException("No se pudo enviar el correo a " + destino.trim() + ": " + detalleError, ultimoError);
     }
 
     // Asíncrono: para confirmaciones y notificaciones que no deben romper la transacción de negocio.

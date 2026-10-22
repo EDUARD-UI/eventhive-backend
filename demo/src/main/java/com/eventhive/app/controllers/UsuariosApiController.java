@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
@@ -128,12 +129,23 @@ public class UsuariosApiController {
         return ResponseEntity.ok(ApiResponse.ok("Perfil actualizado", usuarioService.actualizarPerfil(request)));
     }
 
-    @PutMapping(value = "/perfil/imagen", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @RequestMapping(value = {"/perfil/imagen", "/perfil/foto"}, method = {RequestMethod.PUT, RequestMethod.POST}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<UsuarioDTO>> actualizarImagenPerfil(
-            @RequestPart("imagen") MultipartFile imagen) {
+            @RequestParam(value = "imagen", required = false) MultipartFile imagen,
+            @RequestParam(value = "foto", required = false) MultipartFile foto,
+            @RequestParam(value = "file", required = false) MultipartFile file,
+            @RequestParam(value = "avatar", required = false) MultipartFile avatar) {
+        MultipartFile archivoFinal = (imagen != null && !imagen.isEmpty()) ? imagen
+                : (foto != null && !foto.isEmpty() ? foto
+                : (file != null && !file.isEmpty() ? file : avatar));
+
+        if (archivoFinal == null || archivoFinal.isEmpty()) {
+            throw new com.eventhive.app.exception.BusinessException("Debe proporcionar un archivo de imagen (parámetros aceptados: 'imagen', 'foto', 'file' o 'avatar')");
+        }
+
         return ResponseEntity.ok(ApiResponse.ok("Imagen de perfil actualizada",
-                usuarioService.actualizarPerfil(null, imagen)));
+                usuarioService.actualizarPerfil(null, archivoFinal)));
     }
 
     @PutMapping("/perfil/cambiar-clave")

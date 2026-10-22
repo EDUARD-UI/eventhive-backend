@@ -47,10 +47,12 @@ import com.eventhive.app.repository.ValoracionRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 // Solo expone datos de organizaciones ya APROBADAS
 //se actualizan los datos cada q haya un cambio en las valoraciones, seguidores o eventos creados por la organizacion
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ServiceOrganizacion {
@@ -82,11 +84,17 @@ public class ServiceOrganizacion {
     @Transactional(readOnly = true)
     public OrganizacionDTO miOrganizacion() {
         Usuario usuario = authHelper.usuarioAutenticado();
-        if (usuario.getOrganizacion() == null)
-            throw new BusinessException("Aún no tiene un perfil de organización aprobado");
-        Organizacion organizacion = organizacionRepository.findByIdConRepresentante(usuario.getOrganizacion().getId())
-                .orElse(usuario.getOrganizacion());
-        return toDTO(organizacion);
+        Organizacion organizacion = usuario.getOrganizacion();
+        if (organizacion == null) {
+            organizacion = organizacionRepository.findByRepresentanteIdConRepresentante(usuario.getId())
+                    .orElse(null);
+        }
+        if (organizacion == null) {
+            throw new ResourceNotFoundException("No tienes un perfil de organización asociado");
+        }
+        Organizacion orgCompleta = organizacionRepository.findByIdConRepresentante(organizacion.getId())
+                .orElse(organizacion);
+        return toDTO(orgCompleta);
     }
 
     @Transactional(readOnly = true)
@@ -194,6 +202,10 @@ public class ServiceOrganizacion {
     private Organizacion organizacionDelRepresentante() {
         Usuario representante = authHelper.usuarioAutenticado();
         Organizacion organizacion = representante.getOrganizacion();
+        if (organizacion == null) {
+            organizacion = organizacionRepository.findByRepresentanteIdConRepresentante(representante.getId())
+                    .orElse(null);
+        }
         if (organizacion == null
                 || organizacion.getRepresentante() == null
                 || !organizacion.getRepresentante().getId().equals(representante.getId())
@@ -229,10 +241,15 @@ public class ServiceOrganizacion {
 
     private Organizacion organizacionDelUsuario() {
         Usuario usuario = authHelper.usuarioAutenticado();
-        if (usuario.getOrganizacion() == null) {
+        Organizacion organizacion = usuario.getOrganizacion();
+        if (organizacion == null) {
+            organizacion = organizacionRepository.findByRepresentanteIdConRepresentante(usuario.getId())
+                    .orElse(null);
+        }
+        if (organizacion == null) {
             throw new BusinessException("El usuario no pertenece a ninguna organización");
         }
-        return usuario.getOrganizacion();
+        return organizacion;
     }
 
     @Transactional(readOnly = true)
@@ -389,7 +406,11 @@ public class ServiceOrganizacion {
         }
 
         if (o.getUrlRut() != null && !o.getUrlRut().isBlank()) {
-            dto.setUrlRutTemporal(storageService.generarUrlFirmada(o.getUrlRut(), 3600L));
+            try {
+                dto.setUrlRutTemporal(storageService.generarUrlFirmada(o.getUrlRut(), 3600L));
+            } catch (Exception e) {
+                log.warn("No se pudo generar la URL firmada del RUT para organización {}: {}", o.getId(), e.getMessage());
+            }
         }
 
         return dto;

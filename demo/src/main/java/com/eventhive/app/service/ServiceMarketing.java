@@ -35,6 +35,11 @@ public class ServiceMarketing {
         return planesRepository.findByActivoTrueOrderByPrecioAsc().stream().map(this::toDTO).toList();
     }
 
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<PlanPromocionDTO> listarPlanesDisponibles(org.springframework.data.domain.Pageable pageable) {
+        return planesRepository.findByActivoTrueOrderByPrecioAsc(pageable).map(this::toDTO);
+    }
+
     @Transactional
     public PlanPromocionDTO crearPlan(PlanPromocionRequest request) {
         if (request.getCodigo() == null || request.getCodigo().isBlank()) {

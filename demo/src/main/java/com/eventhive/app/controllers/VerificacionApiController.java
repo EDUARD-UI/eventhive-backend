@@ -25,10 +25,14 @@ public class VerificacionApiController {
     private final ServiceSolicitudVerificacion serviceSolicitud;
 
     //CONSULTAS
-    @GetMapping("/mis-solicitudes")
+    @GetMapping({"/mi-solicitud", "/mis-solicitudes"})
     @PreAuthorize("hasRole('REPRESENTANTE')")
     public ResponseEntity<ApiResponse<SolicitudVerificacionDTO>> miSolicitud() {
-        return ResponseEntity.ok(ApiResponse.ok("Solicitud obtenida", serviceSolicitud.miSolicitud()));
+        SolicitudVerificacionDTO solicitud = serviceSolicitud.miSolicitud();
+        if (solicitud == null) {
+            return ResponseEntity.ok(ApiResponse.ok("No tienes solicitudes de verificación registradas", null));
+        }
+        return ResponseEntity.ok(ApiResponse.ok("Solicitud obtenida", solicitud));
     }
 
     @GetMapping("/pendientes")
@@ -38,7 +42,7 @@ public class VerificacionApiController {
                 serviceSolicitud.obtenerSolicitudesPendientes(pageable)));
     }
 
-    @GetMapping("/{solicitudId}")
+    @GetMapping("/{solicitudId:[0-9]+}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<SolicitudVerificacionDTO>> obtenerDetalles(@PathVariable Long solicitudId) {
         return ResponseEntity.ok(ApiResponse.ok("Solicitud obtenida",
