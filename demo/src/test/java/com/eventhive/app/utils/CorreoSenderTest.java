@@ -108,4 +108,25 @@ class CorreoSenderTest {
         assertThrows(CorreoException.class,
                 () -> correoSender.enviar("persona@example.com", "Invitación", "<p>Hola</p>"));
     }
+
+    @Test
+    void propagaDetalleSeguroDeErrorOAuthCuandoFallaRefrescoToken() throws Exception {
+        when(gmailClientProvider.estaConfigurado()).thenReturn(true);
+        when(gmailClientProvider.obtenerCliente()).thenReturn(gmail);
+        when(gmail.users()).thenReturn(users);
+        when(users.messages()).thenReturn(messages);
+        when(messages.send(eq("me"), any(Message.class))).thenReturn(sendCall);
+
+        // Simula la excepción que envuelve Google Auth Library ante token vencido
+        IOException errorOAuth = new IOException("Unexpected error refreshing access token",
+                new IOException("400 Bad Request {\"error\": \"invalid_grant\", \"error_description\": \"Token has been expired or revoked.\"}"));
+        when(sendCall.execute()).thenThrow(errorOAuth);
+
+        CorreoException ex = assertThrows(CorreoException.class,
+                () -> correoSender.enviar("persona@example.com", "Invitación", "<p>Hola</p>"));
+
+        assertTrue(ex.getMessage().contains("invalid_grant"));
+        assertTrue(ex.getMessage().contains("HTTP 400"));
+        assertTrue(ex.getMessage().contains("expirado"));
+    }
 }

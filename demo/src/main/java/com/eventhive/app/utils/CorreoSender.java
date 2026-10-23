@@ -108,8 +108,14 @@ public class CorreoSender {
                         log.error("Error devuelto por Gmail API (HTTP {}): {}", statusCode, sanitizarLog(errorMsg));
                     }
                 } else {
-                    log.error("Fallo en intento {}/{} al enviar correo '{}' a {}. Causa: {}",
-                            intento, intentos, sanitizarLog(asunto), sanitizarLog(destino), sanitizarLog(e.getMessage()), e);
+                    GmailClientProvider.OAuthDiagnostico diag = GmailClientProvider.analizarErrorOAuth(e);
+                    if (!"DESCONOCIDO".equals(diag.codigoOAuth()) || diag.httpStatus() > 0) {
+                        log.error("Error de credenciales/OAuth al enviar correo vía Gmail API [HTTP {} - {}]: {}. Acción: {}",
+                                diag.httpStatus(), diag.codigoOAuth(), diag.descripcion(), diag.recomendacion());
+                    } else {
+                        log.error("Fallo en intento {}/{} al enviar correo '{}' a {}. Causa: {}",
+                                intento, intentos, sanitizarLog(asunto), sanitizarLog(destino), sanitizarLog(e.getMessage()), e);
+                    }
                 }
 
                 if (intento < intentos) {
@@ -123,7 +129,18 @@ public class CorreoSender {
             }
         }
 
-        String detalleError = ultimoError != null ? ultimoError.getMessage() : "Fallo de conexión o autorización con Gmail API";
+        String detalleError;
+        if (ultimoError != null) {
+            GmailClientProvider.OAuthDiagnostico diag = GmailClientProvider.analizarErrorOAuth(ultimoError);
+            if (!"DESCONOCIDO".equals(diag.codigoOAuth()) || diag.httpStatus() > 0) {
+                detalleError = "Fallo de autorización OAuth con Google [HTTP " + diag.httpStatus() + " " + diag.codigoOAuth() + "]: "
+                        + diag.descripcion() + " -> " + diag.recomendacion();
+            } else {
+                detalleError = ultimoError.getMessage();
+            }
+        } else {
+            detalleError = "Fallo de conexión o autorización con Gmail API";
+        }
         throw new CorreoException("No se pudo enviar el correo a " + destino.trim() + " vía Gmail API: " + detalleError, ultimoError);
     }
 

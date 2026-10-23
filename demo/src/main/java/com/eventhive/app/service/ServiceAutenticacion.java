@@ -24,8 +24,12 @@ import com.eventhive.app.repository.UsuarioRepository;
 import com.eventhive.app.security.jwt.JwtUtils;
 import com.eventhive.app.security.users.UsuarioPrincipal;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.util.StringUtils;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ServiceAutenticacion {
@@ -78,25 +82,48 @@ public class ServiceAutenticacion {
     // Emite un nuevo access token a partir de un refresh token válido (claim type=refresh)
     @Transactional(readOnly = true)
     public LoginResponseDTO refrescarToken(String refreshToken) {
-        if (!jwtUtils.validarRefreshToken(refreshToken))
-            throw new BusinessException("Refresh token inválido o expirado");
+        if (!StringUtils.hasText(refreshToken)) {
+            throw new BadCredentialsException("El refresh token es requerido");
+        }
 
-        String correo = jwtUtils.getCorreoDesdeToken(refreshToken);
+        String tokenLimpio = refreshToken.trim();
+
+        if (jwtUtils.esTokenExpirado(tokenLimpio)) {
+            String tipo = jwtUtils.getTipoDesdeToken(tokenLimpio);
+            if (JwtUtils.TIPO_ACCESS.equals(tipo)) {
+                log.warn("Petición a /refresh con Access Token expirado en lugar de Refresh Token.");
+                throw new BadCredentialsException("El token proporcionado es un Access Token expirado. Se requiere un Refresh Token para renovar la sesión.");
+            }
+            log.info("Refresh token expirado. Solicitando nuevo inicio de sesión.");
+            throw new BadCredentialsException("Refresh token expirado. Por favor, inicia sesión nuevamente.");
+        }
+
+        if (!jwtUtils.validarRefreshToken(tokenLimpio)) {
+            String tipo = jwtUtils.getTipoDesdeToken(tokenLimpio);
+            if (JwtUtils.TIPO_ACCESS.equals(tipo)) {
+                log.warn("Petición a /refresh con Access Token vigente en lugar de Refresh Token.");
+                throw new BadCredentialsException("El token proporcionado es un Access Token. El endpoint requiere un Refresh Token.");
+            }
+            log.warn("Petición a /refresh con token de firma o tipo inválido.");
+            throw new BadCredentialsException("Refresh token inválido o corrupto. Por favor, inicia sesión nuevamente.");
+        }
+
+        String correo = jwtUtils.getCorreoDesdeToken(tokenLimpio);
         Usuario usuario = usuarioRepository.findByCorreo(correo)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con correo: " + correo));
+                .orElseThrow(() -> new BadCredentialsException("Sesión inválida: usuario no encontrado con correo: " + correo));
 
         if (!usuario.isActivo()) {
-            throw new BusinessException("La cuenta no está activa");
+            throw new BadCredentialsException("La cuenta no está activa. Contacta al administrador.");
         }
 
         if (usuario.getRol() == null || usuario.getRol().getNombre() == null
                 || usuario.getRol().getNombre().isBlank()) {
-            throw new BusinessException("El usuario no tiene un rol válido");
+            throw new BadCredentialsException("El usuario no tiene un rol válido asignado.");
         }
 
         if (usuario.getBloqueadoHasta() != null
                 && usuario.getBloqueadoHasta().isAfter(LocalDateTime.now())) {
-            throw new BusinessException(
+            throw new LockedException(
                     "La cuenta está bloqueada temporalmente. Intenta de nuevo más tarde.");
         }
 
@@ -106,7 +133,7 @@ public class ServiceAutenticacion {
         return LoginResponseDTO.builder()
                 .id(usuario.getId())
                 .accessToken(nuevoAccessToken)
-                .refreshToken(refreshToken)
+                .refreshToken(tokenLimpio)
                 .tipo("Bearer")
                 .correo(usuario.getCorreo())
                 .rol(usuario.getRol().getNombre())

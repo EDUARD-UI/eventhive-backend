@@ -79,6 +79,123 @@ public class GmailClientProvider {
         return client;
     }
 
+    public record OAuthDiagnostico(
+            boolean exitoso,
+            int httpStatus,
+            String codigoOAuth,
+            String descripcion,
+            String recomendacion
+    ) {}
+
+    public OAuthDiagnostico probarConexionOAuth() {
+        if (!estaConfigurado()) {
+            return new OAuthDiagnostico(
+                    false,
+                    400,
+                    "CONFIG_INCOMPLETA",
+                    "Faltan una o más variables requeridas (GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN)",
+                    "Configura las variables en Render y visita /oauth2/authorize/google para vincular la cuenta."
+            );
+        }
+
+        try {
+            UserCredentials credentials = UserCredentials.newBuilder()
+                    .setClientId(clientId.trim())
+                    .setClientSecret(clientSecret.trim())
+                    .setRefreshToken(refreshToken.trim())
+                    .build();
+
+            var token = credentials.refreshAccessToken();
+            if (token != null && StringUtils.hasText(token.getTokenValue())) {
+                log.info("Diagnóstico Gmail API OAuth 2.0 exitoso para remitente '{}'", sender);
+                return new OAuthDiagnostico(
+                        true,
+                        200,
+                        "OK",
+                        "Token de acceso emitido correctamente por Google OAuth. La cuenta está lista para enviar correos.",
+                        "Todo en orden. No se requieren acciones adicionales."
+                );
+            } else {
+                return new OAuthDiagnostico(
+                        false,
+                        502,
+                        "EMPTY_TOKEN",
+                        "Google respondió sin emitir un token de acceso válido",
+                        "Reautoriza la cuenta visitando /oauth2/authorize/google"
+                );
+            }
+        } catch (Exception e) {
+            OAuthDiagnostico diag = analizarErrorOAuth(e);
+            log.error("Fallo en diagnóstico OAuth Gmail API [HTTP {} - {}]: {}",
+                    diag.httpStatus(), diag.codigoOAuth(), diag.descripcion());
+            return diag;
+        }
+    }
+
+    public static OAuthDiagnostico analizarErrorOAuth(Throwable t) {
+        int status = 0;
+        String codigoOAuth = "DESCONOCIDO";
+        String descripcion = "Error al comunicarse con Google OAuth";
+        String recomendacion = "Verifica la configuración y reautoriza en /oauth2/authorize/google";
+
+        Throwable actual = t;
+        String contenidoCrudo = "";
+        while (actual != null) {
+            String msg = actual.getMessage() != null ? actual.getMessage() : "";
+            if (actual instanceof com.google.api.client.http.HttpResponseException hre) {
+                status = hre.getStatusCode();
+                if (hre.getContent() != null) {
+                    contenidoCrudo = hre.getContent();
+                }
+            } else if (msg.contains("response code") || msg.contains("HTTP")) {
+                var matcher = java.util.regex.Pattern.compile("\\b(4[0-9]{2}|5[0-9]{2})\\b").matcher(msg);
+                if (matcher.find()) {
+                    try {
+                        status = Integer.parseInt(matcher.group(1));
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+            if (StringUtils.hasText(msg)) {
+                contenidoCrudo = contenidoCrudo + " " + msg;
+            }
+            actual = actual.getCause();
+        }
+
+        String textoAnalisis = contenidoCrudo.toLowerCase();
+
+        if (textoAnalisis.contains("invalid_grant")) {
+            status = status == 0 ? 400 : status;
+            codigoOAuth = "invalid_grant";
+            if (textoAnalisis.contains("expired") || textoAnalisis.contains("revoked")) {
+                descripcion = "El refresh token fue revocado por el usuario o ha expirado (en proyectos en estado 'Testing' en Google Cloud expira a los 7 días).";
+                recomendacion = "Vuelve a autorizar visitando /oauth2/authorize/google, copia el nuevo refresh token y actualízalo en el panel de Render.";
+            } else {
+                descripcion = "El refresh token no es válido para este cliente OAuth, está mal copiado o fue emitido para otro Client ID.";
+                recomendacion = "Asegúrate de que GMAIL_CLIENT_ID y GMAIL_CLIENT_SECRET en Render coincidan con las credenciales de Google Cloud y genera un nuevo token en /oauth2/authorize/google.";
+            }
+        } else if (textoAnalisis.contains("invalid_client")) {
+            status = status == 0 ? 401 : status;
+            codigoOAuth = "invalid_client";
+            descripcion = "Google no reconoce el Client ID o el Client Secret es incorrecto.";
+            recomendacion = "Revisa GMAIL_CLIENT_ID y GMAIL_CLIENT_SECRET en el panel de Render. Asegúrate de que no contengan espacios en blanco o comillas accidentales.";
+        } else if (textoAnalisis.contains("unauthorized_client")) {
+            status = status == 0 ? 400 : status;
+            codigoOAuth = "unauthorized_client";
+            descripcion = "El cliente OAuth no está autorizado para este grant type o scope.";
+            recomendacion = "Verifica en Google Cloud Console que el tipo de cliente sea 'Aplicación web' y que el ámbito https://www.googleapis.com/auth/gmail.send esté habilitado.";
+        } else if (textoAnalisis.contains("redirect_uri_mismatch")) {
+            status = status == 0 ? 400 : status;
+            codigoOAuth = "redirect_uri_mismatch";
+            descripcion = "La URI de redirección no coincide con la configurada en Google Cloud Console.";
+            recomendacion = "Registra exactamente tu URL de callback en 'URIs de redireccionamiento autorizados' en Google Cloud Console.";
+        } else if (status > 0) {
+            codigoOAuth = "HTTP_" + status;
+            descripcion = "Google respondió con código de estado HTTP " + status;
+        }
+
+        return new OAuthDiagnostico(false, status, codigoOAuth, descripcion, recomendacion);
+    }
+
     private Gmail construirCliente() {
         try {
             UserCredentials credentials = UserCredentials.newBuilder()

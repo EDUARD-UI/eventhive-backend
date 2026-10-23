@@ -1,5 +1,6 @@
 package com.eventhive.app.security.jwt;
 
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -8,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
@@ -18,9 +20,9 @@ import java.util.stream.Collectors;
 @Component
 public class JwtUtils {
 
-    private static final String CLAIM_TIPO  = "type";
-    private static final String TIPO_ACCESS  = "access";
-    private static final String TIPO_REFRESH = "refresh";
+    public static final String CLAIM_TIPO   = "type";
+    public static final String TIPO_ACCESS  = "access";
+    public static final String TIPO_REFRESH = "refresh";
 
     @Value("${jwt.secret}")
     private String jwtSecret;
@@ -61,35 +63,62 @@ public class JwtUtils {
     }
 
     public String getCorreoDesdeToken(String token) {
-        return Jwts.parser().verifyWith(key()).build()
-                .parseSignedClaims(token)
-                .getPayload()
-                .getSubject();
+        try {
+            return Jwts.parser().verifyWith(key()).build()
+                    .parseSignedClaims(token)
+                    .getPayload()
+                    .getSubject();
+        } catch (ExpiredJwtException ex) {
+            return ex.getClaims().getSubject();
+        }
     }
 
-    private String getTipoDesdeToken(String token) {
-        return Jwts.parser().verifyWith(key()).build()
-                .parseSignedClaims(token)
-                .getPayload()
-                .get(CLAIM_TIPO, String.class);
+    public String getTipoDesdeToken(String token) {
+        if (!StringUtils.hasText(token)) return null;
+        try {
+            return Jwts.parser().verifyWith(key()).build()
+                    .parseSignedClaims(token)
+                    .getPayload()
+                    .get(CLAIM_TIPO, String.class);
+        } catch (ExpiredJwtException ex) {
+            return ex.getClaims().get(CLAIM_TIPO, String.class);
+        } catch (Exception ex) {
+            return null;
+        }
     }
 
-    private boolean firmaValida(String token) {
+    public boolean esTokenExpirado(String token) {
+        if (!StringUtils.hasText(token)) return false;
         try {
             Jwts.parser().verifyWith(key()).build().parseSignedClaims(token);
+            return false;
+        } catch (ExpiredJwtException ex) {
             return true;
-        } catch (JwtException | IllegalArgumentException ex) {
-            log.warn("Token JWT inválido: {}", ex.getMessage());
+        } catch (Exception ex) {
             return false;
         }
     }
 
-    // Bearer de rutas protegidas: exige claim type=access
+    private boolean firmaValida(String token) {
+        if (!StringUtils.hasText(token)) return false;
+        try {
+            Jwts.parser().verifyWith(key()).build().parseSignedClaims(token);
+            return true;
+        } catch (ExpiredJwtException ex) {
+            log.debug("Token JWT expirado: {}", ex.getMessage());
+            return false;
+        } catch (JwtException | IllegalArgumentException ex) {
+            log.warn("Token JWT con formato o firma inválida: {}", ex.getMessage());
+            return false;
+        }
+    }
+
+    // Bearer de rutas protegidas: exige firma válida, no haber expirado y claim type=access
     public boolean validarAccessToken(String token) {
         return firmaValida(token) && TIPO_ACCESS.equals(getTipoDesdeToken(token));
     }
 
-    // Solo para /api/auth/refresh: exige claim type=refresh
+    // Solo para /api/auth/refresh: exige firma válida, no haber expirado y claim type=refresh
     public boolean validarRefreshToken(String token) {
         return firmaValida(token) && TIPO_REFRESH.equals(getTipoDesdeToken(token));
     }

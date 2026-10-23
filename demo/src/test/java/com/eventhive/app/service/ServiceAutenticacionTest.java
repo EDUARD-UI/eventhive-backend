@@ -3,6 +3,7 @@ package com.eventhive.app.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -126,5 +127,83 @@ class ServiceAutenticacionTest {
         assertEquals("CLIENTE", response.getRol());
         assertEquals(0, usuario.getIntentosFallidos());
         verify(usuarioRepository).save(usuario);
+    }
+
+    @Test
+    @DisplayName("Refrescar token exitoso emite nuevo access token")
+    void refrescarTokenExitoso() {
+        String refreshToken = "valid.refresh.token";
+        Rol rol = new Rol();
+        rol.setNombre("CLIENTE");
+
+        Usuario usuario = new Usuario();
+        usuario.setId(1L);
+        usuario.setCorreo("test@eventhive.com");
+        usuario.setRol(rol);
+        usuario.setActivo(true);
+
+        when(jwtUtils.esTokenExpirado(refreshToken)).thenReturn(false);
+        when(jwtUtils.validarRefreshToken(refreshToken)).thenReturn(true);
+        when(jwtUtils.getCorreoDesdeToken(refreshToken)).thenReturn("test@eventhive.com");
+        when(usuarioRepository.findByCorreo("test@eventhive.com")).thenReturn(Optional.of(usuario));
+        when(jwtUtils.generarAccessToken(any())).thenReturn("new.access.token");
+
+        var response = serviceAutenticacion.refrescarToken(refreshToken);
+
+        assertNotNull(response);
+        assertEquals("new.access.token", response.getAccessToken());
+        assertEquals(refreshToken, response.getRefreshToken());
+        assertEquals("test@eventhive.com", response.getCorreo());
+        assertEquals("CLIENTE", response.getRol());
+    }
+
+    @Test
+    @DisplayName("Refrescar token con token expirado lanza BadCredentialsException")
+    void refrescarTokenExpiradoLanzaBadCredentials() {
+        String expiredToken = "expired.refresh.token";
+        when(jwtUtils.esTokenExpirado(expiredToken)).thenReturn(true);
+        when(jwtUtils.getTipoDesdeToken(expiredToken)).thenReturn(JwtUtils.TIPO_REFRESH);
+
+        BadCredentialsException ex = assertThrows(BadCredentialsException.class,
+                () -> serviceAutenticacion.refrescarToken(expiredToken));
+
+        assertTrue(ex.getMessage().contains("Refresh token expirado"));
+    }
+
+    @Test
+    @DisplayName("Refrescar token enviando Access Token expirado reporta error específico")
+    void refrescarTokenConAccessTokenLanzaBadCredentials() {
+        String expiredAccessToken = "expired.access.token";
+        when(jwtUtils.esTokenExpirado(expiredAccessToken)).thenReturn(true);
+        when(jwtUtils.getTipoDesdeToken(expiredAccessToken)).thenReturn(JwtUtils.TIPO_ACCESS);
+
+        BadCredentialsException ex = assertThrows(BadCredentialsException.class,
+                () -> serviceAutenticacion.refrescarToken(expiredAccessToken));
+
+        assertTrue(ex.getMessage().contains("Access Token expirado"));
+    }
+
+    @Test
+    @DisplayName("Refrescar token con cuenta inactiva lanza BadCredentialsException")
+    void refrescarTokenConCuentaInactivaLanzaBadCredentials() {
+        String refreshToken = "valid.refresh.token";
+        Rol rol = new Rol();
+        rol.setNombre("CLIENTE");
+
+        Usuario usuario = new Usuario();
+        usuario.setId(1L);
+        usuario.setCorreo("inactivo@eventhive.com");
+        usuario.setRol(rol);
+        usuario.setActivo(false);
+
+        when(jwtUtils.esTokenExpirado(refreshToken)).thenReturn(false);
+        when(jwtUtils.validarRefreshToken(refreshToken)).thenReturn(true);
+        when(jwtUtils.getCorreoDesdeToken(refreshToken)).thenReturn("inactivo@eventhive.com");
+        when(usuarioRepository.findByCorreo("inactivo@eventhive.com")).thenReturn(Optional.of(usuario));
+
+        BadCredentialsException ex = assertThrows(BadCredentialsException.class,
+                () -> serviceAutenticacion.refrescarToken(refreshToken));
+
+        assertTrue(ex.getMessage().contains("no está activa"));
     }
 }

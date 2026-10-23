@@ -89,4 +89,37 @@ class GoogleOAuthControllerTest {
         assertTrue(response.getBody().contains("1//mock-refresh-token-xyz"));
         assertTrue(response.getBody().contains("GMAIL_REFRESH_TOKEN"));
     }
+
+    @Test
+    void consultarEstadoRetorna200CuandoOAuthEsValido() {
+        when(clientProvider.getSender()).thenReturn("eventhiveContacto@gmail.com");
+        when(clientProvider.probarConexionOAuth()).thenReturn(
+                new GmailClientProvider.OAuthDiagnostico(
+                        true, 200, "OK", "Token renovado exitosamente", "Todo en orden")
+        );
+
+        ResponseEntity<String> response = controller.consultarEstado();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().contains("Conexión OAuth 2.0 Verificada"));
+        assertTrue(response.getBody().contains("eventhiveContacto@gmail.com"));
+    }
+
+    @Test
+    void consultarEstadoRetorna503CuandoOAuthFalla() {
+        when(clientProvider.getSender()).thenReturn("eventhiveContacto@gmail.com");
+        when(clientProvider.probarConexionOAuth()).thenReturn(
+                new GmailClientProvider.OAuthDiagnostico(
+                        false, 400, "invalid_grant", "Token expirado o revocado", "Reautorizar")
+        );
+
+        ResponseEntity<String> response = controller.consultarEstado();
+
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().contains("invalid_grant"));
+        assertTrue(response.getBody().contains("Token expirado o revocado"));
+        assertTrue(response.getBody().contains("/oauth2/authorize/google"));
+    }
 }

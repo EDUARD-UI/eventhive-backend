@@ -2,14 +2,18 @@ package com.eventhive.app.security.auth;
 
 import com.eventhive.app.dto.request.SolicitudVerificacionRequest;
 import com.eventhive.app.service.ServiceSolicitudVerificacion;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -59,8 +63,22 @@ public class AuthApiController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<ApiResponse<LoginResponseDTO>> refresh(@Valid @RequestBody RefreshRequest request) {
-        LoginResponseDTO response = serviceAutenticacion.refrescarToken(request.getRefreshToken());
+    public ResponseEntity<ApiResponse<LoginResponseDTO>> refresh(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authHeader,
+            @RequestBody(required = false) RefreshRequest request) {
+
+        String token = null;
+        if (request != null && StringUtils.hasText(request.getRefreshToken())) {
+            token = request.getRefreshToken().trim();
+        } else if (StringUtils.hasText(authHeader) && authHeader.startsWith("Bearer ")) {
+            token = authHeader.substring(7).trim();
+        }
+
+        if (!StringUtils.hasText(token)) {
+            throw new BadCredentialsException("El refresh token es requerido");
+        }
+
+        LoginResponseDTO response = serviceAutenticacion.refrescarToken(token);
         return ResponseEntity.ok(ApiResponse.ok("Token renovado", response));
     }
 
