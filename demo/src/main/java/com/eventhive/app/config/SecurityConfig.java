@@ -70,6 +70,7 @@ public class SecurityConfig {
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/oauth2/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/invitaciones/roles/validar").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/invitaciones/roles/aceptar").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/eventos/organizador/**").authenticated()

@@ -116,12 +116,12 @@ class AuditoriaCorreccionesEndpointsTest {
     @Test
     @DisplayName("CorreoException devuelve HTTP 502 Bad Gateway con mensaje seguro")
     void correoExceptionRetorna502() {
-        CorreoException ex = new CorreoException("550 Sender not authorized in Brevo", new RuntimeException("SMTP 550"));
+        CorreoException ex = new CorreoException("401 Unauthorized in Gmail API", new RuntimeException("Gmail 401"));
         ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleCorreo(ex);
 
         assertEquals(HttpStatus.BAD_GATEWAY, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertTrue(response.getBody().getMensaje().contains("Brevo"));
+        assertTrue(response.getBody().getMensaje().contains("Gmail API"));
     }
 
     @Test
@@ -345,7 +345,7 @@ class AuditoriaCorreccionesEndpointsTest {
         when(rolesRepository.findByNombre("MODERADOR")).thenReturn(Optional.of(rolMod));
         when(invitacionRolRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        org.mockito.Mockito.doThrow(new CorreoException("Error SMTP Brevo: 535 Authentication Failed"))
+        org.mockito.Mockito.doThrow(new CorreoException("Error Gmail API: 401 Authentication Failed"))
                 .when(serviceCorreo).enviarInvitacionRol(any(), any(), any());
 
         assertThrows(CorreoException.class,

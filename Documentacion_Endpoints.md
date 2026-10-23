@@ -3082,7 +3082,7 @@ Todos los endpoints son de solo lectura, no reciben parámetros y requieren rol 
   - `mensaje`: cuerpo del correo electrónico en texto plano o HTML (obligatorio, no vacío).
 - Devuelve: `ApiResponse<Map<String, Object>>`
 - Permisos: ADMINISTRADOR.
-- Descripción: envía un correo administrativo oficial a través del servicio integrado (Brevo SMTP).
+- Descripción: envía un correo administrativo oficial a través del servicio integrado (Gmail API con OAuth 2.0).
   - Remitente oficial: la dirección autorizada del sistema (`MAIL_FROM`). No se permite suplantación arbitraria de remitente.
   - Registro de auditoría: el administrador autenticado queda registrado como el iniciador del envío (`iniciadoPor`).
   - Respuesta: devuelve el estado de aceptación de la solicitud de envío (`ACEPTADO`).

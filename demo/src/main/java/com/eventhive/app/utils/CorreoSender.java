@@ -1,16 +1,21 @@
 package com.eventhive.app.utils;
 
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.Properties;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import com.eventhive.app.exception.CorreoException;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.services.gmail.model.Message;
 
+import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,50 +25,35 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class CorreoSender {
 
-    private final JavaMailSender mailSender;
+    private final GmailClientProvider gmailClientProvider;
 
-    @Value("${eventhive.mail.remitente:${MAIL_FROM:notificaciones@eventhive.live}}")
+    @Value("${gmail.sender:${GMAIL_SENDER:${eventhive.mail.remitente:eventhiveContacto@gmail.com}}}")
     private String remitente;
 
     @Value("${eventhive.mail.nombre-remitente:${MAIL_FROM_NAME:EventHive}}")
     private String nombreRemitente;
 
-    @Value("${eventhive.mail.max-reintentos:2}")
+    @Value("${gmail.max-reintentos:${eventhive.mail.max-reintentos:2}}")
     private int maxReintentos;
-
-    @Value("${spring.mail.host:smtp-relay.brevo.com}")
-    private String mailHost;
-
-    @Value("${spring.mail.port:587}")
-    private int mailPort;
-
-    @Value("${spring.mail.username:}")
-    private String mailUsername;
-
-    @Value("${spring.mail.password:}")
-    private String mailPassword;
 
     @jakarta.annotation.PostConstruct
     public void validarConfiguracionAlArrancar() {
-        if (!StringUtils.hasText(mailUsername) || !StringUtils.hasText(mailPassword)) {
-            log.warn("ADVERTENCIA SMTP: Credenciales no configuradas (MAIL_USERNAME / MAIL_PASSWORD vacías). Los envíos reales de correo fallarán hasta que se configuren en las variables de entorno de Render.");
+        if (!gmailClientProvider.estaConfigurado()) {
+            log.warn("ADVERTENCIA GMAIL API: Credenciales no configuradas completamente (GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET o GMAIL_REFRESH_TOKEN vacíos). Visita /oauth2/authorize/google para vincular la cuenta remitente '{}'.",
+                    sanitizarLog(remitente));
         } else {
-            log.info("Configuración SMTP de Brevo lista: host='{}', puerto={}, remitente='{}' (autenticación configurada)",
-                    sanitizarLog(mailHost), mailPort, sanitizarLog(remitente));
+            log.info("Configuración de Gmail API lista: remitente='{}', nombre='{}' (autenticación OAuth 2.0 activa)",
+                    sanitizarLog(remitente), sanitizarLog(nombreRemitente));
         }
     }
 
-    // Síncrono: propaga CorreoException si el servidor SMTP rechaza el correo tras los reintentos.
+    // Síncrono: propaga CorreoException si la Gmail API rechaza el envío tras los reintentos.
     public void enviar(String destino, String asunto, String html) {
         validarParametros(destino, asunto, html);
 
-        if (!StringUtils.hasText(mailUsername) || !StringUtils.hasText(mailPassword)) {
-            log.error("Fallo de envío SMTP: Variables de entorno MAIL_USERNAME o MAIL_PASSWORD no configuradas en Render.");
-            throw new CorreoException("El servicio de correo no está disponible: faltan credenciales SMTP (MAIL_USERNAME / MAIL_PASSWORD)");
-        }
-
-        if (remitente != null && (remitente.endsWith(".local") || remitente.endsWith("@localhost"))) {
-            log.error("ATENCIÓN: Se intentó enviar correo con remitente ficticio/local '{}'. Brevo rechazará este envío en producción.", remitente);
+        if (!gmailClientProvider.estaConfigurado()) {
+            log.error("Fallo de envío Gmail API: GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET o GMAIL_REFRESH_TOKEN no configurados.");
+            throw new CorreoException("El servicio de correo no está disponible: faltan credenciales OAuth 2.0 de Gmail (GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN). Visita /oauth2/authorize/google para vincular la cuenta.");
         }
 
         int intentos = Math.max(1, maxReintentos);
@@ -71,20 +61,56 @@ public class CorreoSender {
 
         for (int intento = 1; intento <= intentos; intento++) {
             try {
-                MimeMessage mensaje = mailSender.createMimeMessage();
-                MimeMessageHelper helper = new MimeMessageHelper(mensaje, false, StandardCharsets.UTF_8.name());
+                // 1. Construir mensaje MIME con soporte HTML y UTF-8
+                Session session = Session.getInstance(new Properties());
+                MimeMessage mimeMessage = new MimeMessage(session);
+                MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, false, StandardCharsets.UTF_8.name());
                 helper.setFrom(remitente, nombreRemitente);
                 helper.setTo(destino.trim());
                 helper.setSubject(asunto.trim());
                 helper.setText(html, true);
 
-                mailSender.send(mensaje);
-                log.info("Correo '{}' aceptado por servidor SMTP para {}", sanitizarLog(asunto), sanitizarLog(destino));
+                // 2. Serializar a bytes y codificar a Base64 URL-safe (sin padding) requerido por Gmail API
+                ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                mimeMessage.writeTo(buffer);
+                String rawBase64Url = Base64.getUrlEncoder().withoutPadding().encodeToString(buffer.toByteArray());
+
+                // 3. Crear mensaje de Gmail API
+                Message gmailMessage = new Message();
+                gmailMessage.setRaw(rawBase64Url);
+
+                // 4. Enviar mediante users.messages.send para el usuario autenticado "me"
+                Message respuesta = gmailClientProvider.obtenerCliente()
+                        .users()
+                        .messages()
+                        .send("me", gmailMessage)
+                        .execute();
+
+                if (respuesta == null || !StringUtils.hasText(respuesta.getId())) {
+                    throw new CorreoException("Gmail API no retornó ID de mensaje en la respuesta");
+                }
+
+                log.info("Correo '{}' enviado exitosamente vía Gmail API a {} (id: {})",
+                        sanitizarLog(asunto), sanitizarLog(destino), sanitizarLog(respuesta.getId()));
                 return;
+
             } catch (Exception e) {
                 ultimoError = e;
-                log.error("Fallo en intento {}/{} al enviar correo '{}' a {}. Causa: {}",
-                        intento, intentos, sanitizarLog(asunto), sanitizarLog(destino), sanitizarLog(e.getMessage()), e);
+
+                if (e instanceof GoogleJsonResponseException gjre) {
+                    int statusCode = gjre.getStatusCode();
+                    String errorMsg = gjre.getDetails() != null ? gjre.getDetails().getMessage() : gjre.getMessage();
+                    if (statusCode == 401) {
+                        log.error("Error de autenticación Gmail API (401): Tokens inválidos o revocados. Se requiere reautorizar en /oauth2/authorize/google");
+                    } else if (statusCode == 403) {
+                        log.error("Error de permisos o cuota en Gmail API (403): {}", sanitizarLog(errorMsg));
+                    } else {
+                        log.error("Error devuelto por Gmail API (HTTP {}): {}", statusCode, sanitizarLog(errorMsg));
+                    }
+                } else {
+                    log.error("Fallo en intento {}/{} al enviar correo '{}' a {}. Causa: {}",
+                            intento, intentos, sanitizarLog(asunto), sanitizarLog(destino), sanitizarLog(e.getMessage()), e);
+                }
 
                 if (intento < intentos) {
                     try {
@@ -96,8 +122,9 @@ public class CorreoSender {
                 }
             }
         }
-        String detalleError = ultimoError != null ? ultimoError.getMessage() : "Fallo de conexión o autenticación SMTP";
-        throw new CorreoException("No se pudo enviar el correo a " + destino.trim() + ": " + detalleError, ultimoError);
+
+        String detalleError = ultimoError != null ? ultimoError.getMessage() : "Fallo de conexión o autorización con Gmail API";
+        throw new CorreoException("No se pudo enviar el correo a " + destino.trim() + " vía Gmail API: " + detalleError, ultimoError);
     }
 
     // Asíncrono: para confirmaciones y notificaciones que no deben romper la transacción de negocio.

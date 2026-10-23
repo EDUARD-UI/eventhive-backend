@@ -151,12 +151,12 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("La operación entra en conflicto con el estado actual del recurso"));
     }
 
-    // Fallo de comunicación o entrega con el proveedor de correo (Brevo SMTP)
+    // Fallo de comunicación o entrega con el proveedor de correo (Gmail API)
     @ExceptionHandler(CorreoException.class)
     public ResponseEntity<ApiResponse<Void>> handleCorreo(CorreoException ex) {
         log.error("Fallo del servicio de correo: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                .body(ApiResponse.error("No se pudo entregar el correo a través del proveedor de mensajería (Brevo). Verifica la configuración y el remitente autorizado."));
+                .body(ApiResponse.error("No se pudo entregar el correo a través del servicio de mensajería (Gmail API). Verifica la configuración y la autorización OAuth de la cuenta remitente."));
     }
 
     @ExceptionHandler(Exception.class)
