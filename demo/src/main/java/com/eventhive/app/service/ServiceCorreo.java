@@ -2,8 +2,10 @@ package com.eventhive.app.service;
 
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import org.springframework.stereotype.Service;
 
@@ -16,6 +18,7 @@ import com.eventhive.app.utils.CorreoPlantillas;
 import com.eventhive.app.utils.CorreoPlantillas.Boleto;
 import com.eventhive.app.utils.CorreoPlantillas.ItemPago;
 import com.eventhive.app.utils.CorreoSender;
+import com.eventhive.app.utils.GeneradorCodigoQR;
 
 import lombok.RequiredArgsConstructor;
 
@@ -30,6 +33,7 @@ public class ServiceCorreo {
     private final CorreoSender sender;
     private final CorreoPlantillas plantillas;
     private final TiqueteRepository tiqueteRepository;
+    private final GeneradorCodigoQR generadorCodigoQR;
 
     // COMPRAS
 
@@ -57,12 +61,18 @@ public class ServiceCorreo {
         Usuario cliente = compra.getCliente();
         if (sinCorreo(cliente)) return;
 
-        List<Boleto> boletos = tiqueteRepository.findByCompraIdConDetalles(compra.getId()).stream()
+        List<Tiquete> tiquetes = tiqueteRepository.findByCompraIdConDetalles(compra.getId());
+        List<Boleto> boletos = tiquetes.stream()
                 .map(this::aBoleto)
                 .toList();
+        Map<String, byte[]> imagenesEnLinea = new LinkedHashMap<>();
+        for (int indice = 0; indice < tiquetes.size(); indice++) {
+            imagenesEnLinea.put(CorreoPlantillas.cidQr(indice),
+                    generadorCodigoQR.generarPng(tiquetes.get(indice).getCodigoQR()));
+        }
 
         String html = plantillas.boletos(cliente.getNombreCompleto(), compra.getId(), boletos);
-        sender.enviarAsync(cliente.getCorreo(), "Tus boletos — EventHive", html);
+        sender.enviarAsync(cliente.getCorreo(), "Tus boletos — EventHive", html, imagenesEnLinea);
     }
 
     // INVITACION CON ROLES

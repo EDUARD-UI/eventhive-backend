@@ -3,9 +3,11 @@ package com.eventhive.app.utils;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Map;
 import java.util.Properties;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -49,7 +51,17 @@ public class CorreoSender {
 
     // Síncrono: propaga CorreoException si la Gmail API rechaza el envío tras los reintentos.
     public void enviar(String destino, String asunto, String html) {
+        enviar(destino, asunto, html, Map.of());
+    }
+
+    public void enviar(String destino, String asunto, String html, Map<String, byte[]> imagenesEnLinea) {
         validarParametros(destino, asunto, html);
+
+        if (imagenesEnLinea == null || imagenesEnLinea.entrySet().stream()
+                .anyMatch(entry -> !StringUtils.hasText(entry.getKey()) || entry.getValue() == null
+                        || entry.getValue().length == 0)) {
+            throw new CorreoException("Las imágenes en línea del correo deben tener identificador y contenido");
+        }
 
         if (!gmailClientProvider.estaConfigurado()) {
             log.error("Fallo de envío Gmail API: GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET o GMAIL_REFRESH_TOKEN no configurados.");
@@ -64,11 +76,15 @@ public class CorreoSender {
                 // 1. Construir mensaje MIME con soporte HTML y UTF-8
                 Session session = Session.getInstance(new Properties());
                 MimeMessage mimeMessage = new MimeMessage(session);
-                MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, false, StandardCharsets.UTF_8.name());
+                MimeMessageHelper helper = new MimeMessageHelper(
+                        mimeMessage, !imagenesEnLinea.isEmpty(), StandardCharsets.UTF_8.name());
                 helper.setFrom(remitente, nombreRemitente);
                 helper.setTo(destino.trim());
                 helper.setSubject(asunto.trim());
                 helper.setText(html, true);
+                for (Map.Entry<String, byte[]> imagen : imagenesEnLinea.entrySet()) {
+                    helper.addInline(imagen.getKey(), new ByteArrayResource(imagen.getValue()), "image/png");
+                }
 
                 // 2. Serializar a bytes y codificar a Base64 URL-safe (sin padding) requerido por Gmail API
                 ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -147,8 +163,13 @@ public class CorreoSender {
     // Asíncrono: para confirmaciones y notificaciones que no deben romper la transacción de negocio.
     @Async("emailExecutor")
     public void enviarAsync(String destino, String asunto, String html) {
+        enviarAsync(destino, asunto, html, Map.of());
+    }
+
+    @Async("emailExecutor")
+    public void enviarAsync(String destino, String asunto, String html, Map<String, byte[]> imagenesEnLinea) {
         try {
-            enviar(destino, asunto, html);
+            enviar(destino, asunto, html, imagenesEnLinea);
         } catch (CorreoException e) {
             log.error("Error en envío asíncrono '{}' a {}: {}", sanitizarLog(asunto), sanitizarLog(destino), sanitizarLog(e.getMessage()));
         }

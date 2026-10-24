@@ -2,6 +2,7 @@ package com.eventhive.app.utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -13,6 +14,7 @@ import static org.mockito.Mockito.when;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Base64;
+import java.util.Map;
 import java.util.Properties;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +29,9 @@ import com.eventhive.app.exception.CorreoException;
 import com.google.api.services.gmail.Gmail;
 import com.google.api.services.gmail.model.Message;
 
+import jakarta.mail.BodyPart;
+import jakarta.mail.Multipart;
+import jakarta.mail.Part;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 
@@ -89,6 +94,31 @@ class CorreoSenderTest {
     }
 
     @Test
+    void adjuntaImagenesEnLineaAlCorreoHtml() throws Exception {
+        when(gmailClientProvider.estaConfigurado()).thenReturn(true);
+        when(gmailClientProvider.obtenerCliente()).thenReturn(gmail);
+        when(gmail.users()).thenReturn(users);
+        when(users.messages()).thenReturn(messages);
+        when(messages.send(eq("me"), any(Message.class))).thenReturn(sendCall);
+        when(sendCall.execute()).thenReturn(new Message().setId("msg-qr"));
+
+        byte[] png = new byte[] {(byte) 0x89, 0x50, 0x4e, 0x47};
+        correoSender.enviar("persona@example.com", "Tus boletos",
+                "<img src=\"cid:qr-boleto-0\">", Map.of("qr-boleto-0", png));
+
+        ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
+        verify(messages).send(eq("me"), captor.capture());
+        byte[] bytesMime = Base64.getUrlDecoder().decode(captor.getValue().getRaw());
+        MimeMessage mimeMessage = new MimeMessage(
+                Session.getInstance(new Properties()), new ByteArrayInputStream(bytesMime));
+
+        BodyPart imagen = buscarParte(mimeMessage, "<qr-boleto-0>");
+        assertNotNull(imagen);
+        assertTrue(imagen.getContentType().contains("image/png"));
+        assertArrayEquals(png, imagen.getInputStream().readAllBytes());
+    }
+
+    @Test
     void propagaErrorCuandoGmailApiFalla() throws Exception {
         when(gmailClientProvider.estaConfigurado()).thenReturn(true);
         when(gmailClientProvider.obtenerCliente()).thenReturn(gmail);
@@ -128,5 +158,20 @@ class CorreoSenderTest {
         assertTrue(ex.getMessage().contains("invalid_grant"));
         assertTrue(ex.getMessage().contains("HTTP 400"));
         assertTrue(ex.getMessage().contains("expirado"));
+    }
+
+    private BodyPart buscarParte(Part parte, String contentId) throws Exception {
+        String[] ids = parte.getHeader("Content-ID");
+        if (ids != null && ids.length > 0 && ids[0].equals(contentId)) {
+            return (BodyPart) parte;
+        }
+        Object contenido = parte.getContent();
+        if (contenido instanceof Multipart multipart) {
+            for (int indice = 0; indice < multipart.getCount(); indice++) {
+                BodyPart encontrada = buscarParte(multipart.getBodyPart(indice), contentId);
+                if (encontrada != null) return encontrada;
+            }
+        }
+        return null;
     }
 }
