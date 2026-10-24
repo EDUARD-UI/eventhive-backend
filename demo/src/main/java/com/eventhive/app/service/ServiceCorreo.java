@@ -103,6 +103,9 @@ public class ServiceCorreo {
 
     // CORREOS ADMINISTRATIVOS
     public void enviarCorreoAdministrativo(String destino, String asunto, String mensaje, Usuario admin) {
+        if (admin == null || admin.getRol() == null || !"ADMINISTRADOR".equalsIgnoreCase(admin.getRol().getNombre())) {
+            throw new com.eventhive.app.exception.BusinessException("Solo los administradores pueden enviar correos directos");
+        }
         if (destino == null || destino.isBlank()) {
             throw new com.eventhive.app.exception.BusinessException("El correo destinatario es obligatorio");
         }
@@ -112,9 +115,7 @@ public class ServiceCorreo {
         if (mensaje == null || mensaje.isBlank()) {
             throw new com.eventhive.app.exception.BusinessException("El mensaje es obligatorio");
         }
-        String remitenteInfo = admin != null
-                ? admin.getNombreCompleto() + " (" + admin.getCorreo() + ")"
-                : "Administrador de EventHive";
+        String remitenteInfo = admin.getNombreCompleto() + " (" + admin.getCorreo() + ")";
         String html = plantillas.correoAdministrativo(remitenteInfo, mensaje);
         // Envío síncrono para verificar aceptación del servidor de correo
         sender.enviar(destino.trim(), asunto.trim(), html);

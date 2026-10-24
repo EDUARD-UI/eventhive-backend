@@ -18,6 +18,8 @@ import com.eventhive.app.utils.AuthenticatedUserHelper;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.web.multipart.MultipartFile;
+
 @Service
 @RequiredArgsConstructor
 public class ServicePromocion {
@@ -26,6 +28,39 @@ public class ServicePromocion {
     private final PosicionamientoEventoRepository posicionamientoRepository;
     private final AuthenticatedUserHelper authHelper;
     private final SupabaseStorageConfig storageConfig;
+    private final SupabaseStorageService storageService;
+
+    @Transactional
+    public String subirYAsignarImagenDestacada(Long eventoId, MultipartFile imagen) {
+        if (imagen == null || imagen.isEmpty()) {
+            throw new BusinessException("El archivo de imagen es requerido");
+        }
+        Usuario usuario = authHelper.usuarioAutenticado();
+        boolean esMarketingOAdmin = usuario.getRol() != null
+                && ("MARKETING".equalsIgnoreCase(usuario.getRol().getNombre())
+                || "ADMINISTRADOR".equalsIgnoreCase(usuario.getRol().getNombre()));
+        if (!esMarketingOAdmin) {
+            throw new BusinessException("Solo el personal autorizado de marketing puede asignar la imagen destacada");
+        }
+
+        Evento evento = eventoRepository.findById(eventoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado"));
+
+        if (evento.getEstado() != EstadoEvento.PUBLICADO) {
+            throw new BusinessException("Solo se pueden configurar eventos publicados");
+        }
+
+        boolean tienePromocionPremium = posicionamientoRepository
+                .existsByEventoIdAndEstadoAndPlanPremiumTrue(eventoId, EstadoPosicionamiento.CONFIRMADO);
+        if (!tienePromocionPremium) {
+            throw new BusinessException("El evento debe tener una promoción confirmada con plan premium para asignarle imagen destacada");
+        }
+
+        String url = storageService.subirImagenEvento(imagen);
+        evento.setUrlImagenDestacado(url);
+        eventoRepository.save(evento);
+        return url;
+    }
 
     @Transactional
     public Evento asignarImagenDestacada(Long eventoId, String urlImagenDestacado) {

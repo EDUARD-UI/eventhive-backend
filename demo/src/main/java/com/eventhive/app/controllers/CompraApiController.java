@@ -60,9 +60,15 @@ public class CompraApiController {
     @PostMapping("/eventos/{eventoId}/posicionamiento/pagos")
     @PreAuthorize("hasRole('REPRESENTANTE')")
     public ResponseEntity<ApiResponse<PagoPosicionamientoDTO>> registrarPagoPosicionamiento(
-            @PathVariable Long eventoId, @RequestParam Long planId) {
+            @PathVariable Long eventoId,
+            @RequestParam(required = false) Long planId,
+            @RequestBody(required = false) com.eventhive.app.dto.request.ContratarPlanRequest body) {
+        Long idFinal = planId != null ? planId : (body != null ? body.getPlanId() : null);
+        if (idFinal == null) {
+            throw new com.eventhive.app.exception.BusinessException("El identificador del plan es obligatorio");
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Pago simulado registrado",
-                compraService.registrarPagoPosicionamiento(eventoId, planId)));
+                compraService.registrarPagoPosicionamiento(eventoId, idFinal)));
     }
 
     @GetMapping("/posicionamiento/pagos/{pagoId}")

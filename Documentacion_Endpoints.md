@@ -1269,7 +1269,7 @@ En caso de error, la respuesta suele devolver:
 ```
 
 #### `POST /api/compras/eventos/{eventoId}/posicionamiento/pagos`
-- Recibe: `eventoId` en path y `planId` como query param.
+- Recibe: `eventoId` en path y `planId` como query param (`?planId={id}`) o en body JSON (`{ "planId": {id} }`).
 - Devuelve: `ApiResponse<PagoPosicionamientoDTO>`.
 - Permisos: REPRESENTANTE de la organización propietaria.
 - Descripción: solo permite contratar promociones para eventos en estado `PUBLICADO`. Registra un pago `PENDIENTE` con el precio fijo del plan configurado en el backend (el frontend no puede alterar importes).
@@ -2471,7 +2471,7 @@ Para el panel autenticado se recomienda `GET /api/organizaciones/mi-organizacion
 
 #### `GET /api/moderaciones/estadisticas`
 - Recibe: sin parámetros.
-- Devuelve: `ApiResponse<ModeracionEstadisticasDTO>` con `revisados`, `aprobados`, `rechazados` y `correccionesSolicitadas`.
+- Devuelve: `ApiResponse<ModeracionEstadisticasDTO>` con las cuatro estadísticas solicitadas de la plataforma: `publicados` (número de eventos publicados), `pendientesRevision` (revisiones pendientes), `enCorreccion` (eventos en corrección) y `rechazados` (eventos rechazados), manteniendo además compatibilidad con `aprobados`, `revisados` y `correccionesSolicitadas`.
 - Permisos: MODERADOR.
 - Ejemplo de respuesta:
 
@@ -2480,9 +2480,12 @@ Para el panel autenticado se recomienda `GET /api/organizaciones/mi-organizacion
   "success": true,
   "mensaje": "Estadísticas de moderación obtenidas",
   "data": {
-    "revisados": 24,
-    "aprobados": 18,
+    "publicados": 18,
+    "pendientesRevision": 24,
+    "enCorreccion": 4,
     "rechazados": 2,
+    "aprobados": 18,
+    "revisados": 24,
     "correccionesSolicitadas": 4
   }
 }
@@ -2789,8 +2792,9 @@ descuentos de compra ya no están disponibles ni se aplican al checkout.
 - Público. Devuelve los planes activos con precio, comisión, bandera `premium` y `pautaRedes`.
 - También incluye `detallePublicidad`. Impulso Digital inicia en $500.000/10% (anuncios pagados en redes por 1-2 semanas); Sold Out Absoluto inicia en $1.000.000/15% (Premium, carrusel, pauta de alto presupuesto y publicaciones fijas).
 
-#### `POST /api/compras/eventos/{eventoId}/posicionamiento/pagos?planId={id}`
+#### `POST /api/compras/eventos/{eventoId}/posicionamiento/pagos`
 - Permisos: REPRESENTANTE del evento.
+- Parámetros/Body: Recibe `planId` como query param (`?planId={id}`) o en JSON body (`{ "planId": {id} }`).
 - Registra una intención de pago simulada usando el precio vigente del plan.
 
 #### `PATCH /api/compras/posicionamiento/pagos/{pagoId}/confirmar-simulado`
@@ -2806,13 +2810,27 @@ descuentos de compra ya no están disponibles ni se aplican al checkout.
 - Exclusivo para eventos publicados con promoción pagada y confirmada que hayan contratado un plan con `premium = true` y que tengan asignada su `url_imagen_destacado` por Marketing.
 - Devuelve exclusivamente el array con la propiedad `url_imagen_promocionado`.
 
-#### `PUT /api/promociones/eventos/{eventoId}/posicionar`
-- Body: `{ "urlImagenDestacado": "https://..." }`.
+#### `POST /api/promociones/eventos/{eventoId}/posicionar`
 - Permisos: MARKETING o ADMINISTRADOR (el cliente o la organización no pueden asignar directamente esta imagen).
 - Requiere que el evento esté en estado `PUBLICADO`, tenga un pago de posicionamiento `CONFIRMADO` y que el plan contratado tenga `premium = true`.
-- Valida que la URL pertenezca al dominio configurado de Supabase Storage.
+- Soporta dos formatos de envío:
+  1. JSON (`application/json`): `{ "urlImagenDestacado": "https://..." }` validando que pertenezca al bucket de eventos configurado.
+  2. Archivo directo (`multipart/form-data`): campo `imagen` con el archivo a subir. El servidor valida formato, tamaño y almacena de forma segura devolviendo `{ "urlImagenDestacado": "https://..." }`.
 
 ### Dashboard MARKETING
+
+#### `GET /api/marketing/estadisticas`
+- Recibe: sin parámetros.
+- Devuelve: `ApiResponse<MarketingEstadisticasDTO>` con:
+  - `eventosActivosPromocionados`: número de eventos activos (PUBLICADOS) con plan de promoción pagado y confirmado.
+  - `eventosPorPlan`: lista de objetos `PlanPromocionConteoDTO` con `planId`, `planCodigo`, `planNombre` y `cantidadEventos` contratados.
+- Permisos: MARKETING o ADMINISTRADOR.
+
+#### `POST /api/marketing/imagenes`
+- Recibe: `multipart/form-data` con campo `imagen`.
+- Devuelve: `ApiResponse<Map<String, String>>` con `{ "url": "https://..." }`.
+- Permisos: MARKETING o ADMINISTRADOR.
+- Valida tipo de archivo (magic bytes y MIME) y tamaño máximo (5MB) para evitar subir archivos peligrosos.
 
 #### `POST /api/marketing/planes`
 - Recibe: body JSON `PlanPromocionRequest` con:
@@ -2822,27 +2840,27 @@ descuentos de compra ya no están disponibles ni se aplican al checkout.
   - `detallePublicidad` (texto descriptivo)
   - `premium` (booleano)
   - `pautaRedes` / `llevaPautaRedes` (booleano)
-  - `comisionPorcentaje` (opcional, 0 por defecto)
-- Devuelve: `ApiResponse<PlanPromocionDTO>`
+  - `comisionPorcentaje` / `porcentajeComision` (número entre 0.00 y 100.00)
+- Devuelve: `ApiResponse<PlanPromocionDTO>` (incluye tanto `comisionPorcentaje` como `porcentajeComision`).
 - Permisos: MARKETING o ADMINISTRADOR.
-- Descripción: crea un nuevo plan publicitario de precio fijo.
+- Descripción: crea un nuevo plan publicitario de precio fijo y comisión configurable.
 
 #### `GET /api/marketing/planes`
-- Lista todos los planes configurados en el sistema.
+- Lista todos los planes configurados en el sistema ordenados por precio ascendente.
 - Permisos: MARKETING o ADMINISTRADOR.
 
 #### `PUT /api/marketing/planes/{id}`
 - Recibe: `id` del plan en path y body `PlanPromocionRequest`.
 - Devuelve: `ApiResponse<PlanPromocionDTO>`
 - Permisos: MARKETING o ADMINISTRADOR.
-- Descripción: actualiza nombre, código, precio fijo, Premium, pauta en redes y detalle publicitario.
+- Descripción: actualiza nombre, código, precio fijo, porcentaje de comisión (entre 0 y 100), Premium, pauta en redes y detalle publicitario, conservando la comisión existente si el campo no se envía.
 
 #### `GET /api/marketing/eventos-promocionados`
 - Permisos: MARKETING o ADMINISTRADOR.
-- Lista eventos y organizaciones con pago confirmado, plan contratado y estado de campaña.
+- Lista eventos y organizaciones con pago confirmado, plan contratado y estado de campaña, garantizando que no existan eventos duplicados (mostrando la contratación más reciente por evento).
 
 #### Banners del Home
-- `GET /api/banners-home/admin` y las operaciones de escritura de `/api/banners-home` permiten ADMINISTRADOR y MARKETING.
+- `GET /api/banners-home/admin` y las operaciones de escritura de `/api/banners-home` permiten ADMINISTRADOR y MARKETING. Banners soportan posiciones 1 y 2 con carga directa de imágenes mediante `multipart/form-data`.
 
 La aplicación usa `spring.jpa.hibernate.ddl-auto=none`. Antes de desplegar
 esta versión, aplicar una vez
@@ -3528,8 +3546,9 @@ Este módulo administra los dos espacios promocionales propios de Eventhive. No 
   ```
 - **Respuesta**: HTTP 200 OK.
 
-#### `POST /api/compras/eventos/{eventoId}/posicionamiento/pagos?planId={planId}`
+#### `POST /api/compras/eventos/{eventoId}/posicionamiento/pagos`
 - **Roles autorizados**: `REPRESENTANTE`.
+- **Parámetros / Body**: Admite `planId` como query param (`?planId={planId}`) o en JSON body (`{ "planId": {planId} }`).
 - **Descripción**: Inicia la contratación de un plan publicitario para un evento publicado perteneciente a la organización del representante autenticado.
 - **Devuelve**: `ApiResponse<PagoPosicionamientoDTO>` con estado `PENDIENTE`.
 - **Respuesta**: HTTP 201 Created.

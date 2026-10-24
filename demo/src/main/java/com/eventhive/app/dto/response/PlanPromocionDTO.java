@@ -17,4 +17,9 @@ public class PlanPromocionDTO {
     private boolean pautaRedes;
     private String detallePublicidad;
     private boolean activo;
+
+    @com.fasterxml.jackson.annotation.JsonProperty("porcentajeComision")
+    public BigDecimal getPorcentajeComision() {
+        return comisionPorcentaje;
+    }
 }

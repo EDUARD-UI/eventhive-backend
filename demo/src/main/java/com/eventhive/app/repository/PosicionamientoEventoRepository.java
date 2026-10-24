@@ -45,4 +45,21 @@ public interface PosicionamientoEventoRepository extends JpaRepository<Posiciona
         WHERE p.estado = com.eventhive.app.enums.EstadoPosicionamiento.CONFIRMADO
         """)
     BigDecimal sumarIngresosConfirmados();
+
+    @Query("""
+        SELECT COUNT(DISTINCT p.evento.id) FROM PosicionamientoEvento p
+        WHERE p.estado = com.eventhive.app.enums.EstadoPosicionamiento.CONFIRMADO
+          AND p.evento.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
+          AND p.plan IS NOT NULL
+        """)
+    long contarEventosActivosConPromocionPagada();
+
+    @Query("""
+        SELECT p.plan.id, COUNT(DISTINCT p.evento.id)
+        FROM PosicionamientoEvento p
+        WHERE p.estado = com.eventhive.app.enums.EstadoPosicionamiento.CONFIRMADO
+          AND p.plan IS NOT NULL
+        GROUP BY p.plan.id
+        """)
+    List<Object[]> contarEventosPorPlan();
 }

@@ -58,4 +58,16 @@ public class PlanPromocionRequest {
     public void setLlevaPautaRedes(boolean llevaPautaRedes) {
         this.pautaRedes = llevaPautaRedes;
     }
+
+    @JsonProperty("porcentajeComision")
+    public BigDecimal getPorcentajeComision() {
+        return comisionPorcentaje;
+    }
+
+    @JsonProperty("porcentajeComision")
+    public void setPorcentajeComision(BigDecimal porcentajeComision) {
+        if (porcentajeComision != null) {
+            this.comisionPorcentaje = porcentajeComision;
+        }
+    }
 }

@@ -16,11 +16,17 @@ import org.springframework.web.bind.annotation.RestController;
 import com.eventhive.app.dto.ApiResponse;
 import com.eventhive.app.dto.request.PlanPromocionRequest;
 import com.eventhive.app.dto.response.EventoPromocionadoMarketingDTO;
+import com.eventhive.app.dto.response.MarketingEstadisticasDTO;
 import com.eventhive.app.dto.response.PlanPromocionDTO;
 import com.eventhive.app.service.ServiceMarketing;
+import com.eventhive.app.service.SupabaseStorageService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/marketing")
@@ -29,6 +35,20 @@ import lombok.RequiredArgsConstructor;
 public class MarketingApiController {
 
     private final ServiceMarketing service;
+    private final SupabaseStorageService storageService;
+
+    @GetMapping("/estadisticas")
+    public ResponseEntity<ApiResponse<MarketingEstadisticasDTO>> estadisticas() {
+        return ResponseEntity.ok(ApiResponse.ok(
+                "Estadísticas de marketing obtenidas", service.obtenerEstadisticas()));
+    }
+
+    @PostMapping(value = "/imagenes", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<Map<String, String>>> subirImagen(
+            @RequestPart("imagen") MultipartFile imagen) {
+        String url = storageService.subirImagenEvento(imagen);
+        return ResponseEntity.ok(ApiResponse.ok("Imagen cargada correctamente", Map.of("url", url)));
+    }
 
     @GetMapping("/planes")
     public ResponseEntity<ApiResponse<List<PlanPromocionDTO>>> listarPlanes() {

@@ -46,31 +46,6 @@ public class GoogleOAuthController {
         }
     }
 
-    @GetMapping(value = "/estado/google", produces = MediaType.TEXT_HTML_VALUE)
-    public ResponseEntity<String> consultarEstado() {
-        var diag = clientProvider.probarConexionOAuth();
-        String remitente = clientProvider.getSender();
-
-        if (diag.exitoso()) {
-            String html = renderPagina("Estado Gmail API: Activo",
-                    "<div style='background:#edfbf3;border:1px solid #b7eb8f;padding:20px;border-radius:8px;margin-bottom:20px;'>"
-                    + "<h2 style='margin:0 0 8px;color:#237804;font-size:20px;'>✓ Conexión OAuth 2.0 Verificada</h2>"
-                    + "<p style='margin:0;color:#333;'>La cuenta remitente <strong>" + sanitizarHtml(remitente) + "</strong> está autenticada y lista para enviar correos.</p>"
-                    + "</div>"
-                    + "<p style='color:#555;'>Google emitió exitosamente un token de acceso a partir de tu <code>GMAIL_REFRESH_TOKEN</code>.</p>"
-                    + "<p style='margin-top:20px;'><a href='/oauth2/authorize/google' style='background:#5b2a86;color:#fff;padding:8px 14px;text-decoration:none;border-radius:5px;font-size:13px;'>Reautorizar cuenta o cambiar remitente</a></p>");
-            return ResponseEntity.ok(html);
-        } else {
-            String html = renderPagina("Estado Gmail API: Requiere Atención",
-                    "<div style='background:#fff0f0;border-left:4px solid #d93025;padding:16px;border-radius:4px;margin-bottom:20px;'>"
-                    + "<h3 style='margin:0 0 8px;color:#d93025;'>Fallo de autenticación con Google (" + sanitizarHtml(diag.codigoOAuth()) + " - HTTP " + diag.httpStatus() + ")</h3>"
-                    + "<p style='margin:0 0 8px;color:#333;'><strong>Causa:</strong> " + sanitizarHtml(diag.descripcion()) + "</p>"
-                    + "<p style='margin:0;color:#555;'><strong>Acción:</strong> " + sanitizarHtml(diag.recomendacion()) + "</p>"
-                    + "</div>"
-                    + "<p style='margin-top:20px;'><a href='/oauth2/authorize/google' style='background:#5b2a86;color:#fff;padding:10px 18px;text-decoration:none;border-radius:6px;font-weight:bold;'>Iniciar Autorización OAuth</a></p>");
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(html);
-        }
-    }
 
     @GetMapping(value = "/callback/google", produces = MediaType.TEXT_HTML_VALUE)
     public ResponseEntity<String> procesarCallback(

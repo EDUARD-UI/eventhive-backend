@@ -42,6 +42,7 @@ public class ServiceLocalidad {
     public Localidad agregar(Long eventoId, LocalidadRequest request) {
         Evento evento = serviceEvento.obtenerReferenciasEvento(eventoId);
         serviceEvento.verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
+        validarEventoModificable(evento);
 
         validarLocalidadRequest(request);
 
@@ -68,6 +69,7 @@ public class ServiceLocalidad {
     public Localidad actualizar(Long eventoId, Long localidadId, LocalidadRequest datos) {
         Evento evento = serviceEvento.obtenerReferenciasEvento(eventoId);
         serviceEvento.verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
+        validarEventoModificable(evento);
 
         validarLocalidadRequest(datos);
 
@@ -100,6 +102,7 @@ public class ServiceLocalidad {
     public void eliminar(Long eventoId, Long localidadId) {
         Evento evento = serviceEvento.obtenerReferenciasEvento(eventoId);
         serviceEvento.verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
+        validarEventoModificable(evento);
 
         Localidad localidad = obtenerPorId(localidadId);
 
@@ -113,6 +116,15 @@ public class ServiceLocalidad {
         }
 
         localidadRepository.deleteById(localidadId);
+    }
+
+    private void validarEventoModificable(Evento evento) {
+        if (evento.getEstado() == com.eventhive.app.enums.EstadoEvento.FINALIZADO) {
+            throw new BusinessException("Los eventos finalizados no pueden modificarse");
+        }
+        if (evento.getEstado() == com.eventhive.app.enums.EstadoEvento.CANCELADO) {
+            throw new BusinessException("Los eventos cancelados no pueden modificarse");
+        }
     }
 
     // METODOS AUXILIARES Y DE MAPEO

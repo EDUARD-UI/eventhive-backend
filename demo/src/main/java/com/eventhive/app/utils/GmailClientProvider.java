@@ -87,50 +87,6 @@ public class GmailClientProvider {
             String recomendacion
     ) {}
 
-    public OAuthDiagnostico probarConexionOAuth() {
-        if (!estaConfigurado()) {
-            return new OAuthDiagnostico(
-                    false,
-                    400,
-                    "CONFIG_INCOMPLETA",
-                    "Faltan una o más variables requeridas (GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN)",
-                    "Configura las variables en Render y visita /oauth2/authorize/google para vincular la cuenta."
-            );
-        }
-
-        try {
-            UserCredentials credentials = UserCredentials.newBuilder()
-                    .setClientId(clientId.trim())
-                    .setClientSecret(clientSecret.trim())
-                    .setRefreshToken(refreshToken.trim())
-                    .build();
-
-            var token = credentials.refreshAccessToken();
-            if (token != null && StringUtils.hasText(token.getTokenValue())) {
-                log.info("Diagnóstico Gmail API OAuth 2.0 exitoso para remitente '{}'", sender);
-                return new OAuthDiagnostico(
-                        true,
-                        200,
-                        "OK",
-                        "Token de acceso emitido correctamente por Google OAuth. La cuenta está lista para enviar correos.",
-                        "Todo en orden. No se requieren acciones adicionales."
-                );
-            } else {
-                return new OAuthDiagnostico(
-                        false,
-                        502,
-                        "EMPTY_TOKEN",
-                        "Google respondió sin emitir un token de acceso válido",
-                        "Reautoriza la cuenta visitando /oauth2/authorize/google"
-                );
-            }
-        } catch (Exception e) {
-            OAuthDiagnostico diag = analizarErrorOAuth(e);
-            log.error("Fallo en diagnóstico OAuth Gmail API [HTTP {} - {}]: {}",
-                    diag.httpStatus(), diag.codigoOAuth(), diag.descripcion());
-            return diag;
-        }
-    }
 
     public static OAuthDiagnostico analizarErrorOAuth(Throwable t) {
         int status = 0;

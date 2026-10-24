@@ -13,6 +13,7 @@ import com.eventhive.app.enums.EstadoPosicionamiento;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.PlanPromocion;
+import com.eventhive.app.model.PosicionamientoEvento;
 import com.eventhive.app.repository.PlanPromocionRepository;
 import com.eventhive.app.repository.PosicionamientoEventoRepository;
 
@@ -56,11 +57,16 @@ public class ServiceMarketing {
             throw new BusinessException("El precio del plan no puede ser negativo");
         }
 
+        BigDecimal comision = request.getComisionPorcentaje() != null ? request.getComisionPorcentaje() : BigDecimal.ZERO;
+        if (comision.compareTo(BigDecimal.ZERO) < 0 || comision.compareTo(new BigDecimal("100.00")) > 0) {
+            throw new BusinessException("El porcentaje de comisión debe estar entre 0 y 100");
+        }
+
         PlanPromocion plan = new PlanPromocion();
         plan.setCodigo(codigo);
         plan.setNombre(request.getNombre().trim());
         plan.setPrecio(request.getPrecio());
-        plan.setComisionPorcentaje(request.getComisionPorcentaje() != null ? request.getComisionPorcentaje() : BigDecimal.ZERO);
+        plan.setComisionPorcentaje(comision);
         plan.setPremium(request.isPremium());
         plan.setPautaRedes(request.isPautaRedes());
         plan.setDetallePublicidad(request.getDetallePublicidad());
@@ -94,6 +100,10 @@ public class ServiceMarketing {
             plan.setPrecio(request.getPrecio());
         }
         if (request.getComisionPorcentaje() != null) {
+            if (request.getComisionPorcentaje().compareTo(BigDecimal.ZERO) < 0
+                    || request.getComisionPorcentaje().compareTo(new BigDecimal("100.00")) > 0) {
+                throw new BusinessException("El porcentaje de comisión debe estar entre 0 y 100");
+            }
             plan.setComisionPorcentaje(request.getComisionPorcentaje());
         }
         plan.setPremium(request.isPremium());
@@ -106,9 +116,16 @@ public class ServiceMarketing {
 
     @Transactional(readOnly = true)
     public List<EventoPromocionadoMarketingDTO> listarEventosPromocionados() {
-        return posicionamientosRepository.findByEstadoOrderByFechaContratacionDesc(
-                        EstadoPosicionamiento.CONFIRMADO).stream()
-                .filter(p -> p.getPlan() != null)
+        var lista = posicionamientosRepository.findByEstadoOrderByFechaContratacionDesc(
+                        EstadoPosicionamiento.CONFIRMADO);
+        java.util.Map<Long, PosicionamientoEvento> porEvento = new java.util.LinkedHashMap<>();
+        for (PosicionamientoEvento p : lista) {
+            if (p.getPlan() != null && p.getEvento() != null) {
+                porEvento.putIfAbsent(p.getEvento().getId(), p);
+            }
+        }
+
+        return porEvento.values().stream()
                 .map(p -> new EventoPromocionadoMarketingDTO(
                         p.getEvento().getId(),
                         p.getEvento().getTitulo(),
@@ -122,6 +139,29 @@ public class ServiceMarketing {
                         Boolean.TRUE.equals(p.getPautaRedes()),
                         p.getFechaContratacion()))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public com.eventhive.app.dto.response.MarketingEstadisticasDTO obtenerEstadisticas() {
+        long activos = posicionamientosRepository.contarEventosActivosConPromocionPagada();
+        java.util.List<Object[]> conteos = posicionamientosRepository.contarEventosPorPlan();
+        java.util.Map<Long, Long> conteoPorPlanId = new java.util.HashMap<>();
+        for (Object[] fila : conteos) {
+            Long planId = (Long) fila[0];
+            Long total = ((Number) fila[1]).longValue();
+            conteoPorPlanId.put(planId, total);
+        }
+
+        java.util.List<PlanPromocion> planes = planesRepository.findAllByOrderByPrecioAsc();
+        java.util.List<com.eventhive.app.dto.response.PlanPromocionConteoDTO> eventosPorPlan = planes.stream()
+                .map(p -> new com.eventhive.app.dto.response.PlanPromocionConteoDTO(
+                        p.getId(),
+                        p.getCodigo(),
+                        p.getNombre(),
+                        conteoPorPlanId.getOrDefault(p.getId(), 0L)))
+                .toList();
+
+        return new com.eventhive.app.dto.response.MarketingEstadisticasDTO(activos, eventosPorPlan);
     }
 
     private PlanPromocionDTO toDTO(PlanPromocion plan) {

@@ -60,18 +60,12 @@ public class ServiceModeracion {
 
     @Transactional(readOnly = true)
     public ModeracionEstadisticasDTO estadisticasDelModerador() {
-        Usuario moderador = authHelper.usuarioAutenticado();
-        Long moderadorId = moderador.getId();
+        long publicados = eventoRepository.countByEstado(EstadoEvento.PUBLICADO);
+        long pendientesRevision = eventoRepository.countByEstado(EstadoEvento.PENDIENTE_REVISION);
+        long enCorreccion = eventoRepository.countByEstado(EstadoEvento.EN_CORRECCION);
+        long rechazados = eventoRepository.countByEstado(EstadoEvento.RECHAZADO);
 
-        long revisados = moderacionRepository.countByModeradorId(moderadorId);
-        long aprobados = moderacionRepository.countByModeradorIdAndEstadoResultante(
-                moderadorId, EstadoEvento.PUBLICADO);
-        long rechazados = moderacionRepository.countByModeradorIdAndEstadoResultante(
-                moderadorId, EstadoEvento.RECHAZADO);
-        long correcciones = moderacionRepository.countByModeradorIdAndEstadoResultante(
-                moderadorId, EstadoEvento.EN_CORRECCION);
-
-        return new ModeracionEstadisticasDTO(revisados, aprobados, rechazados, correcciones);
+        return new ModeracionEstadisticasDTO(publicados, pendientesRevision, enCorreccion, rechazados);
     }
 
     //OPERACIONES DE MODERACION
@@ -170,7 +164,7 @@ public class ServiceModeracion {
         moderacion.setModerador(authHelper.usuarioAutenticado());
         moderacion.setEstadoResultante(estadoFinal);
         moderacion.setMotivo(motivo);
-        moderacion.setObservacion(motivo == MotivosRechazos.OTRO ? observacion : null);
+        moderacion.setObservacion(observacion != null && !observacion.isBlank() ? observacion.trim() : null);
         moderacion.setFecha(LocalDateTime.now());
         moderacionRepository.save(moderacion);
     }
