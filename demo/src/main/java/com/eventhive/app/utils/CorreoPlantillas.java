@@ -22,6 +22,7 @@ public class CorreoPlantillas {
     private static final String MARCA       = "#087fea";
     private static final String OSCURO      = "#131b2e";
     private static final String AMBAR       = "#FFC107";
+    private static final String LINEA       = "#cbd5e1";
     private static final String FUENTE      = "'Segoe UI',Helvetica,Arial,sans-serif";
 
     /** Identificador del adjunto en línea del QR de cada boleto (cid:). */
@@ -73,16 +74,13 @@ public class CorreoPlantillas {
     }
 
     public String boletos(String nombre, Long compraId, List<Boleto> boletos) {
-        StringBuilder bloques = new StringBuilder();
+        StringBuilder tickets = new StringBuilder();
         for (int n = 0; n < boletos.size(); n++) {
-            bloques.append(boleto(boletos.get(n), n));
+            tickets.append(ticket(boletos.get(n), n, n == 0, boletos.size()));
         }
-
-        return base("Tus boletos",
-                "Hola " + esc(nombre) + ", estos son los boletos de tu compra.",
-                bloques
-                + "<p style=\"margin:24px 0 0;color:" + TEXTO_SUAVE + ";font-size:14px;\">"
-                + "Presenta el código QR en el ingreso, desde tu teléfono o impreso.</p>");
+        return marcoTicket(tickets
+                + "<p style=\"margin:24px 0 0;text-align:center;color:" + TEXTO + ";"
+                + "font-size:15px;font-weight:600;\">Presenta el código QR en el ingreso.</p>");
     }
 
     public String invitacionRol(String rol, String enlace, int horasVigencia) {
@@ -169,25 +167,98 @@ public class CorreoPlantillas {
                 + "</table></td></tr></table></body></html>";
     }
 
-    private String boleto(Boleto b, int indice) {
-        String datos =
-                fila("Fecha", esc(b.fecha()))
-                + fila("Hora", esc(b.hora()))
-                + fila("Lugar", esc(b.lugar()))
-                + fila("Localidad", esc(b.localidad()));
+    // ---------- Piezas del boleto ----------
+
+    /** Marco del correo de boletos: fondo de la app y columna angosta tipo tiquete. */
+    private String marcoTicket(String contenido) {
+        return "<!DOCTYPE html><html lang=\"es\"><head><meta charset=\"UTF-8\">"
+                + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"></head>"
+                + "<body style=\"margin:0;padding:0;background:" + FONDO + ";font-family:" + FUENTE + ";\">"
+                + "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" "
+                + "style=\"background:" + FONDO + ";padding:24px 12px;\"><tr><td align=\"center\">"
+                + "<table role=\"presentation\" width=\"420\" cellpadding=\"0\" cellspacing=\"0\" "
+                + "style=\"width:100%;max-width:420px;\"><tr><td>"
+                + contenido
+                + "<p style=\"margin:20px 0 0;text-align:center;color:" + TEXTO_SUAVE + ";font-size:12px;\">"
+                + "Correo automático de EventHive. Por favor, no respondas a este mensaje.</p>"
+                + "</td></tr></table></td></tr></table></body></html>";
+    }
+
+    /** Un boleto completo: bienvenida (solo el primero), QR y datos. */
+    private String ticket(Boleto b, int indice, boolean conBienvenida, int total) {
+        StringBuilder filas = new StringBuilder();
+        if (conBienvenida) {
+            filas.append(bienvenidaTicket(total)).append(separadorTicket());
+        }
+        filas.append(qrTicket(indice)).append(separadorTicket()).append(datosTicket(b));
 
         return "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" "
-                + "style=\"margin-top:20px;border:1px solid " + BORDE + ";border-radius:12px;overflow:hidden;\">"
-                + "<tr><td colspan=\"2\" style=\"background:" + OSCURO + ";padding:14px 20px;"
-                + "border-bottom:3px solid " + AMBAR + ";color:#ffffff;font-size:17px;font-weight:700;\">"
-                + esc(b.evento()) + "</td></tr>"
-                + "<tr>"
-                + "<td valign=\"top\" style=\"padding:16px 20px;\">" + datos + "</td>"
-                + "<td align=\"center\" valign=\"middle\" width=\"170\" style=\"padding:16px 20px;"
-                + "border-left:1px dashed " + BORDE + ";\">"
-                + "<img src=\"cid:" + cidQr(indice) + "\" width=\"140\" height=\"140\" "
-                + "alt=\"Código QR del boleto\" style=\"display:block;width:140px;height:140px;\">"
-                + "</td></tr></table>";
+                + "style=\"margin-top:" + (indice == 0 ? "0" : "20px") + ";background:" + TARJETA + ";"
+                + "border:1px solid " + BORDE + ";border-radius:16px;overflow:hidden;\">"
+                + filas + "</table>";
+    }
+
+    private String bienvenidaTicket(int total) {
+        String subtitulo = total == 1
+                ? "Tu boleto fue emitido con éxito"
+                : "Tus boletos fueron emitidos con éxito";
+        return "<tr><td align=\"center\" style=\"background:" + OSCURO + ";padding:32px 24px 28px;\">"
+                + "<div style=\"font-size:44px;line-height:48px;\">&#127881;</div>"
+                + "<h1 style=\"margin:12px 0 6px;color:" + AMBAR + ";font-size:28px;font-weight:700;\">¡Gracias!</h1>"
+                + "<p style=\"margin:0;color:#cbd5e1;font-size:14px;line-height:1.5;\">" + subtitulo + "</p>"
+                + "</td></tr>";
+    }
+
+    /** Línea punteada con muescas laterales, como el corte de un tiquete. */
+    private String separadorTicket() {
+        String muesca = "width:12px;height:24px;background:" + FONDO + ";font-size:0;line-height:0;";
+        return "<tr><td style=\"padding:0;background:" + TARJETA + ";\">"
+                + "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr>"
+                + "<td width=\"12\" style=\"" + muesca + "border-radius:0 12px 12px 0;\">&nbsp;</td>"
+                + "<td style=\"padding:0 8px;\"><div style=\"border-top:2px dashed " + LINEA + ";"
+                + "font-size:0;line-height:0;\">&nbsp;</div></td>"
+                + "<td width=\"12\" style=\"" + muesca + "border-radius:12px 0 0 12px;\">&nbsp;</td>"
+                + "</tr></table></td></tr>";
+    }
+
+    private String qrTicket(int indice) {
+        return "<tr><td align=\"center\" style=\"padding:24px;\">"
+                + "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" "
+                + "style=\"border:1px solid " + BORDE + ";border-radius:12px;\"><tr>"
+                + "<td style=\"padding:12px;\">"
+                + "<img src=\"cid:" + cidQr(indice) + "\" width=\"180\" height=\"180\" "
+                + "alt=\"Código QR del boleto\" style=\"display:block;width:180px;height:180px;\">"
+                + "</td></tr></table></td></tr>";
+    }
+
+    private String datosTicket(Boleto b) {
+        String localidad =
+                "<div style=\"background:" + FONDO + ";border-left:4px solid " + AMBAR + ";"
+                + "border-radius:0 8px 8px 0;padding:12px 16px;\">"
+                + campo("Localidad", esc(b.localidad()), "0") + "</div>";
+
+        return "<tr><td style=\"padding:8px 24px 28px;\">"
+                + "<h2 style=\"margin:0 0 18px;color:" + TEXTO + ";font-size:19px;line-height:1.3;\">"
+                + esc(b.evento()) + "</h2>"
+                + parCampos(campo("Fecha", esc(b.fecha()), "16px"), campo("Hora", esc(b.hora()), "16px"))
+                + campo("Lugar", esc(b.lugar()), "16px")
+                + localidad
+                + "</td></tr>";
+    }
+
+    /** Etiqueta pequeña en mayúsculas sobre el valor, como en el diseño de referencia. */
+    private String campo(String etiqueta, String valor, String margenInferior) {
+        return "<p style=\"margin:0 0 2px;color:" + TEXTO_SUAVE + ";font-size:11px;letter-spacing:1px;"
+                + "text-transform:uppercase;\">" + etiqueta + "</p>"
+                + "<p style=\"margin:0 0 " + margenInferior + ";color:" + TEXTO + ";font-size:15px;"
+                + "font-weight:600;\">" + valor + "</p>";
+    }
+
+    private String parCampos(String izquierda, String derecha) {
+        return "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr>"
+                + "<td width=\"50%\" valign=\"top\">" + izquierda + "</td>"
+                + "<td width=\"50%\" valign=\"top\">" + derecha + "</td>"
+                + "</tr></table>";
     }
 
     private String boton(String texto, String enlace) {
