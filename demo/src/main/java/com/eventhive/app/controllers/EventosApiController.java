@@ -29,6 +29,7 @@ import com.eventhive.app.dto.response.EventoCarruselDTO;
 import com.eventhive.app.dto.response.EventoDTO;
 import com.eventhive.app.dto.response.EventoDestacadoDTO;
 import com.eventhive.app.dto.response.EventoMapaDTO;
+import com.eventhive.app.dto.response.PrimerEventoDestacadoDTO;
 import com.eventhive.app.enums.EstadoEvento;
 import com.eventhive.app.service.ServiceEvento;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
@@ -66,6 +67,25 @@ public class EventosApiController {
                 "Eventos destacados obtenidos",
                 serviceEvento.toPagedDestacadosDTO(serviceEvento.listarDestacados(pageable))
         ));
+    }
+
+    // Primer evento destacado (promocionado: true y PUBLICADO)
+    @GetMapping({"/primer-destacado", "/destacado-principal"})
+    public ResponseEntity<ApiResponse<PrimerEventoDestacadoDTO>> primerEventoDestacado() {
+        return ResponseEntity.ok(ApiResponse.ok(
+                "Primer evento destacado obtenido",
+                serviceEvento.obtenerPrimerEventoDestacado()
+        ));
+    }
+
+    // Eventos públicos de una organización específica (accesible por cualquier usuario)
+    @GetMapping("/organizacion/{organizacionId}")
+    public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> eventosPublicosPorOrganizacion(
+            @PathVariable Long organizacionId,
+            @RequestParam(required = false) Long categoriaId,
+            Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.ok("Eventos de la organización obtenidos",
+                serviceEvento.toPagedDTO(serviceEvento.listarPublicosPorOrganizacion(organizacionId, categoriaId, pageable))));
     }
 
     // Carrusel principal: eventos publicados, promoción activa y con imagen destacada

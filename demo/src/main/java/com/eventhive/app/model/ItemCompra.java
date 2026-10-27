@@ -19,7 +19,9 @@ import lombok.Setter;
 @Table(name = "items_compra", indexes = {
     @Index(name = "idx_item_compra",  columnList = "compra_id"),
     @Index(name = "idx_item_evento",  columnList = "evento_id"),
-    @Index(name = "idx_item_evento_localidad", columnList = "evento_id, localidad_id")
+    @Index(name = "idx_item_localidad", columnList = "localidad_id"),
+    @Index(name = "idx_item_evento_localidad", columnList = "evento_id, localidad_id"),
+    @Index(name = "idx_item_compra_evento", columnList = "compra_id, evento_id")
 })
 @Getter @Setter
 public class ItemCompra {

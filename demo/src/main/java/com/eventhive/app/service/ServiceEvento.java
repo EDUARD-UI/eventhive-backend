@@ -15,6 +15,9 @@ import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.PrecisionModel;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
+import java.time.ZoneId;
+import org.springframework.data.domain.PageRequest;
+import com.eventhive.app.dto.response.PrimerEventoDestacadoDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -112,6 +115,58 @@ public class ServiceEvento {
     @Transactional(readOnly = true)
     public Page<Evento> listarDestacados(Pageable pageable) {
         return eventoRepository.findDestacadosPublicados(pageable);
+    }
+
+    // Devuelve el primer evento destacado (promocionado: true y PUBLICADO)
+    @Transactional(readOnly = true)
+    public PrimerEventoDestacadoDTO obtenerPrimerEventoDestacado() {
+        LocalDate hoy = LocalDate.now(ZoneId.of("America/Bogota"));
+        LocalTime hora = LocalTime.now(ZoneId.of("America/Bogota"));
+
+        List<Evento> proximos = eventoRepository.findPrimerDestacadoProximo(hoy, hora, PageRequest.of(0, 1));
+        Evento evento = !proximos.isEmpty()
+                ? proximos.get(0)
+                : eventoRepository.findPrimerDestacado(PageRequest.of(0, 1)).stream().findFirst()
+                    .orElseThrow(() -> new ResourceNotFoundException("No se encontró ningún evento destacado activo"));
+
+        String urlImagen = (evento.getUrlImagenDestacado() != null && !evento.getUrlImagenDestacado().isBlank())
+                ? evento.getUrlImagenDestacado()
+                : evento.getFoto();
+
+        return PrimerEventoDestacadoDTO.builder()
+                .id(evento.getId())
+                .nombre(evento.getTitulo())
+                .urlImagen(urlImagen)
+                .fechaCreacion(evento.getFechaCreacion())
+                .fecha(evento.getFecha())
+                .hora(evento.getHora())
+                .build();
+    }
+
+    // Consulta pública de eventos de una organización (solo PUBLICADO) con carga de referencias (evita N+1)
+    @Transactional(readOnly = true)
+    public Page<Evento> listarPublicosPorOrganizacion(Long organizacionId, Long categoriaId, Pageable pageable) {
+        if (!organizacionRepository.existsById(organizacionId)) {
+            throw new ResourceNotFoundException("Organización no encontrada con id: " + organizacionId);
+        }
+
+        if (categoriaId == null) {
+            return eventoRepository.findPublicadosByOrganizacionId(organizacionId, pageable);
+        }
+
+        Specification<Evento> spec = (root, query, cb) -> {
+            if (Long.class != query.getResultType() && long.class != query.getResultType()) {
+                root.fetch("categoria", JoinType.INNER);
+                root.fetch("organizacion", JoinType.INNER);
+            }
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("organizacion").get("id"), organizacionId));
+            predicates.add(cb.equal(root.get("estado"), EstadoEvento.PUBLICADO));
+            predicates.add(cb.equal(root.get("categoria").get("id"), categoriaId));
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return eventoRepository.findAll(spec, OrdenEventos.promocionadosPrimero(pageable));
     }
 
     @Transactional(readOnly = true)
@@ -640,7 +695,8 @@ public class ServiceEvento {
         if (e.getOrganizacion() != null) {
             dto.setOrganizacion(new EventoOrganizacionDTO(
                     e.getOrganizacion().getId(),
-                    e.getOrganizacion().getRazonSocial()));
+                    e.getOrganizacion().getRazonSocial(),
+                    e.getOrganizacion().getUrlLogo()));
         }
 
         return dto;

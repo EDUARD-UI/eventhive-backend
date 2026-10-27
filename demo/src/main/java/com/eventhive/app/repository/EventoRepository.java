@@ -290,4 +290,42 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
 
     // Lista eventos posteriores a una fecha con el estado indicado.
     List<Evento> findByFechaAfterAndEstado(LocalDate fechaActual, EstadoEvento estadoEvento);
+
+    // Primer evento destacado próximo (promocionado: true y PUBLICADO)
+    @Query("""
+        SELECT e FROM Evento e
+        WHERE e.promocionado = true
+          AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
+          AND (e.fecha > :hoy OR (e.fecha = :hoy AND e.hora >= :hora))
+        ORDER BY e.fecha ASC, e.hora ASC, e.id ASC
+        """)
+    List<Evento> findPrimerDestacadoProximo(
+            @Param("hoy") LocalDate hoy,
+            @Param("hora") LocalTime hora,
+            Pageable pageable);
+
+    // Primer evento destacado fallback (sin restricción temporal estricta)
+    @Query("""
+        SELECT e FROM Evento e
+        WHERE e.promocionado = true
+          AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
+        ORDER BY e.fecha ASC, e.hora ASC, e.id ASC
+        """)
+    List<Evento> findPrimerDestacado(Pageable pageable);
+
+    // Eventos públicos de una organización con categoría y organización pre-cargadas (evita N+1)
+    @Query(value = """
+        SELECT e FROM Evento e
+        JOIN FETCH e.categoria
+        JOIN FETCH e.organizacion o
+        WHERE o.id = :organizacionId
+          AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
+        ORDER BY e.promocionado DESC, e.fecha ASC, e.hora ASC, e.id ASC
+        """,
+        countQuery = """
+        SELECT COUNT(e) FROM Evento e
+        WHERE e.organizacion.id = :organizacionId
+          AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
+        """)
+    Page<Evento> findPublicadosByOrganizacionId(@Param("organizacionId") Long organizacionId, Pageable pageable);
 }

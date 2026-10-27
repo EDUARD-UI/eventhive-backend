@@ -28,7 +28,9 @@ import lombok.Setter;
 @Table(name = "compras", indexes = {
     @Index(name = "idx_compra_cliente", columnList = "cliente_id"),
     @Index(name = "idx_compra_fecha", columnList = "fecha_compra"),
-    @Index(name = "idx_compra_cliente_fecha", columnList = "cliente_id, fecha_compra")
+    @Index(name = "idx_compra_cliente_fecha", columnList = "cliente_id, fecha_compra"),
+    @Index(name = "idx_compra_estado", columnList = "estado"),
+    @Index(name = "idx_compra_cliente_estado", columnList = "cliente_id, estado")
 }, uniqueConstraints = {
     @UniqueConstraint(name = "uk_compra_cliente_idempotency", columnNames = {"cliente_id", "idempotency_key"})
 })

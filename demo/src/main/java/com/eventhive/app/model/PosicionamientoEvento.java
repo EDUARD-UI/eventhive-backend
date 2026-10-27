@@ -12,7 +12,8 @@ import java.time.LocalDateTime;
 @Table(name = "posicionamientos_evento", indexes = {
         @Index(name = "idx_posicionamiento_evento", columnList = "evento_id"),
         @Index(name = "idx_posicionamiento_organizador", columnList = "organizador_id"),
-        @Index(name = "idx_posicionamiento_estado", columnList = "estado")
+        @Index(name = "idx_posicionamiento_estado", columnList = "estado"),
+        @Index(name = "idx_posicionamiento_estado_evento", columnList = "estado, evento_id")
 })
 @Getter
 @Setter

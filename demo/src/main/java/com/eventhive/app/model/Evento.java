@@ -34,8 +34,13 @@ import org.locationtech.jts.geom.Point;
         @Index(name = "idx_evento_organizacion", columnList = "organizacion_id"),
         @Index(name = "idx_evento_categoria", columnList = "categoria_id"),
         @Index(name = "idx_evento_estado", columnList = "estado"),
+        @Index(name = "idx_evento_promocionado", columnList = "promocionado"),
         @Index(name = "idx_evento_fecha", columnList = "fecha"),
-        @Index(name = "idx_evento_fecha_creacion", columnList = "fecha_creacion")
+        @Index(name = "idx_evento_fecha_creacion", columnList = "fecha_creacion"),
+        @Index(name = "idx_evento_estado_promocionado", columnList = "estado, promocionado"),
+        @Index(name = "idx_evento_estado_fecha_hora", columnList = "estado, fecha, hora"),
+        @Index(name = "idx_evento_org_estado", columnList = "organizacion_id, estado"),
+        @Index(name = "idx_evento_cat_estado", columnList = "categoria_id, estado")
 })
 @Getter
 @Setter

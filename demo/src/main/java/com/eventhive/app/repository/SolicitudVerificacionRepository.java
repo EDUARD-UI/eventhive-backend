@@ -22,8 +22,10 @@ public interface SolicitudVerificacionRepository extends JpaRepository<Solicitud
         """)
     java.util.List<SolicitudVerificacion> findAllByRepresentanteIdOrderByFechaSolicitudDesc(@Param("representanteId") Long representanteId);
 
+    Optional<SolicitudVerificacion> findFirstByRepresentanteLegalIdOrderByFechaSolicitudDesc(Long representanteId);
+
     default Optional<SolicitudVerificacion> findFirstByRepresentanteId(Long representanteId) {
-        return findAllByRepresentanteIdOrderByFechaSolicitudDesc(representanteId).stream().findFirst();
+        return findFirstByRepresentanteLegalIdOrderByFechaSolicitudDesc(representanteId);
     }
 
 

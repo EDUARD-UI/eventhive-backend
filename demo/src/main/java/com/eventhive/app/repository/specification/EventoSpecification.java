@@ -17,7 +17,6 @@ public final class EventoSpecification {
             if (Long.class != query.getResultType() && long.class != query.getResultType()) {
                 root.fetch("categoria", JoinType.INNER);
                 root.fetch("organizacion", JoinType.INNER);
-                query.distinct(true);
             }
             return cb.conjunction();
         };

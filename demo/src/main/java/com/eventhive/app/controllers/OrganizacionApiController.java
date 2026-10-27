@@ -35,6 +35,8 @@ import com.eventhive.app.dto.response.ValoracionDTO;
 import com.eventhive.app.enums.EstadoOrganizacion;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.model.Usuario;
+import com.eventhive.app.dto.response.EventoDTO;
+import com.eventhive.app.service.ServiceEvento;
 import com.eventhive.app.service.ServiceInvitacionOrganizacion;
 import com.eventhive.app.service.ServiceInvitacionRol;
 import com.eventhive.app.service.ServiceNivelOrganizacion;
@@ -54,6 +56,7 @@ public class OrganizacionApiController {
 
     private final AuthenticatedUserHelper authHelper;
     private final ServiceOrganizacion serviceOrganizacion;
+    private final ServiceEvento serviceEvento;
     private final ServiceNivelOrganizacion serviceNivelOrganizacion;
     private final ServiceSeguidor serviceSeguidor;
     private final ServiceInvitacionOrganizacion serviceInvitacion;
@@ -85,6 +88,16 @@ public class OrganizacionApiController {
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<OrganizacionDTO>> obtener(@PathVariable Long organizacionId) {
         return ResponseEntity.ok(ApiResponse.ok("Organización obtenida", serviceOrganizacion.obtenerPorId(organizacionId)));
+    }
+
+    // Consulta pública de eventos de una organización (sin autenticación requerida)
+    @GetMapping("/{organizacionId}/eventos")
+    public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> eventosPublicosOrganizacion(
+            @PathVariable Long organizacionId,
+            @RequestParam(required = false) Long categoriaId,
+            Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.ok("Eventos de la organización obtenidos",
+                serviceEvento.toPagedDTO(serviceEvento.listarPublicosPorOrganizacion(organizacionId, categoriaId, pageable))));
     }
 
     @GetMapping("/{organizacionId}/rut-url")

@@ -21,5 +21,15 @@ public interface InvitacionRolRepository extends JpaRepository<InvitacionRol, Lo
 
     Page<InvitacionRol> findByInvitadoPorIdOrderByFechaInvitacionDesc(Long invitadoPorId, Pageable pageable);
 
-    Page<InvitacionRol> findByOrganizacionIdOrderByFechaInvitacionDesc(Long organizacionId, Pageable pageable);
+    @org.springframework.data.jpa.repository.Query(value = """
+        SELECT i FROM InvitacionRol i
+        LEFT JOIN FETCH i.organizacion
+        WHERE i.organizacion.id = :organizacionId
+        ORDER BY i.fechaInvitacion DESC
+        """,
+        countQuery = """
+        SELECT COUNT(i) FROM InvitacionRol i
+        WHERE i.organizacion.id = :organizacionId
+        """)
+    Page<InvitacionRol> findByOrganizacionIdOrderByFechaInvitacionDesc(@org.springframework.data.repository.query.Param("organizacionId") Long organizacionId, Pageable pageable);
 }

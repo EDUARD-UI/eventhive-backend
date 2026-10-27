@@ -495,6 +495,31 @@ En caso de error, la respuesta suele devolver:
 }
 ```
 
+#### `GET /api/eventos/primer-destacado`
+- Recibe: sin parámetros.
+- Devuelve: `ApiResponse<PrimerEventoDestacadoDTO>`.
+- Permisos: público.
+- Descripción: devuelve el primer evento destacado (`promocionado: true` y en estado `PUBLICADO`), priorizando el próximo temporalmente (`fecha ASC, hora ASC, id ASC`).
+- Estructura devuelta: `id`, `nombre` (alias `titulo`), `urlImagen` (alias `foto`), `fechaCreacion`, `fecha` (ejecución), `hora`.
+- Ejemplo de respuesta:
+
+```json
+{
+  "success": true,
+  "mensaje": "Primer evento destacado obtenido",
+  "data": {
+    "id": 12,
+    "nombre": "Festival Estéreo Picnic 2026",
+    "titulo": "Festival Estéreo Picnic 2026",
+    "urlImagen": "https://storage.example/eventos/fep-banner-promocionado.jpg",
+    "foto": "https://storage.example/eventos/fep-banner-promocionado.jpg",
+    "fechaCreacion": "2026-10-01T15:30:00",
+    "fecha": "2026-11-20",
+    "hora": "14:00:00"
+  }
+}
+```
+
 #### `GET /api/eventos/destacados`
 - Recibe: paginación opcional (`page`, `size`, `sort`); `size` es 10 por defecto.
 - Devuelve: `ApiResponse<PagedResponse<EventoDestacadoDTO>>`.
@@ -599,7 +624,9 @@ En caso de error, la respuesta suele devolver:
     },
     "organizacion": {
       "id": 20,
-      "nombre": "Eventica"
+      "nombre": "Eventica",
+      "urlLogo": "https://storage.example/perfilOrganizacion/eventica-logo.jpg",
+      "urlImagen": "https://storage.example/perfilOrganizacion/eventica-logo.jpg"
     },
     "localidades": [
       {
@@ -617,6 +644,52 @@ En caso de error, la respuesta suele devolver:
         "disponibles": 35
       }
     ]
+  }
+}
+```
+
+#### `GET /api/eventos/organizacion/{organizacionId}`
+- Alias disponible: `GET /api/organizaciones/{organizacionId}/eventos`
+- Recibe: `organizacionId` en path, opcional `categoriaId`, paginación (`page`, `size`, `sort`).
+- Devuelve: `ApiResponse<PagedResponse<EventoDTO>>`.
+- Permisos: público (sin autenticación).
+- Descripción: lista los eventos en estado `PUBLICADO` de una organización específica para que los usuarios puedan verlos públicamente en el perfil de la organización. Incluye información de categoría y organización con su respectivo logo.
+- Ejemplo de respuesta:
+
+```json
+{
+  "success": true,
+  "mensaje": "Eventos de la organización obtenidos",
+  "data": {
+    "content": [
+      {
+        "id": 15,
+        "titulo": "Festival de Jazz",
+        "descripcion": "Evento musical con artistas locales",
+        "lugar": "Parque Central, Santiago",
+        "foto": "https://storage.example/eventos/festival-jazz.jpg",
+        "fecha": "2026-10-14",
+        "hora": "19:30:00",
+        "estado": "PUBLICADO",
+        "promocionado": true,
+        "categoria": {
+          "id": 1,
+          "nombre": "Música"
+        },
+        "organizacion": {
+          "id": 20,
+          "nombre": "Eventica",
+          "urlLogo": "https://storage.example/perfilOrganizacion/eventica-logo.jpg",
+          "urlImagen": "https://storage.example/perfilOrganizacion/eventica-logo.jpg"
+        }
+      }
+    ],
+    "pageNumber": 0,
+    "pageSize": 10,
+    "totalElements": 1,
+    "totalPages": 1,
+    "hasNext": false,
+    "hasPrevious": false
   }
 }
 ```

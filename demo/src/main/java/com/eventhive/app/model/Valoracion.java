@@ -18,7 +18,8 @@ import lombok.Setter;
 @Table(name = "valoraciones",
        indexes = {
            @Index(name = "idx_val_organizacion",  columnList = "organizacion_id"),
-           @Index(name = "idx_val_cliente", columnList = "cliente_id")
+           @Index(name = "idx_val_cliente", columnList = "cliente_id"),
+           @Index(name = "idx_val_org_calif", columnList = "organizacion_id, calificacion")
        },
        uniqueConstraints = {
            @UniqueConstraint(name = "uq_val_cliente_organizacion", columnNames = {"cliente_id", "organizacion_id"})
