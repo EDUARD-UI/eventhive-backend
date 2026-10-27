@@ -3611,23 +3611,93 @@ Este módulo administra los dos espacios promocionales propios de Eventhive. No 
 
 ---
 
-## 28. Variables de entorno y configuración SMTP con Brevo
+## 28. Chatbot y Asistente Virtual
+
+### Base: `/api/chatbot`
+
+Módulo del asistente virtual inteligente de EventHive para atención a visitantes y usuarios sobre la cartelera de eventos, compra de boletería y registro de organizadores. Cuenta con integración a Groq (Llama 3.1), resolución directa de eventos publicados en PostgreSQL (Supabase), guardrails para ahorro de tokens y un plan de contingencia ante caídas de red o límites de cuota.
+
+#### `POST /api/chatbot/mensaje`
+- **Público**: no requiere token JWT ni autenticación (excluido explícitamente en `JwtAuthFilter` y habilitado con `permitAll()` en `SecurityConfig`).
+- Content-Type: `application/json`.
+- Recibe: `ChatbotPreguntaRequest` validado con `@NotBlank` y longitud máxima de 350 caracteres para optimizar tokens.
+- Devuelve: `ApiResponse<ChatbotRespuestaDTO>`.
+- Atributos del objeto devuelto en `data`:
+  - `respuesta` (String): texto de respuesta al usuario.
+  - `fuente` (String): origen de la resolución (`IA_GROQ`, `LOCAL_RULE`, `LOCAL_GUARDRAIL`, `LOCAL_EVENTOS`, `CONTINGENCIA`).
+  - `modoContingencia` (boolean): `true` si la respuesta fue resuelta por el sistema de emergencia local ante saturación o fallos de red; `false` en operación ordinaria.
+- Respuesta: HTTP 200 en éxito, HTTP 400 si el mensaje no cumple las validaciones.
+
+##### Ejemplo de solicitud (Request):
+```json
+{
+  "mensaje": "¿Cuáles son los próximos eventos disponibles?"
+}
+```
+
+##### Ejemplo de respuesta con IA Groq:
+```json
+{
+  "success": true,
+  "mensaje": "Respuesta obtenida con éxito",
+  "data": {
+    "respuesta": "En EventHive puedes explorar una gran variedad de conciertos, festivales y eventos deportivos. Ingresa a la pantalla principal para seleccionar tu localidad y comprar tus entradas de forma segura.",
+    "fuente": "IA_GROQ",
+    "modoContingencia": false
+  }
+}
+```
+
+##### Ejemplo de respuesta con eventos reales de base de datos (0 tokens consumidos):
+```json
+{
+  "success": true,
+  "mensaje": "Respuesta obtenida con éxito",
+  "data": {
+    "respuesta": "Aquí tienes algunos de los próximos eventos destacados en EventHive:\n• Concierto Rock Fest (2026-11-15 en Estadio El Campín)\n• Festival Gastronómico (2026-11-20 en Plaza Central)\n\nPuedes ver más detalles y comprar tus entradas en la sección principal.",
+    "fuente": "LOCAL_EVENTOS",
+    "modoContingencia": false
+  }
+}
+```
+
+##### Ejemplo de respuesta interceptada por Guardrail local (0 tokens consumidos):
+```json
+{
+  "success": true,
+  "mensaje": "Respuesta obtenida con éxito",
+  "data": {
+    "respuesta": "Lo siento, soy el asistente virtual exclusivo de EventHive. Solo puedo ayudarte con cartelera de eventos, compra de entradas y cómo publicar eventos.",
+    "fuente": "LOCAL_GUARDRAIL",
+    "modoContingencia": false
+  }
+}
+```
+
+---
+
+## 29. Variables de entorno y configuración del sistema
 
 Para la operación en producción (por ejemplo en Render) y desarrollo local, se deben definir las siguientes variables de entorno:
 
 | Variable | Descripción | Valor recomendado / Ejemplo |
 |---|---|---|
-| `MAIL_HOST` | Host del servidor relay SMTP de Brevo | `smtp-relay.brevo.com` |
+| `GROQ_API_KEY` / `Eventhive-HiveBot` | Clave de API gratuita generada en Groq Cloud | `gsk_...` |
+| `GROQ_MODEL` | Identificador del modelo de lenguaje en Groq | `llama-3.1-8b-instant` |
+| `GROQ_BASE_URL` | URL base compatible con OpenAI de Groq | `https://api.groq.com/openai/v1` |
+| `GROQ_RPM_LIMIT` | Límite preventivo de peticiones por minuto (margen de seguridad) | `25` |
+| `MAIL_HOST` | Host del servidor relay SMTP de Brevo / Gmail API | `smtp-relay.brevo.com` |
 | `MAIL_PORT` | Puerto SMTP con STARTTLS | `587` |
 | `MAIL_USERNAME` | Usuario SMTP (clave de API Brevo o login de relay) | `7a1b2c...@smtp-brevo.com` |
 | `MAIL_PASSWORD` | Contraseña SMTP (Master SMTP Key de Brevo) | `xsmtpsib-...` |
-| `MAIL_FROM` | Remitente verificado en la consola de Brevo | `notificaciones@eventhive.live` |
+| `MAIL_FROM` | Remitente verificado en la consola de correos | `eventhiveContacto@gmail.com` |
 | `MAIL_FROM_NAME` | Nombre visible del remitente en los correos | `EventHive` |
-| `MAIL_MAX_REINTENTOS` | Número de intentos automáticos ante fallos de conexión SMTP | `2` |
+| `MAIL_MAX_REINTENTOS` | Número de intentos automáticos ante fallos de conexión | `2` |
 | `FRONTEND_URL` | URL base del frontend para enlaces de invitación | `https://eventhive-ruby-zeta.vercel.app` |
-| `DB_URL` | URL de conexión JDBC a PostgreSQL (Supabase / Neon) | `jdbc:postgresql://...` |
-| `DB_USERNAME` | Usuario de base de datos PostgreSQL | `postgres` |
+| `DB_URL` | URL de conexión JDBC a PostgreSQL (Supabase Session Pooler) | `jdbc:postgresql://...` |
+| `DB_USERNAME` | Usuario de base de datos PostgreSQL | `postgres.[id_proyecto]` |
 | `DB_PASSWORD` | Contraseña de base de datos PostgreSQL | `...` |
 | `JWT_SECRET` | Clave secreta para firma HMAC de tokens JWT | `64+ caracteres aleatorios` |
 | `SUPABASE_URL` | URL del proyecto Supabase Storage | `https://[ref].supabase.co` |
 | `SUPABASE_SECRET_KEY` | Llave de servicio de Supabase | `...` |
+

@@ -20,12 +20,14 @@ COPY --from=build /workspace/target/app-0.0.1-SNAPSHOT.jar /app/app.jar
 EXPOSE 8080
 
 ENTRYPOINT ["java", \
-    "-Xms64m", \
-    "-Xmx220m", \
+    "-Xms48m", \
+    "-Xmx192m", \
     "-Xss256k", \
     "-XX:+UseSerialGC", \
-    "-XX:MaxMetaspaceSize=144m", \
-    "-XX:ReservedCodeCacheSize=48m", \
+    "-XX:MaxMetaspaceSize=112m", \
+    "-XX:ReservedCodeCacheSize=32m", \
+    "-XX:+UseStringDeduplication", \
+    "-Djava.security.egd=file:/dev/./urandom", \
     "-XX:+ExitOnOutOfMemoryError", \
     "-XX:ActiveProcessorCount=1", \
     "-jar", \

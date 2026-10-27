@@ -26,16 +26,28 @@ public class ReglaContenidoProhibido implements ReglaModeracion {
         String texto = normalizar(evento.getTitulo(), evento.getDescripcion());
         List<PalabraProhibida> palabrasActivas = palabraProhibidaRepository.findByActivaTrue();
 
-        boolean tieneGrave = palabrasActivas.stream()
-                .anyMatch(p -> p.getSeveridad() == SeveridadPalabra.GRAVE && texto.contains(p.getPalabra()));
-        if (tieneGrave) {
-            return ResultadoReglaModeracion.rechazo(
-                    MotivosRechazos.INCUMPLE_POLITICAS,
-                    "El contenido incluye términos prohibidos por las políticas de EventHive.");
+        if (palabrasActivas.isEmpty()) {
+            return ResultadoReglaModeracion.ok();
         }
 
-        boolean tieneSospechosa = palabrasActivas.stream()
-                .anyMatch(p -> p.getSeveridad() == SeveridadPalabra.SOSPECHOSA && texto.contains(p.getPalabra()));
+        boolean tieneSospechosa = false;
+        for (PalabraProhibida p : palabrasActivas) {
+            String palabra = p.getPalabra();
+            if (palabra != null && !palabra.isBlank()) {
+                String palabraMin = palabra.trim().toLowerCase(Locale.ROOT);
+                if (texto.contains(palabraMin)) {
+                    if (p.getSeveridad() == SeveridadPalabra.GRAVE) {
+                        return ResultadoReglaModeracion.rechazo(
+                                MotivosRechazos.INCUMPLE_POLITICAS,
+                                "El contenido incluye términos prohibidos por las políticas de EventHive.");
+                    }
+                    if (p.getSeveridad() == SeveridadPalabra.SOSPECHOSA) {
+                        tieneSospechosa = true;
+                    }
+                }
+            }
+        }
+
         if (tieneSospechosa) {
             return ResultadoReglaModeracion.revision(
                     MotivosRechazos.INCUMPLE_POLITICAS,

@@ -24,7 +24,7 @@ public class GeneradorCodigoQR {
 
         try {
             var matriz = new QRCodeWriter().encode(codigo, BarcodeFormat.QR_CODE, TAMANO, TAMANO);
-            ByteArrayOutputStream salida = new ByteArrayOutputStream();
+            ByteArrayOutputStream salida = new ByteArrayOutputStream(2048);
             MatrixToImageWriter.writeToStream(matriz, "PNG", salida);
             return salida.toByteArray();
         } catch (WriterException | IOException e) {
