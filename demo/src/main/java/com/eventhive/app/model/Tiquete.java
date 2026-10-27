@@ -17,7 +17,9 @@ import lombok.Setter;
 @Table(name = "tiquetes", indexes = {
     @Index(name = "idx_tiquete_qr", columnList = "codigo_qr", unique = true),
     @Index(name = "idx_tiquete_compra", columnList = "compra_id"),
-    @Index(name = "idx_tiquete_evento", columnList = "evento_id")
+    @Index(name = "idx_tiquete_evento", columnList = "evento_id"),
+    @Index(name = "idx_tiquete_compra_usado", columnList = "compra_id, usado"),
+    @Index(name = "idx_tiquete_evento_compra", columnList = "evento_id, compra_id")
 })
 @Getter
 @Setter

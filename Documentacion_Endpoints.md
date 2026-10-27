@@ -1421,19 +1421,105 @@ En caso de error, la respuesta suele devolver:
 }
 ```
 
-#### `POST /api/boletos/checkin/{codigoQR}`
+#### `GET /api/boletos/validar/{codigoQR}`
 - Recibe: `codigoQR` en path.
-- Devuelve: `ApiResponse<Void>`
-- Permisos: REPRESENTANTE o OPERADOR.
-- Ejemplo de respuesta:
+- Devuelve: `ApiResponse<BoletoDTO>`
+- Permisos: REPRESENTANTE u OPERADOR (debe pertenecer a la organización organizadora del evento y tener permiso `CHECK_IN`).
+- Descripción: Escanea y valida si un boleto es auténtico y pertenece a la organización, devolviendo el detalle del boleto, localidad y evento sin marcarlo como consumido.
+- Ejemplo de respuesta exitosa:
 
 ```json
 {
   "success": true,
-  "mensaje": "¡¡Tiquete valido!! check-in realizado",
-  "data": null
+  "mensaje": "Boleto válido",
+  "data": {
+    "id": 501,
+    "tiquete": {
+      "id": 501,
+      "codigoQR": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "localidad": {
+        "id": 1,
+        "nombre": "General",
+        "precio": 25000,
+        "evento": {
+          "id": 15,
+          "titulo": "Festival de Jazz",
+          "fecha": "2026-10-14",
+          "hora": "19:30:00",
+          "lugar": "Parque Central, Santiago"
+        }
+      }
+    }
+  }
 }
 ```
+
+- Errores de validación:
+  - **404 Not Found** (Código QR desconocido o no registrado):
+    ```json
+    {
+      "success": false,
+      "mensaje": "Lo siento, este código no es uno de nuestros boletos"
+    }
+    ```
+  - **403 Forbidden** (Operador de otra organización o sin permiso `CHECK_IN`):
+    ```json
+    {
+      "success": false,
+      "mensaje": "No está autorizado para operar este tiquete"
+    }
+    ```
+  - **400 Bad Request** (Compra no confirmada):
+    ```json
+    {
+      "success": false,
+      "mensaje": "No se puede hacer check-in: la compra se encuentra en estado PENDIENTE"
+    }
+    ```
+
+#### `POST /api/boletos/checkin/{codigoQR}`
+- Recibe: `codigoQR` en path.
+- Devuelve: `ApiResponse<Void>`
+- Permisos: REPRESENTANTE u OPERADOR (debe pertenecer a la organización organizadora del evento y tener permiso `CHECK_IN`).
+- Descripción: Escanea el código QR, valida su existencia y autenticidad en la organización y marca el tiquete como utilizado de forma atómica.
+- Ejemplo de respuesta exitosa:
+
+```json
+{
+  "success": true,
+  "mensaje": "¡¡Tiquete valido!! check-in realizado"
+}
+```
+
+- Errores de validación:
+  - **404 Not Found** (Código QR desconocido o no registrado):
+    ```json
+    {
+      "success": false,
+      "mensaje": "Lo siento, este código no es uno de nuestros boletos"
+    }
+    ```
+  - **400 Bad Request** (Boleto ya utilizado anteriormente):
+    ```json
+    {
+      "success": false,
+      "mensaje": "El tiquete ya fue utilizado"
+    }
+    ```
+  - **403 Forbidden** (Operador de otra organización o sin permiso `CHECK_IN`):
+    ```json
+    {
+      "success": false,
+      "mensaje": "No está autorizado para operar este tiquete"
+    }
+    ```
+  - **400 Bad Request** (Compra no confirmada):
+    ```json
+    {
+      "success": false,
+      "mensaje": "No se puede hacer check-in: la compra se encuentra en estado PENDIENTE"
+    }
+    ```
 
 ---
 

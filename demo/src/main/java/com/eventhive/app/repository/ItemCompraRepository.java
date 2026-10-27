@@ -13,7 +13,7 @@ import com.eventhive.app.model.ItemCompra;
 
 public interface ItemCompraRepository extends JpaRepository<ItemCompra, Long> {
 
-    // Top de eventos por entradas vendidas (solo eventos PUBLICADOS y compras CONFIRMADAS).
+    // Obtiene el ranking de eventos publicados con mayor número de boletas vendidas e ingresos en compras confirmadas.
     @Query("""
         SELECT new com.eventhive.app.dto.response.TopEventoVentasDTO(
             e.id, e.titulo, o.id, o.razonSocial,
@@ -29,7 +29,7 @@ public interface ItemCompraRepository extends JpaRepository<ItemCompra, Long> {
         """)
     List<TopEventoVentasDTO> topEventosPorVentas(Pageable pageable);
 
-    // Top de organizaciones por entradas vendidas de sus eventos promocionados (solo eventos promocionados PUBLICADOS y compras CONFIRMADAS).
+    // Obtiene el ranking de organizaciones con mayor volumen de ventas en eventos promocionados y compras confirmadas.
     @Query("""
         SELECT new com.eventhive.app.dto.response.TopOrganizacionVentasDTO(
             o.id, o.razonSocial,
@@ -46,23 +46,25 @@ public interface ItemCompraRepository extends JpaRepository<ItemCompra, Long> {
         """)
     List<TopOrganizacionVentasDTO> topOrganizacionesPorVentas(Pageable pageable);
 
-    // Entradas compradas por un usuario (compras CONFIRMADAS)
+    // Calcula la cantidad total de boletas adquiridas por un usuario en compras confirmadas.
     @Query("""
         SELECT SUM(i.cantidad) FROM ItemCompra i
-        WHERE i.compra.cliente.id = :usuarioId
-          AND i.compra.estado = com.eventhive.app.enums.EstadoCompra.CONFIRMADA
+        JOIN i.compra c
+        WHERE c.cliente.id = :usuarioId
+          AND c.estado = com.eventhive.app.enums.EstadoCompra.CONFIRMADA
         """)
     Long contarEntradasCompradas(@Param("usuarioId") Long usuarioId);
 
-    // Eventos distintos en los que el usuario tiene compras CONFIRMADAS
+    // Cuenta la cantidad de eventos distintos en los que un usuario registra compras confirmadas.
     @Query("""
         SELECT COUNT(DISTINCT i.evento.id) FROM ItemCompra i
-        WHERE i.compra.cliente.id = :usuarioId
-          AND i.compra.estado = com.eventhive.app.enums.EstadoCompra.CONFIRMADA
+        JOIN i.compra c
+        WHERE c.cliente.id = :usuarioId
+          AND c.estado = com.eventhive.app.enums.EstadoCompra.CONFIRMADA
         """)
     long contarEventosComprados(@Param("usuarioId") Long usuarioId);
 
-    // Total de boletas vendidas por una organización (compras CONFIRMADAS)
+    // Calcula el número total de boletas vendidas en eventos de una organización en compras confirmadas.
     @Query("""
         SELECT COALESCE(SUM(i.cantidad), 0)
         FROM ItemCompra i
@@ -73,7 +75,7 @@ public interface ItemCompraRepository extends JpaRepository<ItemCompra, Long> {
         """)
     long contarBoletasVendidasPorOrganizacion(@Param("organizacionId") Long organizacionId);
 
-    // Total de boletas vendidas correspondientes exclusivamente a eventos publicados (compras CONFIRMADAS)
+    // Calcula el número total de boletas vendidas exclusivamente en eventos publicados de una organización.
     @Query("""
         SELECT COALESCE(SUM(i.cantidad), 0)
         FROM ItemCompra i
@@ -85,6 +87,7 @@ public interface ItemCompraRepository extends JpaRepository<ItemCompra, Long> {
         """)
     long contarBoletasVendidasEventosPublicadosPorOrganizacion(@Param("organizacionId") Long organizacionId);
 
+    // Obtiene la cantidad de boletas vendidas en compras confirmadas agrupada por identificador de evento.
     @Query("""
         SELECT i.evento.id, COALESCE(SUM(i.cantidad), 0)
         FROM ItemCompra i
@@ -95,7 +98,7 @@ public interface ItemCompraRepository extends JpaRepository<ItemCompra, Long> {
         """)
     List<Object[]> contarVentasPorEventoIds(@Param("eventoIds") List<Long> eventoIds);
 
-    // Total de ingresos generados por una organización (compras CONFIRMADAS, sin deducir comisión)
+    // Calcula el monto total bruto generado por las ventas de eventos de una organización en compras confirmadas.
     @Query("""
         SELECT COALESCE(SUM(i.cantidad * i.precioUnitario), 0)
         FROM ItemCompra i
@@ -106,7 +109,7 @@ public interface ItemCompraRepository extends JpaRepository<ItemCompra, Long> {
         """)
     java.math.BigDecimal sumarIngresosPorOrganizacion(@Param("organizacionId") Long organizacionId);
 
-    // Boletas vendidas agrupadas por localidad para un conjunto de localidades
+    // Obtiene la cantidad de boletas vendidas en compras confirmadas agrupada por identificador de localidad.
     @Query("""
         SELECT i.localidad.id, COALESCE(SUM(i.cantidad), 0)
         FROM ItemCompra i

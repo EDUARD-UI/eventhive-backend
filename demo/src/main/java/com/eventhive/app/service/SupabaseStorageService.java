@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.eventhive.app.config.CacheConfig;
 import com.eventhive.app.config.SupabaseStorageConfig;
 import com.eventhive.app.exception.BusinessException;
 
@@ -55,6 +57,7 @@ public class SupabaseStorageService {
     }
 
 
+    @Cacheable(value = CacheConfig.CACHE_RUT_FIRMADO, key = "#referencia")
     public String generarUrlFirmada(
             String referencia,
             long expiresInSeconds

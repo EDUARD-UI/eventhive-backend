@@ -12,15 +12,16 @@ import com.eventhive.app.model.Categoria;
 
 public interface CategoriaRepository extends JpaRepository<Categoria, Long> {
 
+    // Busca una categoría por su identificador único.
     Optional<Categoria> findById(Long id);
 
-    // Busca una categoría por su nombre
+    // Busca una categoría por su nombre exacto.
     Optional<Categoria> findByNombre(String nombre);
 
-    // Verifica si existe una categoría con ese nombre
+    // Verifica si existe una categoría con el nombre indicado ignorando mayúsculas y minúsculas.
     boolean existsByNombreIgnoreCase(String nombre);
 
-    // Devuelve todas las categorías con el número total de eventos publicados relacionados
+    // Obtiene todas las categorías de forma paginada junto con el conteo de eventos publicados asociados.
     @Query(value = """
     SELECT c.id, c.nombre, c.foto, COUNT(e.id)
     FROM Categoria c
@@ -30,10 +31,11 @@ public interface CategoriaRepository extends JpaRepository<Categoria, Long> {
     ORDER BY c.nombre ASC
     """,
     countQuery = """
-    SELECT COUNT(c) FROM Categoria c
+    SELECT COUNT(c.id) FROM Categoria c
     """)
     Page<Object[]> findAllConCantidadEventos(Pageable pageable);
 
+    // Obtiene la lista de categorías que tienen al menos un evento publicado asociado.
     @Query("""
     SELECT c.id, c.nombre, c.foto, COUNT(e.id)
     FROM Categoria c
@@ -44,7 +46,7 @@ public interface CategoriaRepository extends JpaRepository<Categoria, Long> {
     """)
     List<Object[]> findAllConEventos();
 
-    // Cantidad de eventos publicados por categoría (incluye categorías sin eventos con 0)
+    // Obtiene la cantidad de eventos publicados agrupada por categoría.
     @Query("""
     SELECT new com.eventhive.app.dto.response.EventosPorCategoriaDTO(c.id, c.nombre, COUNT(e.id))
     FROM Categoria c
@@ -54,7 +56,7 @@ public interface CategoriaRepository extends JpaRepository<Categoria, Long> {
     """)
     List<com.eventhive.app.dto.response.EventosPorCategoriaDTO> contarEventosPorCategoria();
 
-    // Cantidad de eventos publicados por categoría para una organización específica
+    // Obtiene la cantidad de eventos publicados agrupada por categoría para una organización específica.
     @Query("""
     SELECT new com.eventhive.app.dto.response.EventosPorCategoriaDTO(c.id, c.nombre, COUNT(e.id))
     FROM Categoria c
@@ -65,7 +67,7 @@ public interface CategoriaRepository extends JpaRepository<Categoria, Long> {
     """)
     List<com.eventhive.app.dto.response.EventosPorCategoriaDTO> contarEventosPorCategoriaYOrganizacion(@org.springframework.data.repository.query.Param("organizacionId") Long organizacionId);
 
-    // Devuelve las 4 categorías destacadas con el mayor número total de eventos publicados
+    // Obtiene las cuatro categorías con mayor cantidad de eventos publicados asociados.
     @Query("""
     SELECT c.id, c.nombre, c.foto, COUNT(e.id)
     FROM Categoria c

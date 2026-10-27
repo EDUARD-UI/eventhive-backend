@@ -13,21 +13,21 @@ import com.eventhive.app.model.Tiquete;
 
 public interface TiqueteRepository extends JpaRepository<Tiquete, Long> {
 
-    // Busca un tiquete por su código QR.
+    // Busca un tiquete mediante su código QR único.
     Optional<Tiquete> findByCodigoQR(String codigoQR);
 
-    // Verifica si un evento tiene tiquetes emitidos.
+    // Verifica si existen tiquetes emitidos para un evento específico.
     boolean existsByEventoId(Long eventoId);
 
-    // Verifica si una compra contiene un tiquete usado.
+    // Verifica si una compra cuenta con al menos un tiquete que ya ha sido utilizado en taquilla.
     boolean existsByCompraIdAndUsadoTrue(Long compraId);
 
-    //actualización atómica del check-in. Si dos peticiones llegan a la vez
+    // Realiza la validación y check-in atómico marcando un tiquete como usado si aún no lo estaba.
     @Modifying
     @Query("UPDATE Tiquete t SET t.usado = true WHERE t.codigoQR = :codigoQR AND t.usado = false")
     int marcarComoUsadoSiNoUsado(@Param("codigoQR") String codigoQR);
 
-    // Devuelve los tiquetes de una compra con detalles del evento y la localidad
+    // Obtiene los tiquetes asociados a una compra con detalles del evento, localidad y categoría precargados.
     @Query("""
         SELECT t FROM Tiquete t
         JOIN FETCH t.evento e
@@ -37,6 +37,7 @@ public interface TiqueteRepository extends JpaRepository<Tiquete, Long> {
         """)
     List<Tiquete> findByCompraIdConDetalles(@Param("compraId") Long compraId);
 
+    // Verifica si un cliente posee al menos un tiquete de una compra confirmada para eventos de una organización.
     @Query("""
     SELECT COUNT(t) > 0
     FROM Tiquete t
@@ -45,12 +46,12 @@ public interface TiqueteRepository extends JpaRepository<Tiquete, Long> {
     WHERE c.cliente.id = :clienteId
       AND c.estado = com.eventhive.app.enums.EstadoCompra.CONFIRMADA
       AND e.organizacion.id = :organizacionId
-""")
+    """)
     boolean existsCompraConfirmadaPorClienteYOrganizacion(
             @Param("clienteId") Long clienteId,
             @Param("organizacionId") Long organizacionId);
 
-    // Clientes distintos que compraron boleto para un evento (para recordatorios/cancelaciones)
-    @Query("SELECT DISTINCT t.compra.cliente FROM Tiquete t WHERE t.evento.id = :eventoId")
+    // Obtiene la lista de usuarios compradores distintos que adquirieron boletas para un evento.
+    @Query("SELECT DISTINCT c.cliente FROM Tiquete t JOIN t.compra c WHERE t.evento.id = :eventoId")
     List<Usuario> findClientesDistinctByEventoId(@Param("eventoId") Long eventoId);
 }

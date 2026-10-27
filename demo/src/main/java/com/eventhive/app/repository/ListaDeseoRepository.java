@@ -11,7 +11,7 @@ import com.eventhive.app.model.ListaDeseo;
 
 public interface ListaDeseoRepository extends JpaRepository<ListaDeseo, Long> {
 
-    // Cantidad de eventos favoritos de un usuario.
+    // Cuenta el número de eventos guardados en la lista de deseos de un usuario.
     long countByUsuarioId(Long usuarioId);
 
     // Verifica si un usuario guardó un evento en su lista de deseos.
@@ -20,7 +20,7 @@ public interface ListaDeseoRepository extends JpaRepository<ListaDeseo, Long> {
     // Elimina un evento de la lista de deseos de un usuario.
     void deleteByUsuarioIdAndEventoId(Long usuarioId, Long eventoId);
 
-    // Lista los eventos deseados por un usuario, del más reciente al más antiguo.
+    // Obtiene los eventos guardados en la lista de deseos de un usuario con categoría y organización precargadas.
     @Query(value = """
         SELECT e FROM ListaDeseo d
         JOIN d.evento e
@@ -30,7 +30,7 @@ public interface ListaDeseoRepository extends JpaRepository<ListaDeseo, Long> {
         ORDER BY d.id DESC
         """,
         countQuery = """
-        SELECT COUNT(d) FROM ListaDeseo d
+        SELECT COUNT(d.id) FROM ListaDeseo d
         WHERE d.usuario.id = :usuarioId
         """)
     Page<Evento> findEventosDeseadosByUsuarioId(@Param("usuarioId") Long usuarioId, Pageable pageable);

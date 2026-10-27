@@ -15,6 +15,10 @@ import com.eventhive.app.repository.BannerHomeRepository;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import com.eventhive.app.config.CacheConfig;
+
 @Service
 @RequiredArgsConstructor
 public class ServiceBannerHome {
@@ -23,6 +27,7 @@ public class ServiceBannerHome {
     private final SupabaseStorageService storageService;
 
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheConfig.CACHE_BANNERS, key = "'publicos'")
     public List<BannerHomeDTO> obtenerBannersPublicos() {
         return bannerHomeRepository.findAllByOrderByPosicionAsc().stream()
                 .map(this::toDTO)
@@ -30,6 +35,7 @@ public class ServiceBannerHome {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheConfig.CACHE_BANNERS, key = "'espacios'")
     public List<BannerHomeDTO> obtenerEspaciosAdministrativos() {
         List<BannerHome> banners = bannerHomeRepository.findAllByOrderByPosicionAsc();
         return IntStream.rangeClosed(1, 2)
@@ -42,6 +48,7 @@ public class ServiceBannerHome {
     }
 
     @Transactional
+    @CacheEvict(value = CacheConfig.CACHE_BANNERS, allEntries = true)
     public BannerHomeDTO crear(int posicion, String titulo, String textoBoton,
                               String enlaceUrl, MultipartFile imagen) {
         validarPosicion(posicion);
@@ -64,6 +71,7 @@ public class ServiceBannerHome {
     }
 
     @Transactional
+    @CacheEvict(value = CacheConfig.CACHE_BANNERS, allEntries = true)
     public BannerHomeDTO actualizar(int posicion, String titulo, String textoBoton,
                                     String enlaceUrl, MultipartFile imagen) {
         validarPosicion(posicion);
@@ -85,6 +93,7 @@ public class ServiceBannerHome {
     }
 
     @Transactional
+    @CacheEvict(value = CacheConfig.CACHE_BANNERS, allEntries = true)
     public void eliminar(int posicion) {
         validarPosicion(posicion);
         BannerHome banner = bannerHomeRepository.findByPosicion(posicion)

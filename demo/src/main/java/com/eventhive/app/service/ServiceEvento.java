@@ -18,6 +18,8 @@ import jakarta.persistence.criteria.Predicate;
 import java.time.ZoneId;
 import org.springframework.data.domain.PageRequest;
 import com.eventhive.app.dto.response.PrimerEventoDestacadoDTO;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -25,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.eventhive.app.config.CacheConfig;
 import com.eventhive.app.config.SupabaseStorageConfig;
 import com.eventhive.app.dto.PagedResponse;
 import com.eventhive.app.dto.request.EventoRequest;
@@ -86,11 +89,13 @@ public class ServiceEvento {
 
     // CONSULTAS
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheConfig.CACHE_EVENTOS_PUBLICOS, key = "{'todos', #pageable.pageNumber, #pageable.pageSize}")
     public Page<Evento> listarTodos(Pageable pageable) {
         return eventoRepository.findPublicadosVisibles(OrdenEventos.estable(pageable));
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheConfig.CACHE_EVENTOS_PUBLICOS, key = "{#categoriaId, #fecha, #pageable.pageNumber, #pageable.pageSize}")
     public Page<Evento> listarPublicos(Long categoriaId, LocalDate fecha, Pageable pageable) {
         Specification<Evento> spec = (root, query, cb) -> {
             if (Long.class != query.getResultType() && long.class != query.getResultType()) {
@@ -113,12 +118,14 @@ public class ServiceEvento {
 
     // Solo eventos promocionados que además están PUBLICADOS.
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheConfig.CACHE_EVENTOS_DESTACADOS, key = "{#pageable.pageNumber, #pageable.pageSize}")
     public Page<Evento> listarDestacados(Pageable pageable) {
         return eventoRepository.findDestacadosPublicados(pageable);
     }
 
     // Devuelve el primer evento destacado (promocionado: true y PUBLICADO)
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheConfig.CACHE_PRIMER_DESTACADO, key = "'primerDestacado'")
     public PrimerEventoDestacadoDTO obtenerPrimerEventoDestacado() {
         LocalDate hoy = LocalDate.now(ZoneId.of("America/Bogota"));
         LocalTime hora = LocalTime.now(ZoneId.of("America/Bogota"));
@@ -212,6 +219,7 @@ public class ServiceEvento {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheConfig.CACHE_EVENTOS_PUBLICOS, key = "{'cat', #categoriaId, #pageable.pageNumber, #pageable.pageSize}")
     public Page<Evento> listarPorCategoria(Long categoriaId, Pageable pageable) {
         return eventoRepository.findByCategoriaVisibles(categoriaId, OrdenEventos.estable(pageable));
     }
@@ -219,6 +227,7 @@ public class ServiceEvento {
     private static final java.time.ZoneId ZONA_EVENTHIVE = java.time.ZoneId.of("America/Bogota");
 
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheConfig.CACHE_EVENTOS_PUBLICOS, key = "{'proximos', #pageable.pageNumber, #pageable.pageSize}")
     public Page<Evento> listarEventosProximos(Pageable pageable) {
         java.time.ZonedDateTime ahoraZona = java.time.ZonedDateTime.now(ZONA_EVENTHIVE);
         return eventoRepository.findProximosPublicados(
@@ -228,6 +237,7 @@ public class ServiceEvento {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheConfig.CACHE_EVENTOS_CARRUSEL, key = "'carrusel'")
     public List<com.eventhive.app.dto.response.EventoCarruselDTO> obtenerEventosCarrusel() {
         return eventoRepository.findCarruselPublicados().stream()
                 .map(e -> {
@@ -305,6 +315,7 @@ public class ServiceEvento {
 
     // Eventos para el mapa: filtra por categoría y/o radio de distancia
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheConfig.CACHE_EVENTOS_MAPA, key = "{#categoriaId, #lat, #lng, #radioKm}")
     public List<EventoMapaDTO> buscarParaMapa(Long categoriaId, Double lat, Double lng, Double radioKm) {
 
         boolean algunoInformado = lat != null || lng != null || radioKm != null;
@@ -335,6 +346,7 @@ public class ServiceEvento {
 
     // OPERACIONES CRUD
     @Transactional
+    @CacheEvict(value = {CacheConfig.CACHE_EVENTOS_PUBLICOS, CacheConfig.CACHE_EVENTOS_CARRUSEL, CacheConfig.CACHE_EVENTOS_DESTACADOS, CacheConfig.CACHE_PRIMER_DESTACADO, CacheConfig.CACHE_EVENTOS_MAPA, CacheConfig.CACHE_CATEGORIAS}, allEntries = true)
     public Evento crearEvento(EventoRequest request, MultipartFile foto) {
         Usuario usuario = authHelper.usuarioAutenticado();
         Categoria categoria = resolverCategoria(request.getCategoriaId());
@@ -370,6 +382,7 @@ public class ServiceEvento {
     }
 
     @Transactional
+    @CacheEvict(value = {CacheConfig.CACHE_EVENTOS_PUBLICOS, CacheConfig.CACHE_EVENTOS_CARRUSEL, CacheConfig.CACHE_EVENTOS_DESTACADOS, CacheConfig.CACHE_PRIMER_DESTACADO, CacheConfig.CACHE_EVENTOS_MAPA, CacheConfig.CACHE_CATEGORIAS}, allEntries = true)
     public Evento actualizarEvento(Long id, EventoRequest request, MultipartFile foto) {
         Evento evento = obtenerReferenciasEvento(id);
         verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
@@ -401,6 +414,7 @@ public class ServiceEvento {
     }
 
     @Transactional
+    @CacheEvict(value = {CacheConfig.CACHE_EVENTOS_PUBLICOS, CacheConfig.CACHE_EVENTOS_CARRUSEL, CacheConfig.CACHE_EVENTOS_DESTACADOS, CacheConfig.CACHE_PRIMER_DESTACADO, CacheConfig.CACHE_EVENTOS_MAPA, CacheConfig.CACHE_CATEGORIAS}, allEntries = true)
     public void suspenderEvento(Long id) {
         Evento evento = obtenerEventoAdministrativo(id);
         verificarPermiso(evento, PermisoEvento.CANCELAR_EVENTO);
@@ -415,6 +429,7 @@ public class ServiceEvento {
     }
 
     @Transactional
+    @CacheEvict(value = {CacheConfig.CACHE_EVENTOS_PUBLICOS, CacheConfig.CACHE_EVENTOS_CARRUSEL, CacheConfig.CACHE_EVENTOS_DESTACADOS, CacheConfig.CACHE_PRIMER_DESTACADO, CacheConfig.CACHE_EVENTOS_MAPA, CacheConfig.CACHE_CATEGORIAS}, allEntries = true)
     public void enviarRevision(Long id) {
         Evento evento = obtenerEventoAdministrativo(id);
         verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
@@ -454,6 +469,7 @@ public class ServiceEvento {
     }
 
     @Transactional
+    @CacheEvict(value = {CacheConfig.CACHE_EVENTOS_PUBLICOS, CacheConfig.CACHE_EVENTOS_CARRUSEL, CacheConfig.CACHE_EVENTOS_DESTACADOS, CacheConfig.CACHE_PRIMER_DESTACADO, CacheConfig.CACHE_EVENTOS_MAPA, CacheConfig.CACHE_CATEGORIAS}, allEntries = true)
     public void cancelarEvento(Long id) {
         Evento evento = obtenerEventoAdministrativo(id);
         verificarPermiso(evento, PermisoEvento.CANCELAR_EVENTO);
@@ -481,6 +497,7 @@ public class ServiceEvento {
     }
 
     @Transactional
+    @CacheEvict(value = {CacheConfig.CACHE_EVENTOS_PUBLICOS, CacheConfig.CACHE_EVENTOS_CARRUSEL, CacheConfig.CACHE_EVENTOS_DESTACADOS, CacheConfig.CACHE_PRIMER_DESTACADO, CacheConfig.CACHE_EVENTOS_MAPA, CacheConfig.CACHE_CATEGORIAS}, allEntries = true)
     public void eliminarEvento(Long id) {
         Evento evento = obtenerEventoAdministrativo(id);
         verificarPermiso(evento, PermisoEvento.CANCELAR_EVENTO);
@@ -502,6 +519,7 @@ public class ServiceEvento {
     }
 
     @Transactional
+    @CacheEvict(value = {CacheConfig.CACHE_EVENTOS_PUBLICOS, CacheConfig.CACHE_EVENTOS_CARRUSEL, CacheConfig.CACHE_EVENTOS_DESTACADOS, CacheConfig.CACHE_PRIMER_DESTACADO, CacheConfig.CACHE_EVENTOS_MAPA, CacheConfig.CACHE_CATEGORIAS}, allEntries = true)
     public void finalizarEventosVencidos(LocalDate hoy, LocalTime horaActual) {
         List<Evento> vencidos = eventoRepository.findVencidosYEstado(hoy, horaActual, EstadoEvento.PUBLICADO);
 
@@ -849,6 +867,7 @@ public class ServiceEvento {
             Set.of(EstadoEvento.BORRADOR)
     );
 
+    @CacheEvict(value = {CacheConfig.CACHE_EVENTOS_PUBLICOS, CacheConfig.CACHE_EVENTOS_CARRUSEL, CacheConfig.CACHE_EVENTOS_DESTACADOS, CacheConfig.CACHE_PRIMER_DESTACADO, CacheConfig.CACHE_EVENTOS_MAPA, CacheConfig.CACHE_CATEGORIAS}, allEntries = true)
     public void transicionarEstado(Evento evento, EstadoEvento nuevoEstado) {
         EstadoEvento actual = evento.getEstado();
 

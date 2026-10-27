@@ -13,19 +13,20 @@ import com.eventhive.app.model.SugerenciaAscenso;
 
 public interface SugerenciaAscensoRepository extends JpaRepository<SugerenciaAscenso, Long> {
 
+    // Obtiene la sugerencia de ascenso de nivel de una organización en el estado indicado.
     Optional<SugerenciaAscenso> findByOrganizacionIdAndEstado(Long organizacionId, EstadoSolicitud estado);
 
-    // Evita generar una segunda sugerencia mientras la anterior siga pendiente
+    // Verifica si ya existe una sugerencia de ascenso para una organización en el estado indicado.
     boolean existsByOrganizacionIdAndEstado(Long organizacionId, EstadoSolicitud estado);
 
-    // Cola de sugerencias con la organización cargada, para el panel del administrador
+    // Obtiene las sugerencias de ascenso filtradas por estado con la organización precargada para revisión.
     @Query(value = """
         SELECT s FROM SugerenciaAscenso s
         JOIN FETCH s.organizacion
         WHERE s.estado = :estado
         """,
         countQuery = """
-        SELECT COUNT(s) FROM SugerenciaAscenso s
+        SELECT COUNT(s.id) FROM SugerenciaAscenso s
         WHERE s.estado = :estado
         """)
     Page<SugerenciaAscenso> findByEstadoConOrganizacion(@Param("estado") EstadoSolicitud estado, Pageable pageable);

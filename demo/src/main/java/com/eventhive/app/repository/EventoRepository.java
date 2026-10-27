@@ -18,30 +18,30 @@ import com.eventhive.app.repository.projection.EventoMapaProjection;
 
 public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecificationExecutor<Evento> {
 
-  // Cuenta los eventos asociados a una categoría.
+    // Cuenta los eventos asociados a una categoría específica.
     long countByCategoriaId(Long categoriaId);
 
-  // Cuenta los eventos asociados a una categoría con estado específico
+    // Cuenta los eventos asociados a una categoría y con un estado determinado.
     long countByCategoriaIdAndEstado(Long categoriaId, EstadoEvento estado);
 
-  // Cantidad de eventos agrupada por estado (agregado en BD)
-    @Query("SELECT new com.eventhive.app.dto.response.EventoEstadoConteoDTO(e.estado, COUNT(e)) FROM Evento e GROUP BY e.estado")
+    // Obtiene la cantidad de eventos agrupada por cada estado registrado en el sistema.
+    @Query("SELECT new com.eventhive.app.dto.response.EventoEstadoConteoDTO(e.estado, COUNT(e.id)) FROM Evento e GROUP BY e.estado")
     List<com.eventhive.app.dto.response.EventoEstadoConteoDTO> contarPorEstado();
 
-  // Cuenta los eventos que tienen un estado específico.
+    // Cuenta la cantidad de eventos que tienen un estado específico.
     long countByEstado(EstadoEvento estado);
 
-  // Cuenta los eventos de una organización.
+    // Cuenta todos los eventos creados por una organización.
     long countByOrganizacionId(Long organizacionId);
 
-  // Cuenta los eventos de una organización por estado.
+    // Cuenta los eventos de una organización que coinciden con un estado específico.
     long countByOrganizacionIdAndEstado(Long organizacionId, EstadoEvento estado);
 
-  // Lista eventos de una organización paginados ordenados por ID desc.
+    // Obtiene los eventos de una organización paginados y ordenados por identificador en orden descendente.
     Page<Evento> findByOrganizacionIdOrderByIdDesc(Long organizacionId, Pageable pageable);
 
-  // Lista eventos publicados con categoría y organización cargadas.
-  @Query(value = """
+    // Obtiene los eventos publicados visibles en cartelera con su categoría y organización precargadas priorizando los promocionados.
+    @Query(value = """
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
         JOIN FETCH e.organizacion o
@@ -49,12 +49,12 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         ORDER BY e.promocionado DESC
         """,
         countQuery = """
-        SELECT COUNT(e) FROM Evento e
+        SELECT COUNT(e.id) FROM Evento e
         WHERE e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
         """)
-  Page<Evento> findPublicadosVisibles(Pageable pageable);
+    Page<Evento> findPublicadosVisibles(Pageable pageable);
 
-    // Eventos destacados: eventos con posicionamiento confirmado que además están PUBLICADOS.
+    // Obtiene los eventos con posicionamiento confirmado que se encuentran publicados con referencias precargadas.
     @Query(value = """
         SELECT DISTINCT e FROM Evento e
         JOIN FETCH e.categoria
@@ -65,14 +65,14 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         ORDER BY e.fecha ASC, e.hora ASC, e.id ASC
         """,
         countQuery = """
-        SELECT COUNT(DISTINCT e) FROM Evento e
+        SELECT COUNT(DISTINCT e.id) FROM Evento e
         JOIN PosicionamientoEvento p ON p.evento = e
         WHERE p.estado = com.eventhive.app.enums.EstadoPosicionamiento.CONFIRMADO
           AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
         """)
     Page<Evento> findDestacadosPublicados(Pageable pageable);
 
-    // Eventos elegibles para el carrusel principal: eventos publicados con promocionado = true y con imagen destacada válida
+    // Obtiene los eventos publicados y promocionados que disponen de imagen para el carrusel principal.
     @Query(value = """
         SELECT DISTINCT e FROM Evento e
         WHERE e.promocionado = true
@@ -83,7 +83,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         """)
     List<Evento> findCarruselPublicados();
 
-    // Lista eventos publicados filtrados por categoría.
+    // Obtiene los eventos publicados de una categoría específica con sus relaciones precargadas.
     @Query(value = """
         SELECT e FROM Evento e
         JOIN FETCH e.categoria c
@@ -93,13 +93,13 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         ORDER BY e.promocionado DESC
         """,
         countQuery = """
-        SELECT COUNT(e) FROM Evento e
+        SELECT COUNT(e.id) FROM Evento e
         WHERE e.categoria.id = :categoriaId
           AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
         """)
     Page<Evento> findByCategoriaVisibles(@Param("categoriaId") Long categoriaId, Pageable pageable);
 
-    // Busca eventos publicados por título y fecha.
+    // Busca eventos publicados filtrados por coincidencia parcial de título y por fecha específica.
     @Query(value = """
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
@@ -110,7 +110,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         ORDER BY e.promocionado DESC
         """,
         countQuery = """
-        SELECT COUNT(e) FROM Evento e
+        SELECT COUNT(e.id) FROM Evento e
         WHERE e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
           AND (:titulo IS NULL OR LOWER(e.titulo) LIKE LOWER(CONCAT('%', :titulo, '%')))
           AND (:fecha IS NULL OR e.fecha = :fecha)
@@ -119,7 +119,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
                                              @Param("fecha") LocalDate fecha,
                                              Pageable pageable);
 
-    // Obtiene eventos publicados para mostrarlos en el mapa.
+    // Obtiene las coordenadas y datos esenciales de eventos publicados dentro de un radio geográfico o por categoría para visualización en mapa.
     @Query(value = """
         SELECT e.id AS id, e.titulo AS titulo, e.descripcion AS descripcion,
                c.nombre AS categoriaNombre,
@@ -146,7 +146,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
                                             @Param("lng") Double lng,
                                             @Param("radioMetros") Double radioMetros);
 
-    // Busca un evento por id con sus referencias cargadas.
+    // Busca un evento por su identificador precargando categoría, organización y sus localidades asociadas.
     @Query("""
     SELECT e FROM Evento e
     JOIN FETCH e.categoria
@@ -156,7 +156,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
     """)
     Optional<Evento> findByIdConReferencias(@Param("id") Long id);
 
-    // Usado por el endpoint público: solo expone el evento si está PUBLICADO (con localidades)
+    // Busca un evento por identificador y estado específico precargando sus referencias y localidades.
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
@@ -167,7 +167,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         """)
     Optional<Evento> findByIdAndEstadoConReferencias(@Param("id") Long id, @Param("estado") EstadoEvento estado);
 
-    // Busca eventos de una organización por título.
+    // Obtiene los eventos de una organización ordenados por fecha de creación descendente con referencias precargadas.
     @Query(value = """
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
@@ -176,12 +176,12 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         ORDER BY e.fechaCreacion DESC
         """,
         countQuery = """
-        SELECT COUNT(e) FROM Evento e
+        SELECT COUNT(e.id) FROM Evento e
         WHERE e.organizacion.id = :organizacionId
         """)
     Page<Evento> findByOrganizacionIdConReferencias(@Param("organizacionId") Long organizacionId, Pageable pageable);
 
-    // Lista eventos filtrados por estado con sus referencias cargadas.
+    // Busca eventos de una organización filtrados por coincidencia en el título con referencias precargadas.
     @Query(value = """
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
@@ -190,7 +190,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
           AND LOWER(e.titulo) LIKE LOWER(CONCAT('%', :titulo, '%'))
         """,
         countQuery = """
-        SELECT COUNT(e) FROM Evento e
+        SELECT COUNT(e.id) FROM Evento e
         WHERE e.organizacion.id = :organizacionId
           AND LOWER(e.titulo) LIKE LOWER(CONCAT('%', :titulo, '%'))
         """)
@@ -198,7 +198,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
                                                              @Param("titulo") String titulo,
                                                              Pageable pageable);
 
-    // Busca eventos de una fecha y estado determinados.
+    // Obtiene los eventos filtrados por estado con su categoría y organización precargadas.
     @Query(value = """
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
@@ -206,12 +206,12 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         WHERE e.estado = :estado
         """,
         countQuery = """
-        SELECT COUNT(e) FROM Evento e
+        SELECT COUNT(e.id) FROM Evento e
         WHERE e.estado = :estado
         """)
     Page<Evento> findByEstadoConReferencias(@Param("estado") EstadoEvento estado, Pageable pageable);
 
-    // Cuenta eventos activos de una organización.
+    // Obtiene los eventos programados para una fecha específica y con un estado determinado.
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.organizacion o
@@ -220,9 +220,9 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         """)
     List<Evento> findByFechaAndEstado(@Param("fecha") LocalDate fecha, @Param("estado") EstadoEvento estado);
 
-    // Lista eventos vencidos que conservan el estado indicado.
+    // Cuenta los eventos activos (en revisión, corrección o publicados) pertenecientes a una organización.
     @Query("""
-        SELECT COUNT(e) FROM Evento e
+        SELECT COUNT(e.id) FROM Evento e
         WHERE e.organizacion.id = :organizacionId
           AND e.estado IN (
               com.eventhive.app.enums.EstadoEvento.PENDIENTE_REVISION,
@@ -231,7 +231,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         """)
     long countActivosByOrganizacionId(@Param("organizacionId") Long organizacionId);
 
-    // Lista próximos eventos publicados ordenados por fecha y hora.
+    // Obtiene los eventos cuya fecha y hora ya transcurrieron y mantienen un estado específico.
     @Query("""
     SELECT e FROM Evento e
     JOIN FETCH e.organizacion
@@ -242,9 +242,9 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
                                      @Param("horaActual") LocalTime horaActual,
                                      @Param("estado") EstadoEvento estado);
 
-    // Conteo en lote de eventos activos por lista de organizaciones (evita consultas N+1)
+    // Cuenta en lote la cantidad de eventos activos agrupados por identificador de organización.
     @Query("""
-        SELECT e.organizacion.id, COUNT(e)
+        SELECT e.organizacion.id, COUNT(e.id)
         FROM Evento e
         WHERE e.organizacion.id IN :organizacionIds
           AND e.estado IN (
@@ -255,7 +255,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         """)
     List<Object[]> countActivosByOrganizacionIds(@Param("organizacionIds") List<Long> organizacionIds);
 
-    // Lista eventos próximos publicados ordenados por proximidad temporal (fecha y hora ascendente)
+    // Obtiene los próximos eventos publicados a partir de la fecha y hora actual ordenados cronológicamente.
     @Query(value = """
     SELECT e FROM Evento e
     JOIN FETCH e.categoria
@@ -268,7 +268,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
     ORDER BY e.fecha ASC, e.hora ASC, e.id ASC
     """,
     countQuery = """
-    SELECT COUNT(e) FROM Evento e
+    SELECT COUNT(e.id) FROM Evento e
     WHERE e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
       AND (
             e.fecha > :hoy
@@ -280,6 +280,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
             @Param("hora") LocalTime hora,
             Pageable pageable);
 
+    // Obtiene los eventos cuya fecha es anterior a la indicada y se encuentran en un estado determinado.
     @Query("""
         SELECT e FROM Evento e
         JOIN FETCH e.organizacion
@@ -288,10 +289,10 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         """)
     List<Evento> findByFechaAnteriorYEstado(@Param("fecha") LocalDate fecha, @Param("estado") EstadoEvento estado);
 
-    // Lista eventos posteriores a una fecha con el estado indicado.
+    // Obtiene los eventos programados para fechas posteriores a la actual con un estado específico.
     List<Evento> findByFechaAfterAndEstado(LocalDate fechaActual, EstadoEvento estadoEvento);
 
-    // Primer evento destacado próximo (promocionado: true y PUBLICADO)
+    // Obtiene el primer evento destacado y publicado programado a partir de la fecha y hora actual.
     @Query("""
         SELECT e FROM Evento e
         WHERE e.promocionado = true
@@ -304,7 +305,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
             @Param("hora") LocalTime hora,
             Pageable pageable);
 
-    // Primer evento destacado fallback (sin restricción temporal estricta)
+    // Obtiene el primer evento publicado y promocionado disponible como alternativa de cartelera.
     @Query("""
         SELECT e FROM Evento e
         WHERE e.promocionado = true
@@ -313,7 +314,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         """)
     List<Evento> findPrimerDestacado(Pageable pageable);
 
-    // Eventos públicos de una organización con categoría y organización pre-cargadas (evita N+1)
+    // Obtiene los eventos publicados pertenecientes a una organización con referencias precargadas.
     @Query(value = """
         SELECT e FROM Evento e
         JOIN FETCH e.categoria
@@ -323,7 +324,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         ORDER BY e.promocionado DESC, e.fecha ASC, e.hora ASC, e.id ASC
         """,
         countQuery = """
-        SELECT COUNT(e) FROM Evento e
+        SELECT COUNT(e.id) FROM Evento e
         WHERE e.organizacion.id = :organizacionId
           AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
         """)

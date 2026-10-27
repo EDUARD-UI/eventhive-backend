@@ -25,7 +25,8 @@ import lombok.Setter;
 @Entity
 @Table(name = "sugerencias_ascenso", indexes = {
     @Index(name = "idx_sugerencia_organizacion", columnList = "organizacion_id"),
-    @Index(name = "idx_sugerencia_estado", columnList = "estado")
+    @Index(name = "idx_sugerencia_estado", columnList = "estado"),
+    @Index(name = "idx_sugerencia_org_estado", columnList = "organizacion_id, estado")
 })
 @Getter
 @Setter

@@ -28,15 +28,34 @@ public class ServiceBoletos {
     private final AuthenticatedUserHelper authHelper;
 
     //operaciones de check-in
-    @Transactional
-    public void realizarCheckIn(String codigoQR) {
-        Tiquete tiquete = tiqueteRepository.findByCodigoQR(codigoQR)
-                .orElseThrow(() -> new ResourceNotFoundException("Tiquete no encontrado o inválido"));
+    @Transactional(readOnly = true)
+    public BoletosCompraDTO.BoletoDTO validarBoleto(String codigoQR) {
+        if (codigoQR == null || codigoQR.isBlank()) {
+            throw new ResourceNotFoundException("Lo siento, este código no es uno de nuestros boletos");
+        }
+
+        Tiquete tiquete = tiqueteRepository.findByCodigoQR(codigoQR.trim())
+                .orElseThrow(() -> new ResourceNotFoundException("Lo siento, este código no es uno de nuestros boletos"));
 
         validarPermisoCheckIn(tiquete);
         validarEstadoCompraParaCheckIn(tiquete);
 
-        int filasActualizadas = tiqueteRepository.marcarComoUsadoSiNoUsado(codigoQR);
+        return toBoletoDTO(tiquete);
+    }
+
+    @Transactional
+    public void realizarCheckIn(String codigoQR) {
+        if (codigoQR == null || codigoQR.isBlank()) {
+            throw new ResourceNotFoundException("Lo siento, este código no es uno de nuestros boletos");
+        }
+
+        Tiquete tiquete = tiqueteRepository.findByCodigoQR(codigoQR.trim())
+                .orElseThrow(() -> new ResourceNotFoundException("Lo siento, este código no es uno de nuestros boletos"));
+
+        validarPermisoCheckIn(tiquete);
+        validarEstadoCompraParaCheckIn(tiquete);
+
+        int filasActualizadas = tiqueteRepository.marcarComoUsadoSiNoUsado(codigoQR.trim());
         if (filasActualizadas == 0) {
             throw new BusinessException("El tiquete ya fue utilizado");
         }

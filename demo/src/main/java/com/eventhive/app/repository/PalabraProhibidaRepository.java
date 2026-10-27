@@ -10,10 +10,12 @@ import com.eventhive.app.model.PalabraProhibida;
 
 public interface PalabraProhibidaRepository extends JpaRepository<PalabraProhibida, Long> {
 
-    // Usado por el motor de reglas: solo trae las activas, una sola vez por evaluación.
+    // Obtiene la lista de palabras prohibidas que se encuentran activas en el filtro de moderación.
     List<PalabraProhibida> findByActivaTrue();
 
+    // Verifica si una palabra ya se encuentra en el listado de términos restringidos sin distinguir mayúsculas.
     boolean existsByPalabraIgnoreCase(String palabra);
 
+    // Obtiene todas las palabras prohibidas registradas de forma paginada.
     Page<PalabraProhibida> findAll(Pageable pageable);
 }

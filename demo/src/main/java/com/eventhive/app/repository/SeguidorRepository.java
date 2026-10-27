@@ -14,26 +14,26 @@ import com.eventhive.app.model.Usuario;
 
 public interface SeguidorRepository extends JpaRepository<Seguidor, Long> {
 
-    // Verifica si existe la relación entre organización y seguidor.
+    // Verifica si un usuario ya sigue a una organización determinada.
     boolean existsByOrganizacionIdAndSeguidorId(Long organizacionId, Long seguidorId);
 
-    // Elimina la relación entre organización y seguidor.
+    // Elimina el registro de seguimiento entre un usuario y una organización.
     void deleteByOrganizacionIdAndSeguidorId(Long organizacionId, Long seguidorId);
 
-    // Retorna paginados los seguidores de una organización
-    @Query(value = "SELECT s.seguidor FROM Seguidor s JOIN FETCH s.seguidor.rol WHERE s.organizacion.id = :organizacionId",
-           countQuery = "SELECT COUNT(s) FROM Seguidor s WHERE s.organizacion.id = :organizacionId")
+    // Obtiene los usuarios que siguen a una organización de forma paginada con su rol precargado.
+    @Query(value = "SELECT u FROM Seguidor s JOIN s.seguidor u JOIN FETCH u.rol WHERE s.organizacion.id = :organizacionId",
+           countQuery = "SELECT COUNT(s.id) FROM Seguidor s WHERE s.organizacion.id = :organizacionId")
     Page<Usuario> findSeguidoresByOrganizacionId(@Param("organizacionId") Long organizacionId, Pageable pageable);
 
-    // Retorna todos los seguidores de una organización sin paginacion
-    @Query(" SELECT s.seguidor FROM Seguidor s WHERE s.organizacion.id = :organizacionId")
+    // Obtiene la lista completa de usuarios seguidores de una organización.
+    @Query("SELECT s.seguidor FROM Seguidor s WHERE s.organizacion.id = :organizacionId")
     List<Usuario> findAllSeguidoresByOrganizacionId(@Param("organizacionId") Long organizacionId);
 
-    // Retorna paginadas las organizaciones que sigue un usuario
-    @Query(value = "SELECT s.organizacion FROM Seguidor s LEFT JOIN FETCH s.organizacion.representante WHERE s.seguidor.id = :seguidorId",
-           countQuery = "SELECT COUNT(s) FROM Seguidor s WHERE s.seguidor.id = :seguidorId")
+    // Obtiene las organizaciones que sigue un usuario de forma paginada con su representante precargado.
+    @Query(value = "SELECT o FROM Seguidor s JOIN s.organizacion o LEFT JOIN FETCH o.representante WHERE s.seguidor.id = :seguidorId",
+           countQuery = "SELECT COUNT(s.id) FROM Seguidor s WHERE s.seguidor.id = :seguidorId")
     Page<Organizacion> findOrganizacionesBySeguidorId(@Param("seguidorId") Long seguidorId, Pageable pageable);
 
-    // Cuenta el total de seguidores de una organización.
+    // Cuenta el total de seguidores que posee una organización.
     long countByOrganizacionId(Long organizacionId);
 }

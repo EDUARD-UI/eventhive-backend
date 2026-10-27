@@ -13,13 +13,13 @@ import com.eventhive.app.model.PosicionamientoEvento;
 
 public interface PosicionamientoEventoRepository extends JpaRepository<PosicionamientoEvento, Long> {
 
-    // Posicionamiento vigente de un evento (como máximo uno por la regla de unicidad)
+    // Obtiene el registro de posicionamiento de un evento para un estado determinado.
     Optional<PosicionamientoEvento> findByEventoIdAndEstado(Long eventoId, EstadoPosicionamiento estado);
 
-    // Evita contratar un segundo posicionamiento sobre el mismo evento
+    // Verifica si un evento cuenta con un registro de posicionamiento en el estado indicado.
     boolean existsByEventoIdAndEstado(Long eventoId, EstadoPosicionamiento estado);
 
-    // Verifica si existe posicionamiento confirmado con plan premium para banner/carrusel
+    // Verifica si un evento cuenta con posicionamiento confirmado bajo un plan catalogado como prémium.
     @Query("""
         SELECT COUNT(p) > 0 FROM PosicionamientoEvento p
         LEFT JOIN p.plan pl
@@ -29,23 +29,26 @@ public interface PosicionamientoEventoRepository extends JpaRepository<Posiciona
         """)
     boolean existsByEventoIdAndEstadoAndPlanPremiumTrue(@Param("eventoId") Long eventoId, @Param("estado") EstadoPosicionamiento estado);
 
+    // Verifica si un evento tiene un posicionamiento registrado en cualquiera de los estados provistos.
     boolean existsByEventoIdAndEstadoIn(Long eventoId, List<EstadoPosicionamiento> estados);
 
-    // Historial completo de un evento (confirmados y cancelados)
+    // Obtiene el historial completo de posicionamientos de un evento ordenado cronológicamente descendente.
     List<PosicionamientoEvento> findByEventoIdOrderByFechaContratacionDesc(Long eventoId);
 
-    // Panel del organizador
+    // Obtiene los posicionamientos contratados por un organizador ordenados por fecha descendente.
     List<PosicionamientoEvento> findByOrganizadorIdOrderByFechaContratacionDesc(Long organizadorId);
 
+    // Obtiene los posicionamientos registrados bajo un estado ordenados por fecha de contratación descendente.
     List<PosicionamientoEvento> findByEstadoOrderByFechaContratacionDesc(EstadoPosicionamiento estado);
 
-    // Ingresos de la plataforma por venta de posicionamientos
+    // Calcula la suma total de ingresos generados por la contratación confirmada de planes de posicionamiento.
     @Query("""
         SELECT COALESCE(SUM(p.precio), 0) FROM PosicionamientoEvento p
         WHERE p.estado = com.eventhive.app.enums.EstadoPosicionamiento.CONFIRMADO
         """)
     BigDecimal sumarIngresosConfirmados();
 
+    // Cuenta los eventos actualmente publicados que cuentan con un plan de posicionamiento confirmado.
     @Query("""
         SELECT COUNT(DISTINCT p.evento.id) FROM PosicionamientoEvento p
         WHERE p.estado = com.eventhive.app.enums.EstadoPosicionamiento.CONFIRMADO
@@ -54,6 +57,7 @@ public interface PosicionamientoEventoRepository extends JpaRepository<Posiciona
         """)
     long contarEventosActivosConPromocionPagada();
 
+    // Obtiene la cantidad de eventos confirmados agrupada por cada identificador de plan de promoción.
     @Query("""
         SELECT p.plan.id, COUNT(DISTINCT p.evento.id)
         FROM PosicionamientoEvento p

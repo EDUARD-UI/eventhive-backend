@@ -3,12 +3,15 @@ package com.eventhive.app.service;
 import java.time.LocalDateTime;
 
 import com.eventhive.app.model.Rol;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+
+import com.eventhive.app.config.CacheConfig;
 
 import com.eventhive.app.dto.request.SolicitudVerificacionRequest;
 import com.eventhive.app.dto.response.SolicitudVerificacionDTO;
@@ -106,6 +109,7 @@ public class ServiceSolicitudVerificacion {
 
     // la organizacion ya esta creada y se sube el RUT desde el dashboard.
     @Transactional
+    @CacheEvict(value = CacheConfig.CACHE_RUT_FIRMADO, allEntries = true)
     public void subirRutDiferido(Long solicitudId, MultipartFile archivoRut) {
         Usuario representante = authHelper.usuarioAutenticado();
 
@@ -191,6 +195,7 @@ public class ServiceSolicitudVerificacion {
     }
 
     @Transactional
+    @CacheEvict(value = CacheConfig.CACHE_RUT_FIRMADO, allEntries = true)
     public void reenviarSolicitud(Long solicitudId, SolicitudVerificacionRequest request, MultipartFile archivoRut) {
         Usuario representante = authHelper.usuarioAutenticado();
         SolicitudVerificacion solicitud = solicitudRepository.findById(solicitudId)

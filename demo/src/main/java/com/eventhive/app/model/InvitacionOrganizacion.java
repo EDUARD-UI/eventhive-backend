@@ -11,7 +11,8 @@ import java.time.LocalDateTime;
 @Table(name = "invitaciones_organizacion", indexes = {
         @Index(name = "idx_invitacion_organizacion", columnList = "organizacion_id"),
         @Index(name = "idx_invitacion_correo", columnList = "correo_invitado"),
-        @Index(name = "idx_invitacion_estado", columnList = "estado")
+        @Index(name = "idx_invitacion_estado", columnList = "estado"),
+        @Index(name = "idx_invitacion_correo_estado", columnList = "correo_invitado, estado")
 })
 @Getter @Setter
 public class InvitacionOrganizacion {

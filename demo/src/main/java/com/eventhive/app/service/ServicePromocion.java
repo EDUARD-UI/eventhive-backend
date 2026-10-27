@@ -2,9 +2,11 @@ package com.eventhive.app.service;
 
 import java.net.URI;
 
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.eventhive.app.config.CacheConfig;
 import com.eventhive.app.config.SupabaseStorageConfig;
 import com.eventhive.app.enums.EstadoEvento;
 import com.eventhive.app.enums.EstadoPosicionamiento;
@@ -31,6 +33,7 @@ public class ServicePromocion {
     private final SupabaseStorageService storageService;
 
     @Transactional
+    @CacheEvict(value = {CacheConfig.CACHE_EVENTOS_PUBLICOS, CacheConfig.CACHE_EVENTOS_CARRUSEL, CacheConfig.CACHE_EVENTOS_DESTACADOS, CacheConfig.CACHE_PRIMER_DESTACADO}, allEntries = true)
     public String subirYAsignarImagenDestacada(Long eventoId, MultipartFile imagen) {
         if (imagen == null || imagen.isEmpty()) {
             throw new BusinessException("El archivo de imagen es requerido");
@@ -63,6 +66,7 @@ public class ServicePromocion {
     }
 
     @Transactional
+    @CacheEvict(value = {CacheConfig.CACHE_EVENTOS_PUBLICOS, CacheConfig.CACHE_EVENTOS_CARRUSEL, CacheConfig.CACHE_EVENTOS_DESTACADOS, CacheConfig.CACHE_PRIMER_DESTACADO}, allEntries = true)
     public Evento asignarImagenDestacada(Long eventoId, String urlImagenDestacado) {
         Usuario usuario = authHelper.usuarioAutenticado();
         boolean esMarketingOAdmin = usuario.getRol() != null

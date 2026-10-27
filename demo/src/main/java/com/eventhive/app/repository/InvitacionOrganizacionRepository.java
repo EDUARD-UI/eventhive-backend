@@ -12,10 +12,10 @@ import com.eventhive.app.model.InvitacionOrganizacion;
 
 public interface InvitacionOrganizacionRepository extends JpaRepository<InvitacionOrganizacion, Long> {
 
-    // Verifica si existe una invitación por correo y estado.
+    // Verifica si existe una invitación para una organización con el correo y estado indicados.
     boolean existsByCorreoInvitadoAndEstado(String correo, EstadoInvitacion estado);
 
-    // Lista invitaciones de un correo y estado de forma paginada precargando referencias para evitar N+1
+    // Obtiene las invitaciones dirigidas a un correo filtradas por estado con la organización y el usuario invitante precargados.
     @Query(value = """
         SELECT i FROM InvitacionOrganizacion i
         JOIN FETCH i.organizacion
@@ -23,12 +23,12 @@ public interface InvitacionOrganizacionRepository extends JpaRepository<Invitaci
         WHERE i.correoInvitado = :correo AND i.estado = :estado
         """,
         countQuery = """
-        SELECT COUNT(i) FROM InvitacionOrganizacion i
+        SELECT COUNT(i.id) FROM InvitacionOrganizacion i
         WHERE i.correoInvitado = :correo AND i.estado = :estado
         """)
     Page<InvitacionOrganizacion> findByCorreoInvitadoAndEstado(@Param("correo") String correo, @Param("estado") EstadoInvitacion estado, Pageable pageable);
 
-    // Lista invitaciones pertenecientes a una organización precargando referencias para evitar N+1
+    // Obtiene las invitaciones pertenecientes a una organización con sus relaciones precargadas.
     @Query(value = """
         SELECT i FROM InvitacionOrganizacion i
         JOIN FETCH i.organizacion
@@ -36,7 +36,7 @@ public interface InvitacionOrganizacionRepository extends JpaRepository<Invitaci
         WHERE i.organizacion.id = :organizacionId
         """,
         countQuery = """
-        SELECT COUNT(i) FROM InvitacionOrganizacion i
+        SELECT COUNT(i.id) FROM InvitacionOrganizacion i
         WHERE i.organizacion.id = :organizacionId
         """)
     Page<InvitacionOrganizacion> findByOrganizacionId(@Param("organizacionId") Long organizacionId, Pageable pageable);

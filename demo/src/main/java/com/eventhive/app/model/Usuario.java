@@ -29,7 +29,9 @@ import lombok.Setter;
 @Table(name = "usuarios", indexes = {
         @Index(name = "idx_usuario_correo", columnList = "correo", unique = true),
         @Index(name = "idx_usuario_rol",    columnList = "rol_id"),
-        @Index(name = "idx_usuario_organizacion", columnList = "organizacion_id")
+        @Index(name = "idx_usuario_organizacion", columnList = "organizacion_id"),
+        @Index(name = "idx_usuario_nombre", columnList = "nombreCompleto"),
+        @Index(name = "idx_usuario_rol_nombre", columnList = "rol_id, nombreCompleto")
 })
 @Getter
 @Setter

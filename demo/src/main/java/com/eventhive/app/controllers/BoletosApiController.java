@@ -27,6 +27,12 @@ public class BoletosApiController {
         return ResponseEntity.ok(ApiResponse.ok("boletos de Compra obtenida", serviceBoletos.obtenerBoletosPorCompra(compraId)));
     }
 
+    @GetMapping("/validar/{codigoQR}")
+    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
+    public ResponseEntity<ApiResponse<BoletosCompraDTO.BoletoDTO>> validar(@PathVariable String codigoQR) {
+        return ResponseEntity.ok(ApiResponse.ok("Boleto válido", serviceBoletos.validarBoleto(codigoQR)));
+    }
+
     @PostMapping("/checkin/{codigoQR}")
     @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
     public ResponseEntity<ApiResponse<Void>> checkIn(@PathVariable String codigoQR) {

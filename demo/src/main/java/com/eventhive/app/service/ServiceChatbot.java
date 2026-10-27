@@ -73,7 +73,10 @@ public class ServiceChatbot {
     }
 
     public ChatbotRespuestaDTO procesarMensaje(String mensajeUsuario) {
+        log.info("[CHATBOT] Recibido mensaje de usuario: '{}'", mensajeUsuario);
+
         if (mensajeUsuario == null || mensajeUsuario.isBlank()) {
+            log.info("[CHATBOT] [NO_USA_MODELO] Mensaje vacío recibido. Respondido por regla local.");
             return ChatbotRespuestaDTO.builder()
                     .respuesta("¿En qué puedo ayudarte respecto a eventos, categorías o publicación en EventHive?")
                     .fuente("LOCAL_RULE")
@@ -85,6 +88,7 @@ public class ServiceChatbot {
 
         for (String tema : TEMAS_PROHIBIDOS) {
             if (msgMin.contains(tema)) {
+                log.info("[CHATBOT] [NO_USA_MODELO] [LOCAL_GUARDRAIL] Mensaje bloqueado por coincidencia con tema prohibido ('{}'). No se invoca modelo IA.", tema);
                 return ChatbotRespuestaDTO.builder()
                         .respuesta("Lo siento, soy el asistente virtual exclusivo de EventHive. Solo puedo ayudarte con cartelera de eventos, compra de entradas y cómo publicar eventos.")
                         .fuente("LOCAL_GUARDRAIL")
@@ -94,6 +98,7 @@ public class ServiceChatbot {
         }
 
         if (esSaludo(msgMin)) {
+            log.info("[CHATBOT] [NO_USA_MODELO] [LOCAL_RULE] Saludo detectado. Se responde con bienvenida estándar sin invocar modelo IA.");
             return ChatbotRespuestaDTO.builder()
                     .respuesta("¡Hola! Bienvenido a EventHive. ¿Tienes dudas sobre nuestra cartelera de eventos, compra de boletas o cómo registrarte como organizador?")
                     .fuente("LOCAL_RULE")
@@ -102,6 +107,7 @@ public class ServiceChatbot {
         }
 
         if (esPreguntaOrganizador(msgMin)) {
+            log.info("[CHATBOT] [NO_USA_MODELO] [LOCAL_RULE] Pregunta sobre organizador detectada. Se responde con guía local sin invocar modelo IA.");
             return ChatbotRespuestaDTO.builder()
                     .respuesta("Para publicar tus eventos en EventHive: inicia sesión, ve a tu Perfil y selecciona 'Convertirse en Organizador'. Una vez validada tu solicitud, podrás crear y gestionar tus propios eventos y localidades.")
                     .fuente("LOCAL_RULE")
@@ -110,11 +116,12 @@ public class ServiceChatbot {
         }
 
         if (esConsultaCartelera(msgMin)) {
+            log.info("[CHATBOT] [NO_USA_MODELO] [LOCAL_EVENTOS] Consulta sobre cartelera detectada. Se obtienen eventos reales de la base de datos sin invocar modelo IA.");
             return responderConEventosReales();
         }
 
         if (!permitirPeticionGroq()) {
-            log.warn("Límite de tasa preventivo alcanzado ({} RPM). Activando contingencia.", rpmLimit);
+            log.warn("[CHATBOT] [NO_USA_MODELO] [LIMITE_RPM] Límite preventivo de tasa alcanzado ({} RPM). Activando contingencia de emergencia.", rpmLimit);
             return ChatbotRespuestaDTO.builder()
                     .respuesta(responderConPlanDeEmergencia(msgMin, "ALTA_DEMANDA"))
                     .fuente("CONTINGENCIA")
@@ -123,7 +130,7 @@ public class ServiceChatbot {
         }
 
         if (groqApiKey == null || groqApiKey.isBlank() || groqApiKey.contains("TuApiKey")) {
-            log.info("API Key de Groq no configurada. Respondiendo mediante reglas de contingencia.");
+            log.warn("[CHATBOT] [NO_USA_MODELO] [SIN_API_KEY] La API Key de Groq no está configurada o es inválida. El modelo IA NO se está usando. Activando contingencia.");
             return ChatbotRespuestaDTO.builder()
                     .respuesta(responderConPlanDeEmergencia(msgMin, "SIN_LLAVE"))
                     .fuente("CONTINGENCIA")
@@ -132,35 +139,37 @@ public class ServiceChatbot {
         }
 
         try {
+            log.info("[CHATBOT] [INVOCANDO_MODELO] >>> Solicitando respuesta al modelo IA '{}' para el mensaje: '{}'", groqModel, mensajeUsuario);
             String respuestaIA = llamarGroq(mensajeUsuario);
+            log.info("[CHATBOT] [IA_RESPONDE_EXITOSAMENTE] <<< El modelo IA '{}' generó respuesta con éxito. Fuente: IA_GROQ. Respuesta: '{}'", groqModel, respuestaIA);
             return ChatbotRespuestaDTO.builder()
                     .respuesta(respuestaIA)
                     .fuente("IA_GROQ")
                     .modoContingencia(false)
                     .build();
         } catch (HttpClientErrorException.TooManyRequests e) {
-            log.warn("Groq 429 Too Many Requests detectado. Activando contingencia.");
+            log.warn("[CHATBOT] [CATCH_ACTIVADO] [RATE_LIMIT_429] Groq respondió 429 Too Many Requests con el modelo '{}'. Respondiendo por CATCH de contingencia. Detalle: {}", groqModel, e.getMessage());
             return ChatbotRespuestaDTO.builder()
                     .respuesta(responderConPlanDeEmergencia(msgMin, "RATE_LIMIT"))
                     .fuente("CONTINGENCIA")
                     .modoContingencia(true)
                     .build();
         } catch (ResourceAccessException e) {
-            log.error("Timeout o problema de red al conectar con Groq: {}", e.getMessage());
+            log.error("[CHATBOT] [CATCH_ACTIVADO] [TIMEOUT_RED] Timeout o problema de red al conectar con modelo IA '{}'. Respondiendo por CATCH de contingencia. Detalle: {}", groqModel, e.getMessage());
             return ChatbotRespuestaDTO.builder()
                     .respuesta(responderConPlanDeEmergencia(msgMin, "TIMEOUT"))
                     .fuente("CONTINGENCIA")
                     .modoContingencia(true)
                     .build();
         } catch (RestClientResponseException e) {
-            log.error("Error de respuesta de Groq API ({}): {}", e.getStatusCode(), e.getResponseBodyAsString());
+            log.error("[CHATBOT] [CATCH_ACTIVADO] [API_ERROR] Error de respuesta de Groq API ({}) para el modelo '{}'. Respondiendo por CATCH de contingencia. Cuerpo de error: {}", e.getStatusCode(), groqModel, e.getResponseBodyAsString());
             return ChatbotRespuestaDTO.builder()
                     .respuesta(responderConPlanDeEmergencia(msgMin, "API_ERROR"))
                     .fuente("CONTINGENCIA")
                     .modoContingencia(true)
                     .build();
         } catch (Exception e) {
-            log.error("Fallo inesperado en servicio de Chatbot: {}", e.getMessage(), e);
+            log.error("[CHATBOT] [CATCH_ACTIVADO] [ERROR_GENERAL] Fallo inesperado al invocar modelo IA '{}'. Respondiendo por CATCH de contingencia. Detalle: {}", groqModel, e.getMessage(), e);
             return ChatbotRespuestaDTO.builder()
                     .respuesta(responderConPlanDeEmergencia(msgMin, "ERROR_GENERAL"))
                     .fuente("CONTINGENCIA")
@@ -186,6 +195,7 @@ public class ServiceChatbot {
     }
 
     private String llamarGroq(String mensajeUsuario) {
+        log.info("[CHATBOT] [LLAMANDO_GROQ] Realizando POST a /chat/completions con modelo '{}', temperature={}, max_tokens={}", groqModel, temperature, maxTokens);
         String systemPrompt = "Eres el asistente virtual oficial de EventHive, la plataforma de venta de boletería y gestión de eventos. "
                 + "Tu función se limita estrictamente a: responder dudas sobre la cartelera de eventos, categorías, compra de boletas y cómo ser organizador. "
                 + "REGLAS: "

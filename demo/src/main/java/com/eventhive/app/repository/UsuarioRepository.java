@@ -12,43 +12,43 @@ import java.util.Optional;
 
 public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
-    // Busca un usuario por correo
+    // Busca un usuario por su dirección de correo electrónico exacta.
     Optional<Usuario> findByCorreo(String correo);
 
+    // Busca un usuario por su dirección de correo electrónico ignorando mayúsculas y minúsculas.
     Optional<Usuario> findByCorreoIgnoreCase(String correo);
 
+    // Verifica si existe un usuario registrado con el correo indicado ignorando mayúsculas y minúsculas.
     boolean existsByCorreoIgnoreCase(String correo);
 
-    // Verifica si existe un usuario con ese correo
+    // Verifica si existe un usuario registrado con la dirección de correo indicada.
     boolean existsByCorreo(String correo);
 
-    // Busca usuarios por nombre de rol (paginado, para pantallas administrativas)
+    // Obtiene usuarios asociados a un rol determinado de forma paginada.
     Page<Usuario> findByRolNombre(String nombre, Pageable pageable);
 
-    // Moderadores paginados con el rol ya cargado (el mapeo a DTO ocurre fuera de la sesión)
+    // Obtiene usuarios filtrados por rol de forma paginada con el rol precargado ordenados alfabéticamente.
     @Query(value = "SELECT u FROM Usuario u JOIN FETCH u.rol r WHERE r.nombre = :nombre ORDER BY u.nombreCompleto ASC",
-           countQuery = "SELECT COUNT(u) FROM Usuario u WHERE u.rol.nombre = :nombre")
+           countQuery = "SELECT COUNT(u.id) FROM Usuario u WHERE u.rol.nombre = :nombre")
     Page<Usuario> findByRolNombreConRol(@Param("nombre") String nombre, Pageable pageable);
 
-    // Lista COMPLETA de usuarios por rol, sin paginar (uso interno: notificaciones a moderadores)
+    // Obtiene la lista completa sin paginar de usuarios asociados a un rol específico.
     List<Usuario> findAllByRolNombre(String nombre);
 
-    // Busca un usuario por id con su rol cargado
+    // Busca un usuario por su identificador precargando su rol y la organización a la que pertenece.
     @Query("SELECT u FROM Usuario u JOIN FETCH u.rol LEFT JOIN FETCH u.organizacion WHERE u.id = :id")
     Optional<Usuario> findByIdConRol(@Param("id") Long id);
 
-    // Obtiene todos los usuarios con su rol cargado
+    // Obtiene todos los usuarios del sistema de forma paginada con su rol y organización precargados.
     @Query(value = "SELECT u FROM Usuario u JOIN FETCH u.rol LEFT JOIN FETCH u.organizacion",
-           countQuery = "SELECT COUNT(u) FROM Usuario u")
+           countQuery = "SELECT COUNT(u.id) FROM Usuario u")
     Page<Usuario> findAllConRol(Pageable pageable);
 
-    // Busca un usuario por correo con su rol cargado
+    // Busca un usuario por su correo electrónico precargando su rol.
     @Query("SELECT u FROM Usuario u JOIN FETCH u.rol WHERE u.correo = :correo")
     Optional<Usuario> findByCorreoConRol(@Param("correo") String correo);
 
-    // Usuario autenticado listo para la logica de negocio: rol, organizacion (con su
-    // representante) y permisos de evento ya inicializados, para poder usarlo fuera de
-    // una sesion de Hibernate sin LazyInitializationException.
+    // Busca un usuario por su correo precargando su rol, organización, representante y permisos de eventos.
     @Query("""
         SELECT DISTINCT u FROM Usuario u
         JOIN FETCH u.rol
@@ -59,28 +59,28 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
         """)
     Optional<Usuario> findByCorreoConContexto(@Param("correo") String correo);
 
-    // Busca usuarios por rol
+    // Obtiene los usuarios asociados a un identificador de rol con referencias precargadas.
     @Query(value = "SELECT u FROM Usuario u JOIN FETCH u.rol r LEFT JOIN FETCH u.organizacion WHERE r.id = :rolId",
-           countQuery = "SELECT COUNT(u) FROM Usuario u WHERE u.rol.id = :rolId")
+           countQuery = "SELECT COUNT(u.id) FROM Usuario u WHERE u.rol.id = :rolId")
     Page<Usuario> findByRolId(@Param("rolId") Long rolId, Pageable pageable);
 
-    // Busca usuarios cuyo nombre o correo contiene el texto indicado
+    // Busca usuarios por coincidencia en nombre o correo ignorando mayúsculas con relaciones precargadas.
     @Query(value = "SELECT u FROM Usuario u JOIN FETCH u.rol LEFT JOIN FETCH u.organizacion WHERE LOWER(u.nombreCompleto) LIKE LOWER(CONCAT('%', :nombre, '%')) OR LOWER(u.correo) LIKE LOWER(CONCAT('%', :nombre, '%'))",
-           countQuery = "SELECT COUNT(u) FROM Usuario u WHERE LOWER(u.nombreCompleto) LIKE LOWER(CONCAT('%', :nombre, '%')) OR LOWER(u.correo) LIKE LOWER(CONCAT('%', :nombre, '%'))")
+           countQuery = "SELECT COUNT(u.id) FROM Usuario u WHERE LOWER(u.nombreCompleto) LIKE LOWER(CONCAT('%', :nombre, '%')) OR LOWER(u.correo) LIKE LOWER(CONCAT('%', :nombre, '%'))")
     Page<Usuario> findByNombreContieneIgnoreCase(@Param("nombre") String nombre, Pageable pageable);
 
-    // Cuenta usuarios por rol
-    @Query("SELECT COUNT(u) FROM Usuario u WHERE u.rol.id = :rolId")
+    // Cuenta el total de usuarios asignados a un identificador de rol específico.
+    @Query("SELECT COUNT(u.id) FROM Usuario u WHERE u.rol.id = :rolId")
     long countByRolId(@Param("rolId") Long rolId);
 
-    // Busca usuarios por nombre o correo y rol
+    // Busca usuarios pertenecientes a un rol cuyo nombre o correo contenga el texto buscado.
     @Query(value = """
         SELECT u FROM Usuario u JOIN FETCH u.rol r LEFT JOIN FETCH u.organizacion
         WHERE (LOWER(u.nombreCompleto) LIKE LOWER(CONCAT('%', :nombre, '%')) OR LOWER(u.correo) LIKE LOWER(CONCAT('%', :nombre, '%')))
         AND r.id = :rolId
         """,
         countQuery = """
-        SELECT COUNT(u) FROM Usuario u
+        SELECT COUNT(u.id) FROM Usuario u
         WHERE (LOWER(u.nombreCompleto) LIKE LOWER(CONCAT('%', :nombre, '%')) OR LOWER(u.correo) LIKE LOWER(CONCAT('%', :nombre, '%')))
         AND u.rol.id = :rolId
         """)
@@ -88,7 +88,7 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
                                      @Param("rolId")   Long rolId,
                                      Pageable pageable);
 
-    // Lista los operadores de una organizacion
+    // Obtiene los operadores de una organización de forma paginada con rol precargado ordenados alfabéticamente.
     @Query(value = """
     SELECT u FROM Usuario u
     JOIN FETCH u.rol r
@@ -97,7 +97,7 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     ORDER BY u.nombreCompleto ASC
     """,
     countQuery = """
-    SELECT COUNT(u) FROM Usuario u
+    SELECT COUNT(u.id) FROM Usuario u
     WHERE u.organizacion.id = :organizacionId
       AND UPPER(u.rol.nombre) = 'OPERADOR'
     """)

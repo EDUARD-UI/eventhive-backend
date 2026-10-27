@@ -2,6 +2,8 @@ package com.eventhive.app.service;
 
 import java.util.List;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -9,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.eventhive.app.config.CacheConfig;
 import com.eventhive.app.config.SupabaseStorageConfig;
 import com.eventhive.app.dto.response.CategoriaConteoDTO;
 import com.eventhive.app.dto.response.CategoriaDTO;
@@ -44,6 +47,7 @@ public class ServiceCategoria {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheConfig.CACHE_CATEGORIAS, key = "#id")
     public CategoriaConteoDTO obtenerCategoriaDTOPorId(Long id) {
         Categoria categoria = obtenerCategoriaPorId(id);
         return new CategoriaConteoDTO(
@@ -54,6 +58,7 @@ public class ServiceCategoria {
 
     //devuelve solo id y nombre de todas las categorias
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheConfig.CACHE_CATEGORIAS, key = "'nombres'")
     public List<CategoriaNombreDTO> obtenerNombresCategorias() {
         return categoriaRepository.findAll().stream()
                 .map(c -> new CategoriaNombreDTO(c.getId(), c.getNombre()))
@@ -61,6 +66,7 @@ public class ServiceCategoria {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheConfig.CACHE_CATEGORIAS, key = "'top4'")
     public List<CategoriaDTO> obtenerTop4Categorias() {
         return categoriaRepository.findTop4ConCantidadEventos(PageRequest.of(0, 4))
                 .stream()
@@ -69,6 +75,7 @@ public class ServiceCategoria {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheConfig.CACHE_CATEGORIAS, key = "'conEventos'")
     public List<CategoriaConteoDTO> obtenerCategoriasConEventos() {
         return categoriaRepository.findAllConEventos().stream()
                 .map(this::rowToConteoDTO)
@@ -77,6 +84,7 @@ public class ServiceCategoria {
 
     //OPERACIONES CRUD
     @Transactional
+    @CacheEvict(value = CacheConfig.CACHE_CATEGORIAS, allEntries = true)
     public void crearCategoria(String nombre, MultipartFile foto) {
         String nombreNormalizado = nombre.trim();
 
@@ -94,6 +102,7 @@ public class ServiceCategoria {
     }
 
     @Transactional
+    @CacheEvict(value = CacheConfig.CACHE_CATEGORIAS, allEntries = true)
     public void actualizarCategoria(Long id, String nombre, MultipartFile foto) {
         String nombreNormalizado = nombre.trim();
         Categoria existente = obtenerCategoriaPorId(id);
@@ -117,6 +126,7 @@ public class ServiceCategoria {
     }
 
     @Transactional
+    @CacheEvict(value = CacheConfig.CACHE_CATEGORIAS, allEntries = true)
     public void eliminarCategoria(Long id) {
         Categoria cat = obtenerCategoriaPorId(id);
         long eventos = eventoRepository.countByCategoriaId(id);

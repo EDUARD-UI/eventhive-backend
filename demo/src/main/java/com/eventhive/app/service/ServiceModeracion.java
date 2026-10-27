@@ -2,10 +2,13 @@ package com.eventhive.app.service;
 
 import java.time.LocalDateTime;
 
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.eventhive.app.config.CacheConfig;
 
 import com.eventhive.app.dto.response.ModeracionEventoDTO;
 import com.eventhive.app.dto.response.ModeracionEstadisticasDTO;
@@ -70,6 +73,7 @@ public class ServiceModeracion {
 
     //OPERACIONES DE MODERACION
     @Transactional
+    @CacheEvict(value = {CacheConfig.CACHE_EVENTOS_PUBLICOS, CacheConfig.CACHE_EVENTOS_CARRUSEL, CacheConfig.CACHE_EVENTOS_DESTACADOS, CacheConfig.CACHE_PRIMER_DESTACADO, CacheConfig.CACHE_EVENTOS_MAPA, CacheConfig.CACHE_CATEGORIAS}, allEntries = true)
     public Evento aprobarEvento(Long eventoId) {
         Evento evento = obtenerEnRevision(eventoId);
         serviceEvento.transicionarEstado(evento, EstadoEvento.PUBLICADO);
@@ -83,6 +87,7 @@ public class ServiceModeracion {
     }
 
     @Transactional
+    @CacheEvict(value = {CacheConfig.CACHE_EVENTOS_PUBLICOS, CacheConfig.CACHE_EVENTOS_CARRUSEL, CacheConfig.CACHE_EVENTOS_DESTACADOS, CacheConfig.CACHE_PRIMER_DESTACADO, CacheConfig.CACHE_EVENTOS_MAPA, CacheConfig.CACHE_CATEGORIAS}, allEntries = true)
     public Evento solicitarCorreccion(Long eventoId, MotivosRechazos motivo, String observacion) {
         validarMotivo(motivo, observacion);
         Evento evento = obtenerEnRevision(eventoId);
@@ -92,6 +97,7 @@ public class ServiceModeracion {
     }
 
     @Transactional
+    @CacheEvict(value = {CacheConfig.CACHE_EVENTOS_PUBLICOS, CacheConfig.CACHE_EVENTOS_CARRUSEL, CacheConfig.CACHE_EVENTOS_DESTACADOS, CacheConfig.CACHE_PRIMER_DESTACADO, CacheConfig.CACHE_EVENTOS_MAPA, CacheConfig.CACHE_CATEGORIAS}, allEntries = true)
     public Evento rechazarEvento(Long eventoId, MotivosRechazos motivo, String observacion) {
         validarMotivo(motivo, observacion);
         Evento evento = obtenerEnRevision(eventoId);

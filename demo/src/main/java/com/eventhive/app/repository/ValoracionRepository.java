@@ -12,19 +12,20 @@ import com.eventhive.app.model.Valoracion;
 
 public interface ValoracionRepository extends JpaRepository<Valoracion, Long> {
 
-    // Calcula el promedio de calificación de una organización.
+    // Calcula el promedio numérico de calificación de las valoraciones de una organización.
     @Query("SELECT AVG(v.calificacion) FROM Valoracion v WHERE v.organizacion.id = :organizacionId")
     double calcularPromedioByOrganizacionId(@Param("organizacionId") Long organizacionId);
 
-    // Cuenta las valoraciones de una organización.
+    // Cuenta el total de valoraciones recibidas por una organización.
     long countByOrganizacionId(Long organizacionId);
 
-    // Verifica si un cliente ya valoró una organización.
+    // Verifica si un cliente ya ha registrado una valoración para una organización.
     boolean existsByClienteIdAndOrganizacionId(Long clienteId, Long organizacionId);
 
+    // Obtiene la valoración registrada por un cliente sobre una organización.
     Optional<Valoracion> findByClienteIdAndOrganizacionId(Long clienteId, Long organizacionId);
 
-    // Lista valoraciones de un cliente con la organización cargada.
+    // Obtiene las valoraciones emitidas por un cliente con la organización precargada.
     @Query(value = """
         SELECT v FROM Valoracion v
         JOIN FETCH v.organizacion
@@ -33,12 +34,12 @@ public interface ValoracionRepository extends JpaRepository<Valoracion, Long> {
         ORDER BY v.id DESC
         """,
         countQuery = """
-        SELECT COUNT(v) FROM Valoracion v
+        SELECT COUNT(v.id) FROM Valoracion v
         WHERE v.cliente.id = :clienteId
         """)
     Page<Valoracion> findByClienteIdConOrganizacion(@Param("clienteId") Long clienteId, Pageable pageable);
 
-    // Lista valoraciones de una organización con el cliente cargado.
+    // Obtiene las valoraciones recibidas por una organización con el cliente precargado.
     @Query(value = """
         SELECT v FROM Valoracion v
         JOIN FETCH v.cliente
@@ -47,7 +48,7 @@ public interface ValoracionRepository extends JpaRepository<Valoracion, Long> {
         ORDER BY v.id DESC
         """,
         countQuery = """
-        SELECT COUNT(v) FROM Valoracion v
+        SELECT COUNT(v.id) FROM Valoracion v
         WHERE v.organizacion.id = :organizacionId
         """)
     Page<Valoracion> findByOrganizacionIdConCliente(@Param("organizacionId") Long organizacionId, Pageable pageable);

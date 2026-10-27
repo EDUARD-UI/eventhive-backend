@@ -11,7 +11,11 @@ import lombok.Setter;
 
 @Entity
 @Table(name = "organizaciones", indexes = {
-        @Index(name = "idx_organizacion_nit", columnList = "nit", unique = true)
+        @Index(name = "idx_organizacion_nit", columnList = "nit", unique = true),
+        @Index(name = "idx_organizacion_estado", columnList = "estado"),
+        @Index(name = "idx_organizacion_top", columnList = "nivel, total_seguidores"),
+        @Index(name = "idx_organizacion_estado_top", columnList = "estado, nivel, total_seguidores"),
+        @Index(name = "idx_organizacion_razon_social", columnList = "razon_social")
 })
 @Getter @Setter
 public class Organizacion {

@@ -13,7 +13,7 @@ import com.eventhive.app.model.SolicitudVerificacion;
 
 public interface SolicitudVerificacionRepository extends JpaRepository<SolicitudVerificacion, Long> {
 
-    // Obtiene la última solicitud de verificación de un representante (seguro ante múltiples solicitudes)
+    // Obtiene las solicitudes de verificación de un representante legal ordenadas por fecha descendente.
     @Query("""
         SELECT s FROM SolicitudVerificacion s
         JOIN FETCH s.representanteLegal
@@ -22,14 +22,15 @@ public interface SolicitudVerificacionRepository extends JpaRepository<Solicitud
         """)
     java.util.List<SolicitudVerificacion> findAllByRepresentanteIdOrderByFechaSolicitudDesc(@Param("representanteId") Long representanteId);
 
+    // Obtiene la solicitud de verificación más reciente radicada por un representante legal.
     Optional<SolicitudVerificacion> findFirstByRepresentanteLegalIdOrderByFechaSolicitudDesc(Long representanteId);
 
+    // Método por defecto que obtiene la solicitud de verificación más reciente de un representante legal.
     default Optional<SolicitudVerificacion> findFirstByRepresentanteId(Long representanteId) {
         return findFirstByRepresentanteLegalIdOrderByFechaSolicitudDesc(representanteId);
     }
 
-
-    // Lista solicitudes de verificación por estado, de la más antigua a la más reciente.
+    // Obtiene las solicitudes de verificación en un estado determinado ordenadas por antigüedad con representante precargado.
     @Query(value = """
         SELECT s FROM SolicitudVerificacion s
         JOIN FETCH s.representanteLegal
@@ -37,11 +38,12 @@ public interface SolicitudVerificacionRepository extends JpaRepository<Solicitud
         ORDER BY s.fechaSolicitud ASC
         """,
         countQuery = """
-        SELECT COUNT(s) FROM SolicitudVerificacion s
+        SELECT COUNT(s.id) FROM SolicitudVerificacion s
         WHERE s.estado = :estado
         """)
     Page<SolicitudVerificacion> findByEstado(@Param("estado") EstadoSolicitud estado, Pageable pageable);
 
+    // Busca una solicitud de verificación precargando el representante legal y el administrador evaluador.
     @Query("""
         SELECT s FROM SolicitudVerificacion s
         LEFT JOIN FETCH s.representanteLegal
@@ -50,11 +52,10 @@ public interface SolicitudVerificacionRepository extends JpaRepository<Solicitud
         """)
     Optional<SolicitudVerificacion> findByIdConDetalles(@Param("id") Long id);
 
-
-    // Cuenta solicitudes en un estado (agregado en BD)
+    // Cuenta la cantidad de solicitudes de verificación que se encuentran en un estado específico.
     long countByEstado(EstadoSolicitud estado);
 
-    // Verifica si un representante tiene una solicitud en un estado determinado.
+    // Verifica si un representante cuenta con una solicitud radicada en el estado indicado.
     @Query("""
         SELECT COUNT(s) > 0 FROM SolicitudVerificacion s
         WHERE s.representanteLegal.id = :representanteId

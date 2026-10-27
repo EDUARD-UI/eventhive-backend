@@ -19,7 +19,9 @@ import lombok.Setter;
 @Entity
 @Table(name = "invitaciones_rol", indexes = {
         @Index(name = "idx_invitacion_rol_token", columnList = "token_hash", unique = true),
-        @Index(name = "idx_invitacion_rol_correo", columnList = "correo_invitado")
+        @Index(name = "idx_invitacion_rol_correo", columnList = "correo_invitado"),
+        @Index(name = "idx_invitacion_rol_org", columnList = "organizacion_id, fecha_invitacion"),
+        @Index(name = "idx_invitacion_rol_invitado_por", columnList = "invitado_por_id")
 })
 @Getter
 @Setter

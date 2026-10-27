@@ -9,17 +9,19 @@ import com.eventhive.app.model.Notification;
 
 public interface NotificationRepository extends MongoRepository<Notification, String> {
 
-    // Devuelve las notificaciones de un usuario ordenadas por fecha (máx 50 para proteger memoria)
+    // Obtiene las últimas cincuenta notificaciones de un usuario ordenadas por fecha de creación descendente.
     List<Notification> findTop50ByUsuarioIdOrderByFechaCreacionDesc(Long usuarioId);
 
+    // Obtiene todas las notificaciones de un usuario ordenadas por fecha de creación descendente.
     List<Notification> findByUsuarioIdOrderByFechaCreacionDesc(Long usuarioId);
 
-    // Cuenta las notificaciones no leídas de un usuario
+    // Cuenta las notificaciones que aún no han sido leídas por el usuario.
     long countByUsuarioIdAndLeidaFalse(Long usuarioId);
 
-    // Elimina las notificaciones leídas de un usuario
+    // Elimina todas las notificaciones marcadas como leídas para un usuario.
     void deleteByUsuarioIdAndLeidaTrue(Long usuarioId);
 
+    // Verifica si ya existe una notificación registrada para un usuario, evento y tipo específico.
     boolean existsByUsuarioIdAndEventoIdAndTipoNotificacion(
             Long usuarioId,
             Long eventoId,
