@@ -329,4 +329,43 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
           AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
         """)
     Page<Evento> findPublicadosByOrganizacionId(@Param("organizacionId") Long organizacionId, Pageable pageable);
+
+    // Obtiene los eventos publicados a partir de una fecha con sus referencias precargadas ordenados cronológicamente.
+    @Query("""
+        SELECT e FROM Evento e
+        JOIN FETCH e.categoria c
+        JOIN FETCH e.organizacion o
+        WHERE e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
+          AND (e.fecha > :fecha OR (e.fecha = :fecha AND e.hora >= :hora))
+        ORDER BY e.fecha ASC, e.hora ASC, e.id ASC
+        """)
+    List<Evento> findProximosPublicados(@Param("fecha") LocalDate fecha,
+                                       @Param("hora") LocalTime hora,
+                                       Pageable pageable);
+
+    // Obtiene los eventos publicados por categoría y rango de fechas con referencias precargadas para consultas específicas.
+    @Query("""
+        SELECT e FROM Evento e
+        JOIN FETCH e.categoria c
+        JOIN FETCH e.organizacion o
+        WHERE e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
+          AND (:categoriaNombre IS NULL OR LOWER(c.nombre) LIKE LOWER(CONCAT('%', :categoriaNombre, '%')))
+          AND (:fechaInicio IS NULL OR e.fecha >= :fechaInicio)
+          AND (:fechaFin IS NULL OR e.fecha <= :fechaFin)
+        ORDER BY e.fecha ASC, e.hora ASC, e.id ASC
+        """)
+    List<Evento> findPublicadosFiltroChatbot(@Param("categoriaNombre") String categoriaNombre,
+                                            @Param("fechaInicio") LocalDate fechaInicio,
+                                            @Param("fechaFin") LocalDate fechaFin,
+                                            Pageable pageable);
+
+    // Obtiene todos los eventos publicados con referencias para proveer contexto completo al chatbot.
+    @Query("""
+        SELECT e FROM Evento e
+        JOIN FETCH e.categoria c
+        JOIN FETCH e.organizacion o
+        WHERE e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
+        ORDER BY e.fecha ASC, e.hora ASC, e.id ASC
+        """)
+    List<Evento> findAllPublicadosParaChatbot(Pageable pageable);
 }

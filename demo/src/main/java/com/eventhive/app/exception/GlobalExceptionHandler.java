@@ -58,6 +58,13 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage()));
     }
 
+    @ExceptionHandler(org.springframework.security.web.firewall.RequestRejectedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleRequestRejected(org.springframework.security.web.firewall.RequestRejectedException ex) {
+        log.warn("Petición rechazada por firewall de seguridad: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("Lo siento, este código no es uno de nuestros boletos"));
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
         String mensaje = (ex.getMessage() != null && !ex.getMessage().isBlank())

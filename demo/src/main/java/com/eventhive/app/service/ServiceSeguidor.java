@@ -45,6 +45,12 @@ public class ServiceSeguidor {
                 .map(this::toOrganizacionPublicaDTO);
     }
 
+    @Transactional(readOnly = true)
+    public boolean esSeguidor(Long organizacionId) {
+        Usuario seguidor = authHelper.usuarioAutenticado();
+        return seguidorRepository.existsByOrganizacionIdAndSeguidorId(organizacionId, seguidor.getId());
+    }
+
     //OPERACIONES DE SEGUIMIENTO
     @Transactional
     public void seguir(Long organizacionId) {

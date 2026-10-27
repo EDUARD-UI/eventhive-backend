@@ -1,5 +1,7 @@
 package com.eventhive.app.dto.response;
 
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,4 +20,5 @@ public class ChatbotRespuestaDTO {
     private String respuesta;
     private String fuente;
     private boolean modoContingencia;
+    private List<ChatbotEventoDTO> eventos;
 }

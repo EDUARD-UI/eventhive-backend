@@ -3860,3 +3860,48 @@ Para la operación en producción (por ejemplo en Render) y desarrollo local, se
 | `SUPABASE_URL` | URL del proyecto Supabase Storage | `https://[ref].supabase.co` |
 | `SUPABASE_SECRET_KEY` | Llave de servicio de Supabase | `...` |
 
+---
+
+## 30. Arquitectura de Caché en Memoria (Caffeine Cache)
+
+El backend de EventHive cuenta con una capa de aceleración en memoria RAM utilizando el motor nativo de **Spring Boot Cache** potenciado por **Caffeine Cache**. No requiere servicios externos (como Redis) y reduce el tiempo de respuesta de las consultas frecuentes a **menos de 2 milisegundos**.
+
+### 30.1. Flujo de datos y desvío rápido
+1. **Petición del cliente**: El frontend consulta un endpoint público (por ejemplo, listado de eventos, categorías, banners o mapa).
+2. **Revisión en RAM**: Spring Boot intercepta la llamada con `@Cacheable`. Si los datos ya se encuentran en memoria, se devuelven al instante sin realizar consultas a PostgreSQL ni a Supabase Storage.
+3. **Carga en frío**: Si no están en caché, se consultan en la base de datos o almacenamiento, se almacenan en la memoria RAM con su respectivo tiempo de expiración y se entregan al cliente.
+
+### 30.2. Manejo de URLs de Supabase Storage (Imágenes públicas vs. Documentos privados)
+- **Buckets Públicos (`banners-home`, `categorias-images`, `eventos-images`)**:
+  - Las URLs son permanentes y no caducan.
+  - Tienen TTLs prolongados en memoria sin riesgo de enlaces caídos.
+- **Bucket Privado (`verificacion-docs` para RUTs de Organizaciones)**:
+  - Utiliza **URLs firmadas temporales** generadas por Supabase Storage con vigencia de **60 minutos** (3600 segundos).
+  - El caché `rutFirmado` tiene un TTL estricto de **50 minutos** (`expireAfterWrite(50, TimeUnit.MINUTES)`).
+  - Al expirar **10 minutos antes** de que la firma venza en Supabase, la plataforma regenera automáticamente una URL firmada fresca, eliminando cualquier riesgo de enlaces rotos para los revisores.
+
+### 30.3. Tabla de Cachés y Tiempos de Vida (TTL)
+
+| Nombre de Caché | Endpoints asociados | TTL (Tiempo de expiración) | Capacidad Máxima |
+|---|---|---|---|
+| `banners` | `GET /api/banners-home`<br>`GET /api/banners-home/admin` | 24 horas | 50 entradas |
+| `categorias` | `GET /api/categorias/{id}`<br>`GET /api/categorias/nombres`<br>`GET /api/categorias/top4`<br>`GET /api/categorias/con-eventos` | 24 horas | 100 entradas |
+| `eventosPublicos` | `GET /api/eventos`<br>`GET /api/eventos/proximos`<br>`GET /api/eventos/categoria/{id}` | 30 minutos | 500 entradas |
+| `eventosCarrusel` | `GET /api/eventos/carrusel` | 30 minutos | 50 entradas |
+| `eventosDestacados`| `GET /api/eventos/destacados` | 30 minutos | 100 entradas |
+| `primerDestacado` | `GET /api/eventos/primer-destacado` | 15 minutos | 20 entradas |
+| `eventosMapa` | `GET /api/eventos/mapa` | 15 minutos | 200 entradas |
+| `rutFirmado` | `SupabaseStorageService.generarUrlFirmada` | 50 minutos | 200 entradas |
+
+### 30.4. Desalojo Reactivo Inmediato (`@CacheEvict`)
+Aunque las consultas se sirvan desde la memoria RAM, **si ocurre cualquier cambio en los datos, el caché se purga de inmediato** para que la siguiente consulta cargue la información actualizada:
+
+- **Eventos (`crear`, `actualizar`, `aprobar`, `solicitar corrección`, `rechazar`, `suspender`, `cancelar`, `finalizar`, `eliminar`)**:
+  - Invalida simultáneamente los cachés `eventosPublicos`, `eventosCarrusel`, `eventosDestacados`, `primerDestacado`, `eventosMapa` y `categorias` (para refrescar el conteo de eventos por categoría).
+  - Un nuevo evento publicado aparece al instante a todos los usuarios.
+- **Categorías y Banners (`crear`, `actualizar`, `eliminar`)**:
+  - Desalojan inmediatamente su caché respectivo.
+- **Documentos de Verificación RUT**:
+  - Al reenviar o subir un nuevo RUT diferido, se purga de inmediato el caché de la URL firmada para emitir la nueva referencia.
+
+

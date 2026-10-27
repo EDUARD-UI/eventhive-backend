@@ -31,11 +31,11 @@ public class ServiceBoletos {
     @Transactional(readOnly = true)
     public BoletosCompraDTO.BoletoDTO validarBoleto(String codigoQR) {
         if (codigoQR == null || codigoQR.isBlank()) {
-            throw new ResourceNotFoundException("Lo siento, este código no es uno de nuestros boletos");
+            throw new BusinessException("Lo siento, este código no es uno de nuestros boletos");
         }
 
         Tiquete tiquete = tiqueteRepository.findByCodigoQR(codigoQR.trim())
-                .orElseThrow(() -> new ResourceNotFoundException("Lo siento, este código no es uno de nuestros boletos"));
+                .orElseThrow(() -> new BusinessException("Lo siento, este código no es uno de nuestros boletos"));
 
         validarPermisoCheckIn(tiquete);
         validarEstadoCompraParaCheckIn(tiquete);
@@ -46,11 +46,11 @@ public class ServiceBoletos {
     @Transactional
     public void realizarCheckIn(String codigoQR) {
         if (codigoQR == null || codigoQR.isBlank()) {
-            throw new ResourceNotFoundException("Lo siento, este código no es uno de nuestros boletos");
+            throw new BusinessException("Lo siento, este código no es uno de nuestros boletos");
         }
 
         Tiquete tiquete = tiqueteRepository.findByCodigoQR(codigoQR.trim())
-                .orElseThrow(() -> new ResourceNotFoundException("Lo siento, este código no es uno de nuestros boletos"));
+                .orElseThrow(() -> new BusinessException("Lo siento, este código no es uno de nuestros boletos"));
 
         validarPermisoCheckIn(tiquete);
         validarEstadoCompraParaCheckIn(tiquete);
