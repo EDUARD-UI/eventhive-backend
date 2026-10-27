@@ -368,10 +368,10 @@ public class ServiceChatbot {
             mensajeEncabezado = String.format("Los eventos más cercanos de la categoría %s son:", categoriaDetectada);
 
         } else if (pideCercanos) {
-            eventos = eventoRepository.findProximosPublicados(hoy, LocalTime.MIN, PageRequest.of(0, 5));
+            eventos = eventoRepository.findProximosPublicados(hoy, LocalTime.MIN, PageRequest.of(0, 5)).getContent();
             mensajeEncabezado = "Los eventos publicados más cercanos en EventHive son:";
         } else {
-            eventos = eventoRepository.findProximosPublicados(hoy, LocalTime.MIN, PageRequest.of(0, 5));
+            eventos = eventoRepository.findProximosPublicados(hoy, LocalTime.MIN, PageRequest.of(0, 5)).getContent();
             if (eventos.isEmpty()) {
                 eventos = eventoRepository.findAllPublicadosParaChatbot(PageRequest.of(0, 5));
             }

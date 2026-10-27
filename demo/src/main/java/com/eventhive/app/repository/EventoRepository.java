@@ -330,18 +330,6 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
         """)
     Page<Evento> findPublicadosByOrganizacionId(@Param("organizacionId") Long organizacionId, Pageable pageable);
 
-    // Obtiene los eventos publicados a partir de una fecha con sus referencias precargadas ordenados cronológicamente.
-    @Query("""
-        SELECT e FROM Evento e
-        JOIN FETCH e.categoria c
-        JOIN FETCH e.organizacion o
-        WHERE e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
-          AND (e.fecha > :fecha OR (e.fecha = :fecha AND e.hora >= :hora))
-        ORDER BY e.fecha ASC, e.hora ASC, e.id ASC
-        """)
-    List<Evento> findProximosPublicados(@Param("fecha") LocalDate fecha,
-                                       @Param("hora") LocalTime hora,
-                                       Pageable pageable);
 
     // Obtiene los eventos publicados por categoría y rango de fechas con referencias precargadas para consultas específicas.
     @Query("""
