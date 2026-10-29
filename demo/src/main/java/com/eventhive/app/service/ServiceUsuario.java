@@ -375,9 +375,7 @@ public class ServiceUsuario {
                 } catch (Exception ignored) {}
             }
         } else if ("OPERADOR".equalsIgnoreCase(rolNombre)) {
-            if (u.getPermisosEvento() != null) {
-                permisos.addAll(u.getPermisosEvento());
-            }
+            permisos.add(PermisoEvento.CHECK_IN);
         }
 
         setOrgId.accept(orgId);

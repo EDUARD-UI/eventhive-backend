@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpHeaders;
@@ -29,6 +30,7 @@ import com.eventhive.app.repository.CategoriaRepository;
 import com.eventhive.app.repository.EventoRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 
+@Slf4j
 @Service
 public class ServiceChatbot {
 
@@ -42,7 +44,7 @@ public class ServiceChatbot {
     @Value("${groq.api.key:${spring.ai.openai.api-key:}}")
     private String groqApiKey;
 
-    @Value("${groq.api.model:${spring.ai.openai.chat.options.model:qwen/qwen3.8-27b}}")
+    @Value("${groq.api.model:${spring.ai.openai.chat.options.model:llama-3.3-70b-versatile}}")
     private String groqModel;
 
     @Value("${groq.api.temperature:${spring.ai.openai.chat.options.temperature:0.2}}")
@@ -127,24 +129,20 @@ public class ServiceChatbot {
                     .build();
         }
 
-        // 4. Preguntas específicas sobre cartelera, categorías, fechas o conciertos
         boolean esConsultaCarteleraOFechas = esConsultaCartelera(msgMin);
 
-        // Si tenemos IA Groq activa y con cuota disponible, aprovechamos el modelo con contexto enriquecido
         if (permitirPeticionGroq() && groqApiKey != null && !groqApiKey.isBlank() && !groqApiKey.contains("TuApiKey")) {
             try {
                 return llamarGroqConContexto(mensajeUsuario);
-            } catch (Exception ignored) {
-                // Falla silenciosa con degradación elegante a búsqueda local o plan de contingencia
+            } catch (Exception ex) {
+                log.warn("Fallo al llamar servicio de IA: {}", ex.getMessage());
             }
         }
 
-        // 5. Respuesta local inteligente (si IA no disponible o falló)
         if (esConsultaCarteleraOFechas) {
             return resolverConsultaEventosLocal(msgMin);
         }
 
-        // Plan de contingencia general
         return ChatbotRespuestaDTO.builder()
                 .respuesta(responderConPlanDeEmergencia(msgMin))
                 .fuente("CONTINGENCIA")
@@ -157,13 +155,11 @@ public class ServiceChatbot {
         String fechaHoyFormateada = hoy.format(FORMATO_FECHA_ES);
         String diaSemana = hoy.getDayOfWeek().getDisplayName(TextStyle.FULL, LOCALE_ES);
 
-        // Obtener categorías registradas
         List<Categoria> categoriasList = categoriaRepository.findAll();
         String categoriasStr = categoriasList.stream()
                 .map(Categoria::getNombre)
                 .collect(Collectors.joining(", "));
 
-        // Obtener eventos publicados
         List<Evento> eventosPublicados = eventoRepository.findAllPublicadosParaChatbot(PageRequest.of(0, 35));
 
         StringBuilder catalogoEventos = new StringBuilder();
@@ -204,23 +200,17 @@ public class ServiceChatbot {
                 fechaHoyFormateada
         );
 
-        Map<String, Object> payload = Map.of(
-                "model", groqModel,
-                "temperature", temperature,
-                "max_tokens", maxTokens,
-                "messages", List.of(
-                        Map.of("role", "system", "content", systemPrompt),
-                        Map.of("role", "user", "content", mensajeUsuario)
-                )
-        );
+        String modelPrincipal = (groqModel != null && !groqModel.isBlank() && !groqModel.contains("qwen"))
+                ? groqModel
+                : "llama-3.3-70b-versatile";
 
-        JsonNode response = restClient.post()
-                .uri("/chat/completions")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + groqApiKey)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(payload)
-                .retrieve()
-                .body(JsonNode.class);
+        JsonNode response;
+        try {
+            response = consultarApiIA(modelPrincipal, systemPrompt, mensajeUsuario);
+        } catch (Exception ex) {
+            log.warn("Fallo con modelo principal {}: {}. Reintentando con modelo de respaldo", modelPrincipal, ex.getMessage());
+            response = consultarApiIA("llama-3.1-8b-instant", systemPrompt, mensajeUsuario);
+        }
 
         String textoRespuesta = "";
         if (response != null && response.has("choices") && !response.get("choices").isEmpty()) {
@@ -231,7 +221,7 @@ public class ServiceChatbot {
         }
 
         if (textoRespuesta.isBlank()) {
-            throw new IllegalStateException("Respuesta de Groq sin contenido válido");
+            throw new IllegalStateException("Respuesta de IA sin contenido válido");
         }
 
         return ChatbotRespuestaDTO.builder()
@@ -239,6 +229,26 @@ public class ServiceChatbot {
                 .fuente("IA_GROQ")
                 .modoContingencia(false)
                 .build();
+    }
+
+    private JsonNode consultarApiIA(String model, String systemPrompt, String mensajeUsuario) {
+        Map<String, Object> payload = Map.of(
+                "model", model,
+                "temperature", temperature,
+                "max_tokens", maxTokens,
+                "messages", List.of(
+                        Map.of("role", "system", "content", systemPrompt),
+                        Map.of("role", "user", "content", mensajeUsuario)
+                )
+        );
+
+        return restClient.post()
+                .uri("/chat/completions")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + groqApiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(payload)
+                .retrieve()
+                .body(JsonNode.class);
     }
 
     public ChatbotRespuestaDTO resolverConsultaEventosLocal(String msgMin) {

@@ -1,5 +1,7 @@
 package com.eventhive.app.controllers;
 
+import java.util.Map;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
@@ -18,6 +20,7 @@ import com.eventhive.app.dto.request.InvitacionRolRequest;
 import com.eventhive.app.dto.response.InvitacionRolDTO;
 import com.eventhive.app.dto.response.InvitacionRolEnviadaDTO;
 import com.eventhive.app.dto.PagedResponse;
+import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.service.ServiceInvitacionRol;
 
 import jakarta.validation.Valid;
@@ -56,5 +59,19 @@ public class InvitacionRolApiController {
         service.aceptar(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("Invitación aceptada correctamente"));
+    }
+
+    @PostMapping("/rechazar")
+    public ResponseEntity<ApiResponse<Void>> rechazar(
+            @RequestParam(required = false) String token,
+            @RequestBody(required = false) Map<String, String> body) {
+        String tokenFinal = (token != null && !token.isBlank())
+                ? token
+                : (body != null ? body.get("token") : null);
+        if (tokenFinal == null || tokenFinal.isBlank()) {
+            throw new BusinessException("El token es obligatorio para rechazar la invitación");
+        }
+        service.rechazar(tokenFinal.trim());
+        return ResponseEntity.ok(ApiResponse.ok("Invitación rechazada correctamente"));
     }
 }

@@ -1,4 +1,4 @@
-﻿# Documentación de endpoints de EventHive Backend
+# Documentación de endpoints de EventHive Backend
 
 Este documento describe los principales endpoints del backend, indicando qué reciben, qué validaciones requieren y qué estructura devuelven.
 
@@ -3058,6 +3058,11 @@ de un solo uso y vence 24 horas después del envío.
 - Público. Para una cuenta nueva, body: `{ "token": "...", "nombre": "Nombre", "telefono": "+573001112233", "clave": "contraseña segura" }`. Para una cuenta CLIENTE existente basta con `{ "token": "..." }`.
 - La cuenta CLIENTE conserva nombre, teléfono y contraseña; al aceptar se cambia su rol y, para OPERADOR, se vincula a la organización que envió la invitación. Los demás roles existentes (REPRESENTANTE, MODERADOR, OPERADOR, ADMINISTRADOR o MARKETING) no pueden aceptar otra invitación.
 
+#### `POST /api/invitaciones/roles/rechazar`
+- Público. Permite al invitado rechazar la invitación explícitamente.
+- Parámetro: Puede enviarse como query param `?token=...` o como JSON en el body `{ "token": "..." }`.
+- Marca la invitación con `fechaRechazo`. Una invitación pendiente no puede ser reenviada; debe ser aceptada o rechazada. Una vez rechazada, ya no se puede utilizar ni validar, y se habilita la posibilidad de emitir una nueva invitación si es necesario.
+
 #### `GET /api/invitaciones/roles/enviadas`
 - ADMINISTRADOR o REPRESENTANTE. Devuelve la lista paginada de invitaciones enviadas por la persona autenticada.
 
@@ -3477,6 +3482,21 @@ Este módulo administra los dos espacios promocionales propios de Eventhive. No 
   {
     "success": true,
     "mensaje": "Invitación aceptada correctamente"
+  }
+  ```
+
+#### `POST /api/invitaciones/roles/rechazar`
+- **Roles autorizados**: Público / Destinatario de la invitación.
+- **Parámetro**: Acepta `token` vía query param (`?token=...`) o JSON en el body (`{ "token": "..." }`).
+- **Reglas**:
+  - Marca la invitación como rechazada (`fechaRechazo = now()`).
+  - Las invitaciones no se pueden reenviar mientras se encuentren pendientes; el invitado debe aceptarla o rechazarla.
+  - Al ser rechazada, su estado cambia a `RECHAZADA` y no se podrá usar posteriormente.
+- **Respuesta**: HTTP 200 OK.
+  ```json
+  {
+    "success": true,
+    "mensaje": "Invitación rechazada correctamente"
   }
   ```
 

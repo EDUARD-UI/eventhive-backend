@@ -1,23 +1,23 @@
 package com.eventhive.app.service;
 
+import java.util.List;
+
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.eventhive.app.dto.response.BoletosCompraDTO;
 import com.eventhive.app.dto.response.CompraResponseDTO;
 import com.eventhive.app.enums.EstadoCompra;
-import com.eventhive.app.enums.PermisoEvento;
 import com.eventhive.app.exception.BusinessException;
-import com.eventhive.app.exception.ResourceNotFoundException;
-import org.springframework.security.access.AccessDeniedException;
 import com.eventhive.app.model.Evento;
 import com.eventhive.app.model.Localidad;
 import com.eventhive.app.model.Tiquete;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.repository.TiqueteRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -27,7 +27,6 @@ public class ServiceBoletos {
     private final TiqueteRepository tiqueteRepository;
     private final AuthenticatedUserHelper authHelper;
 
-    //operaciones de check-in
     @Transactional(readOnly = true)
     public BoletosCompraDTO.BoletoDTO validarBoleto(String codigoQR) {
         if (codigoQR == null || codigoQR.isBlank()) {
@@ -79,7 +78,6 @@ public class ServiceBoletos {
         return dto;
     }
 
-    //METODOS DE VALIDACION Y MAPEO
     private void validarPermisoCheckIn(Tiquete tiquete) {
         Usuario operador = authHelper.usuarioAutenticado();
         if (operador.getOrganizacion() == null) {
@@ -91,14 +89,17 @@ public class ServiceBoletos {
             throw new AccessDeniedException("No está autorizado para operar este tiquete");
         }
 
-        boolean esRepresentante = operador.getOrganizacion().getRepresentante() != null
-                && operador.getOrganizacion().getRepresentante().getId().equals(operador.getId());
-        if (!esRepresentante && (operador.getPermisosEvento() == null || !operador.getPermisosEvento().contains(PermisoEvento.CHECK_IN))) {
+        String rol = operador.getRol() != null ? operador.getRol().getNombre() : "";
+        boolean esOperador = "OPERADOR".equalsIgnoreCase(rol);
+        boolean esRepresentante = "REPRESENTANTE".equalsIgnoreCase(rol)
+                || (operador.getOrganizacion().getRepresentante() != null
+                && operador.getOrganizacion().getRepresentante().getId().equals(operador.getId()));
+
+        if (!esOperador && !esRepresentante) {
             throw new AccessDeniedException("No tienes permiso de check-in en esta organización");
         }
     }
 
-    // El check-in solo es válido para tiquetes asociados a compras confirmadas.
     private void validarEstadoCompraParaCheckIn(Tiquete tiquete) {
         EstadoCompra estado = tiquete.getCompra().getEstado();
         if (estado != EstadoCompra.CONFIRMADA) {

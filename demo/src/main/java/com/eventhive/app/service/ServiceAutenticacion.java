@@ -84,9 +84,7 @@ public class ServiceAutenticacion {
         if ("REPRESENTANTE".equalsIgnoreCase(rolNombre)) {
             permisos.addAll(Arrays.asList(com.eventhive.app.enums.PermisoEvento.values()));
         } else if ("OPERADOR".equalsIgnoreCase(rolNombre)) {
-            if (u.getPermisosEvento() != null) {
-                permisos.addAll(u.getPermisosEvento());
-            }
+            permisos.add(com.eventhive.app.enums.PermisoEvento.CHECK_IN);
         }
 
         return LoginResponseDTO.builder()
@@ -165,9 +163,7 @@ public class ServiceAutenticacion {
         if ("REPRESENTANTE".equalsIgnoreCase(rolNombre)) {
             permisos.addAll(Arrays.asList(com.eventhive.app.enums.PermisoEvento.values()));
         } else if ("OPERADOR".equalsIgnoreCase(rolNombre)) {
-            if (usuario.getPermisosEvento() != null) {
-                permisos.addAll(usuario.getPermisosEvento());
-            }
+            permisos.add(com.eventhive.app.enums.PermisoEvento.CHECK_IN);
         }
 
         return LoginResponseDTO.builder()

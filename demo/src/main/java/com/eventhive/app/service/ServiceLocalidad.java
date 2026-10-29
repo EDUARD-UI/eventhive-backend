@@ -23,12 +23,10 @@ public class ServiceLocalidad {
     private final LocalidadRepository localidadRepository;
     private final ServiceEvento serviceEvento;
 
-    //CONSULTAS
     @Transactional(readOnly = true)
     public List<Localidad> listarPorEvento(Long eventoId) {
-        Evento evento = serviceEvento.obtenerReferenciasEvento(eventoId);//validar que el evento existe
+        Evento evento = serviceEvento.obtenerReferenciasEvento(eventoId);
         serviceEvento.verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
-
         return localidadRepository.findByEventoId(eventoId);
     }
 
@@ -37,23 +35,16 @@ public class ServiceLocalidad {
                 .orElseThrow(() -> new ResourceNotFoundException("Localidad no encontrada con id: " + id));
     }
 
-    //OPERACIONES CRUD
     @Transactional
     public Localidad agregar(Long eventoId, LocalidadRequest request) {
         Evento evento = serviceEvento.obtenerReferenciasEvento(eventoId);
         serviceEvento.verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
         validarEventoModificable(evento);
-
         validarLocalidadRequest(request);
 
-        long total = localidadRepository.countByEventoId(eventoId);
-        String nombre = request.getNombre() == null || request.getNombre().isBlank()
-                ? "General"
-                : request.getNombre();
-
-        if (total == 0) {
-            nombre = "General";
-        }
+        String nombre = (request.getNombre() != null && !request.getNombre().isBlank())
+                ? request.getNombre().trim()
+                : "General";
 
         Localidad localidad = new Localidad();
         localidad.setNombre(nombre);
@@ -70,7 +61,6 @@ public class ServiceLocalidad {
         Evento evento = serviceEvento.obtenerReferenciasEvento(eventoId);
         serviceEvento.verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
         validarEventoModificable(evento);
-
         validarLocalidadRequest(datos);
 
         Localidad localidad = obtenerPorId(localidadId);
@@ -83,15 +73,18 @@ public class ServiceLocalidad {
         int nuevosDisponibles = localidad.getDisponibles() + diferenciaCapacidad;
 
         if (nuevosDisponibles < 0) {
-            throw new BusinessException(
-                    "No es posible reducir la capacidad por debajo de los boletos ya vendidos");
+            throw new BusinessException("No es posible reducir la capacidad por debajo de los boletos ya vendidos");
         }
 
         if (nuevosDisponibles > datos.getCapacidad()) {
             throw new BusinessException("Los disponibles no pueden superar la capacidad");
         }
 
-        localidad.setNombre(datos.getNombre() == null || datos.getNombre().isBlank() ? "General" : datos.getNombre());
+        String nombre = (datos.getNombre() != null && !datos.getNombre().isBlank())
+                ? datos.getNombre().trim()
+                : "General";
+
+        localidad.setNombre(nombre);
         localidad.setPrecio(datos.getPrecio());
         localidad.setCapacidad(datos.getCapacidad());
         localidad.setDisponibles(nuevosDisponibles);
@@ -127,7 +120,6 @@ public class ServiceLocalidad {
         }
     }
 
-    // METODOS AUXILIARES Y DE MAPEO
     private void validarLocalidadRequest(LocalidadRequest request) {
         if (request == null) {
             throw new BusinessException("La localidad es requerida");

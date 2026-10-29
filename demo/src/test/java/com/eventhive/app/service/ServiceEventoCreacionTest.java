@@ -1,30 +1,31 @@
 package com.eventhive.app.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
-
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.eventhive.app.dto.request.EventoRequest;
 import com.eventhive.app.auto.ResultadoReglaModeracion;
+import com.eventhive.app.auto.ServiceModeracionAutomatica;
+import com.eventhive.app.config.SupabaseStorageConfig;
+import com.eventhive.app.dto.request.EventoRequest;
 import com.eventhive.app.enums.EstadoEvento;
 import com.eventhive.app.enums.EstadoOrganizacion;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.model.Categoria;
 import com.eventhive.app.model.Evento;
-import com.eventhive.app.model.Organizacion;
 import com.eventhive.app.model.ModeracionEvento;
+import com.eventhive.app.model.Organizacion;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.repository.CategoriaRepository;
 import com.eventhive.app.repository.EventoRepository;
@@ -33,8 +34,6 @@ import com.eventhive.app.repository.ModeracionEventoRepository;
 import com.eventhive.app.repository.OrganizacionRepository;
 import com.eventhive.app.repository.TiqueteRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
-import com.eventhive.app.config.SupabaseStorageConfig;
-import com.eventhive.app.auto.ServiceModeracionAutomatica;
 
 @ExtendWith(MockitoExtension.class)
 class ServiceEventoCreacionTest {
@@ -79,7 +78,6 @@ class ServiceEventoCreacionTest {
             evento.setId(12L);
             return evento;
         });
-        when(localidadRepository.countByEventoId(12L)).thenReturn(1L);
 
         Evento resultado = serviceEvento.crearEvento(request(), null);
 

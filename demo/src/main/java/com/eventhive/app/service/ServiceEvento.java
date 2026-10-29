@@ -200,13 +200,12 @@ public class ServiceEvento {
         return obtenerReferenciasEvento(id);
     }
 
-    //el evento debe pertenecer a la organización del usuario autenticado
     @Transactional(readOnly = true)
     public Evento obtenerEventoDeOrganizacionPorId(Long organizacionId, Long id) {
         Evento evento = obtenerReferenciasEvento(id);
         boolean perteneceALaOrganizacion = evento.getOrganizacion() != null
                 && evento.getOrganizacion().getId().equals(organizacionId);
-        if (!perteneceALaOrganizacion) {
+        if (!perteneceALaOrganizacion || evento.getEstado() == EstadoEvento.FINALIZADO) {
             throw new ResourceNotFoundException("Evento no encontrado con id: " + id);
         }
         return evento;
@@ -271,8 +270,12 @@ public class ServiceEvento {
             if (categoriaId != null) {
                 predicates.add(cb.equal(root.get("categoria").get("id"), categoriaId));
             }
-            if (estado != null) {
+            if (estado == EstadoEvento.FINALIZADO) {
+                predicates.add(cb.disjunction());
+            } else if (estado != null) {
                 predicates.add(cb.equal(root.get("estado"), estado));
+            } else {
+                predicates.add(cb.notEqual(root.get("estado"), EstadoEvento.FINALIZADO));
             }
             if (titulo != null && !titulo.isBlank()) {
                 predicates.add(cb.like(cb.lower(root.get("titulo")), "%" + titulo.trim().toLowerCase() + "%"));
@@ -374,8 +377,6 @@ public class ServiceEvento {
         }
 
         Evento guardado = eventoRepository.save(evento);
-        asegurarLocalidadGeneral(guardado);
-
         serviceOrganizacion.actualizarTotalEventos(organizacion.getId());
 
         return guardado;
@@ -624,15 +625,17 @@ public class ServiceEvento {
 
     private void validarPermisoSobreEvento(Usuario usuario, PermisoEvento permisoRequerido) {
         Organizacion organizacion = usuario.getOrganizacion();
-        if (organizacion == null)
+        if (organizacion == null) {
             throw new AccessDeniedException("No perteneces a ninguna organización");
+        }
 
         boolean esRepresentante = organizacion.getRepresentante() != null
                 && organizacion.getRepresentante().getId().equals(usuario.getId());
-        if (esRepresentante) return; // el representante tiene control total
+        if (esRepresentante) {
+            return;
+        }
 
-        if (usuario.getPermisosEvento() == null || !usuario.getPermisosEvento().contains(permisoRequerido))
-            throw new AccessDeniedException("No tienes permiso para realizar esta acción: " + permisoRequerido);
+        throw new AccessDeniedException("Solo el representante legal puede gestionar eventos");
     }
 
     private Categoria resolverCategoria(Long categoriaId) {

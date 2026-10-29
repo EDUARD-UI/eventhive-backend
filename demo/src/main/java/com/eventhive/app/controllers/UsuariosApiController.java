@@ -7,14 +7,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -40,7 +38,6 @@ public class UsuariosApiController {
     private final ServiceUsuario usuarioService;
     private final ServiceSeguidor seguidorService;
 
-    //CONSULTAS
     @GetMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<PagedResponse<UsuarioAdminDTO>>> listar(
@@ -76,11 +73,20 @@ public class UsuariosApiController {
                 usuarioService.listarTrabajadoresMarketing()));
     }
 
-    @PatchMapping("/{id}/revocar-marketing")
+    @RequestMapping(value = {"/{id}/revocar-marketing", "/{id}/expulsar-marketing"},
+            method = {RequestMethod.PATCH, RequestMethod.DELETE, RequestMethod.POST})
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> revocarRolMarketing(@PathVariable Long id) {
         usuarioService.revocarMarketing(id);
         return ResponseEntity.ok(ApiResponse.ok("Rol de marketing revocado exitosamente"));
+    }
+
+    @RequestMapping(value = {"/{id}/revocar-moderador", "/{id}/expulsar-moderador"},
+            method = {RequestMethod.PATCH, RequestMethod.DELETE, RequestMethod.POST})
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    public ResponseEntity<ApiResponse<Void>> revocarRolModerador(@PathVariable Long id) {
+        usuarioService.revocarModerador(id);
+        return ResponseEntity.ok(ApiResponse.ok("Rol de moderador revocado exitosamente"));
     }
 
     @GetMapping("/{id}")
@@ -100,7 +106,6 @@ public class UsuariosApiController {
         return ResponseEntity.ok(ApiResponse.ok("Organizaciones seguidas obtenidas", response));
     }
 
-    //OPERACIONES PERFIL DE USUARIO
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long id) {
@@ -115,7 +120,6 @@ public class UsuariosApiController {
                 usuarioService.obtenerPerfil()));
     }
 
-    // Actividad como comprador (entradas, eventos, favoritos, gasto): disponible para todos los roles
     @GetMapping("/perfil/actividad")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<UsuarioActividadDTO>> miActividad() {

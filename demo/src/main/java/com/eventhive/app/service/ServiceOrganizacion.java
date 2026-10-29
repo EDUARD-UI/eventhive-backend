@@ -27,6 +27,7 @@ import com.eventhive.app.dto.response.OrganizacionEstadisticasDTO;
 import com.eventhive.app.dto.response.PanelEntradasDTO;
 import com.eventhive.app.dto.response.RutUrlDTO;
 import com.eventhive.app.dto.response.VentasOrganizacionResumenDTO;
+import com.eventhive.app.enums.EstadoEvento;
 import com.eventhive.app.enums.EstadoOrganizacion;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
@@ -137,16 +138,12 @@ public class ServiceOrganizacion {
         Organizacion organizacion = organizacionDelRepresentante();
         Usuario operador = obtenerOperadorDeLaOrganizacion(operadorId, organizacion);
 
-        Set<com.eventhive.app.enums.PermisoEvento> permisos = (request != null && request.getPermisos() != null)
-                ? request.getPermisos().stream().filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet())
-                : Set.of();
-
         if (operador.getPermisosEvento() == null) {
             operador.setPermisosEvento(new HashSet<>());
         } else {
             operador.getPermisosEvento().clear();
         }
-        operador.getPermisosEvento().addAll(permisos);
+        operador.getPermisosEvento().add(com.eventhive.app.enums.PermisoEvento.CHECK_IN);
         Usuario guardado = usuarioRepository.saveAndFlush(operador);
         return toOperadorDTO(guardado);
     }
@@ -310,7 +307,7 @@ public class ServiceOrganizacion {
             totalIngresos = BigDecimal.ZERO;
         }
 
-        Page<Evento> eventosPage = eventoRepository.findByOrganizacionIdOrderByIdDesc(orgId, pageable);
+        Page<Evento> eventosPage = eventoRepository.findByOrganizacionIdAndEstadoNotOrderByIdDesc(orgId, EstadoEvento.FINALIZADO, pageable);
         List<Evento> eventos = eventosPage.getContent();
 
         if (eventos.isEmpty()) {
@@ -435,7 +432,7 @@ public class ServiceOrganizacion {
         dto.setId(u.getId());
         dto.setNombreCompleto(u.getNombreCompleto());
         dto.setCorreo(u.getCorreo());
-        dto.setPermisosEvento(u.getPermisosEvento() != null ? new HashSet<>(u.getPermisosEvento()) : new HashSet<>());
+        dto.setPermisosEvento(Set.of(com.eventhive.app.enums.PermisoEvento.CHECK_IN));
         return dto;
     }
 }

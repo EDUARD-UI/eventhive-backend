@@ -31,6 +31,8 @@ import com.eventhive.app.dto.response.EventoDestacadoDTO;
 import com.eventhive.app.dto.response.EventoMapaDTO;
 import com.eventhive.app.dto.response.PrimerEventoDestacadoDTO;
 import com.eventhive.app.enums.EstadoEvento;
+import com.eventhive.app.exception.ResourceNotFoundException;
+import com.eventhive.app.model.Evento;
 import com.eventhive.app.service.ServiceEvento;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
 
@@ -45,7 +47,6 @@ public class EventosApiController {
     private final ServiceEvento serviceEvento;
     private final AuthenticatedUserHelper authHelper;
 
-    //CONSULTAS
     @GetMapping
     public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> listar(
             @RequestParam(required = false) Long categoriaId,
@@ -58,7 +59,6 @@ public class EventosApiController {
         return ResponseEntity.ok(ApiResponse.ok("Eventos obtenidos", serviceEvento.toPagedDTO(page)));
     }
 
-    // Eventos destacados: solo promocionados que además están PUBLICADOS.
     @GetMapping("/destacados")
     public ResponseEntity<ApiResponse<PagedResponse<EventoDestacadoDTO>>> eventosDestacados(
             @PageableDefault(size = 10) Pageable pageable) {
@@ -69,7 +69,6 @@ public class EventosApiController {
         ));
     }
 
-    // Primer evento destacado (promocionado: true y PUBLICADO)
     @GetMapping({"/primer-destacado", "/destacado-principal"})
     public ResponseEntity<ApiResponse<PrimerEventoDestacadoDTO>> primerEventoDestacado() {
         return ResponseEntity.ok(ApiResponse.ok(
@@ -78,7 +77,6 @@ public class EventosApiController {
         ));
     }
 
-    // Eventos públicos de una organización específica (accesible por cualquier usuario)
     @GetMapping("/organizacion/{organizacionId}")
     public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> eventosPublicosPorOrganizacion(
             @PathVariable Long organizacionId,
@@ -88,7 +86,6 @@ public class EventosApiController {
                 serviceEvento.toPagedDTO(serviceEvento.listarPublicosPorOrganizacion(organizacionId, categoriaId, pageable))));
     }
 
-    // Carrusel principal: eventos publicados, promoción activa y con imagen destacada
     @GetMapping({"/carrusel", "/carousel"})
     public ResponseEntity<ApiResponse<List<EventoCarruselDTO>>> carrusel() {
         return ResponseEntity.ok(ApiResponse.ok(
@@ -97,7 +94,6 @@ public class EventosApiController {
         ));
     }
 
-    // Eventos cercanos a la fecha actual por proximidad temporal
     @GetMapping("/proximos")
     public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> eventosProximos(
             @PageableDefault(size = 10) Pageable pageable) {
@@ -108,7 +104,6 @@ public class EventosApiController {
         ));
     }
 
-    //solo devuelve eventos de estado.PUBLICADO
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<EventoDTO>> obtener(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok("Evento obtenido",
@@ -119,8 +114,12 @@ public class EventosApiController {
     @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
     public ResponseEntity<ApiResponse<EventoDTO>> obtenerDeMiOrganizacion(@PathVariable Long id) {
         Long organizacionId = obtenerOrganizacionIdAutenticada();
+        Evento evento = serviceEvento.obtenerEventoDeOrganizacionPorId(organizacionId, id);
+        if (evento.getEstado() == EstadoEvento.FINALIZADO) {
+            throw new ResourceNotFoundException("Evento no encontrado");
+        }
         return ResponseEntity.ok(ApiResponse.ok("Evento obtenido",
-                serviceEvento.toDetalleDTO(serviceEvento.obtenerEventoDeOrganizacionPorId(organizacionId, id))));
+                serviceEvento.toDetalleDTO(evento)));
     }
 
     @GetMapping("/organizador")
@@ -201,29 +200,28 @@ public class EventosApiController {
                         serviceEvento.filtrarCrud(titulo, categoriaId, estado, pageable))));
     }
 
-    //OPERACIONES CRUD
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
+    @PreAuthorize("hasRole('REPRESENTANTE')")
     public ResponseEntity<ApiResponse<EventoDTO>> crear(
             @RequestPart("datos") @Valid EventoRequest request,
-            @RequestPart(value = "foto", required = false) MultipartFile foto){
+            @RequestPart(value = "foto", required = false) MultipartFile foto) {
 
         var evento = serviceEvento.crearEvento(request, foto);
-                var organizacion = evento.getOrganizacion();
-                String mensaje;
-                if (organizacion.getEstado() == com.eventhive.app.enums.EstadoOrganizacion.PENDIENTE_REVISION) {
-                        mensaje = organizacion.getUrlRut() == null || organizacion.getUrlRut().isBlank()
-                                        ? "Organización PENDIENTE_REVISION. Evento creado como BORRADOR; adjunta el RUT para solicitar verificación."
-                                        : "Organización PENDIENTE_REVISION. Evento creado como BORRADOR; podrá enviarse a moderación cuando la organización sea aprobada.";
-                } else {
-                        mensaje = "Organización APROBADA. Evento creado como BORRADOR; envíalo a moderación cuando esté completo.";
-                }
+        var organizacion = evento.getOrganizacion();
+        String mensaje;
+        if (organizacion.getEstado() == com.eventhive.app.enums.EstadoOrganizacion.PENDIENTE_REVISION) {
+            mensaje = organizacion.getUrlRut() == null || organizacion.getUrlRut().isBlank()
+                    ? "Organización PENDIENTE_REVISION. Evento creado como BORRADOR; adjunta el RUT para solicitar verificación."
+                    : "Organización PENDIENTE_REVISION. Evento creado como BORRADOR; podrá enviarse a moderación cuando la organización sea aprobada.";
+        } else {
+            mensaje = "Organización APROBADA. Evento creado como BORRADOR; envíalo a moderación cuando esté completo.";
+        }
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok(mensaje, serviceEvento.toDetalleDTO(evento)));
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
+    @PreAuthorize("hasRole('REPRESENTANTE')")
     public ResponseEntity<ApiResponse<EventoDTO>> actualizar(
             @PathVariable Long id,
             @RequestPart("datos") @Valid EventoRequest request,
@@ -233,36 +231,36 @@ public class EventosApiController {
                 serviceEvento.toDetalleDTO(serviceEvento.actualizarEvento(id, request, foto))));
     }
 
-        @PatchMapping("/{id}/enviar-revision")
-        @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
-        public ResponseEntity<ApiResponse<Void>> enviarRevision(@PathVariable Long id) {
-                serviceEvento.enviarRevision(id);
-                return ResponseEntity.ok(ApiResponse.ok("Evento enviado a revisión"));
-        }
+    @PatchMapping("/{id}/enviar-revision")
+    @PreAuthorize("hasRole('REPRESENTANTE')")
+    public ResponseEntity<ApiResponse<Void>> enviarRevision(@PathVariable Long id) {
+        serviceEvento.enviarRevision(id);
+        return ResponseEntity.ok(ApiResponse.ok("Evento enviado a revisión"));
+    }
 
     @PatchMapping("/{id}/cancelar")
-    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
-    public ResponseEntity<ApiResponse<Void>> cancelarEvento(@PathVariable Long id){
+    @PreAuthorize("hasRole('REPRESENTANTE')")
+    public ResponseEntity<ApiResponse<Void>> cancelarEvento(@PathVariable Long id) {
         serviceEvento.cancelarEvento(id);
         return ResponseEntity.ok(ApiResponse.ok("evento cancelado"));
     }
 
     @PatchMapping("/{id}/retirar")
-    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
+    @PreAuthorize("hasRole('REPRESENTANTE')")
     public ResponseEntity<ApiResponse<Void>> retirarEvento(@PathVariable Long id) {
         serviceEvento.retirarEvento(id);
         return ResponseEntity.ok(ApiResponse.ok("Evento retirado a borrador"));
     }
 
     @PatchMapping("/{id}/reabrir")
-    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
+    @PreAuthorize("hasRole('REPRESENTANTE')")
     public ResponseEntity<ApiResponse<Void>> reabrirEvento(@PathVariable Long id) {
         serviceEvento.reabrirEvento(id);
         return ResponseEntity.ok(ApiResponse.ok("Evento reabierto a borrador"));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
+    @PreAuthorize("hasRole('REPRESENTANTE')")
     public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long id) {
         serviceEvento.eliminarEvento(id);
         return ResponseEntity.ok(ApiResponse.ok("Evento eliminado"));

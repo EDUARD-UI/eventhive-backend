@@ -100,31 +100,23 @@ public class ServiceInvitacionRol {
         roles.findByNombre(rol)
                 .orElseThrow(() -> new ResourceNotFoundException("Rol " + rol + " no configurado"));
 
+        if (invitaciones.existsByCorreoInvitadoIgnoreCaseAndFechaAceptacionIsNullAndFechaRechazoIsNullAndFechaExpiracionAfter(
+                correoNormalizado, LocalDateTime.now())) {
+            throw new BusinessException("Ya existe una invitación pendiente para este correo. Debe ser aceptada o rechazada antes de enviar una nueva.");
+        }
+
         byte[] bytes = new byte[32];
         SECURE_RANDOM.nextBytes(bytes);
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
 
-        // Prevención de duplicados con reenvío seguro e invalidación del token anterior
-        InvitacionRol invitacion = invitaciones.findByCorreoInvitadoIgnoreCaseAndFechaAceptacionIsNullAndFechaExpiracionAfter(
-                correoNormalizado, LocalDateTime.now()).orElse(null);
-
-        if (invitacion != null) {
-            invitacion.setRolDestino(rol);
-            invitacion.setTokenHash(hash(token));
-            invitacion.setFechaInvitacion(LocalDateTime.now());
-            invitacion.setFechaExpiracion(LocalDateTime.now().plusHours(24));
-            invitacion.setInvitadoPor(remitente);
-            invitacion.setOrganizacion(organizacion);
-        } else {
-            invitacion = new InvitacionRol();
-            invitacion.setCorreoInvitado(correoNormalizado);
-            invitacion.setRolDestino(rol);
-            invitacion.setTokenHash(hash(token));
-            invitacion.setFechaInvitacion(LocalDateTime.now());
-            invitacion.setFechaExpiracion(LocalDateTime.now().plusHours(24));
-            invitacion.setInvitadoPor(remitente);
-            invitacion.setOrganizacion(organizacion);
-        }
+        InvitacionRol invitacion = new InvitacionRol();
+        invitacion.setCorreoInvitado(correoNormalizado);
+        invitacion.setRolDestino(rol);
+        invitacion.setTokenHash(hash(token));
+        invitacion.setFechaInvitacion(LocalDateTime.now());
+        invitacion.setFechaExpiracion(LocalDateTime.now().plusHours(24));
+        invitacion.setInvitadoPor(remitente);
+        invitacion.setOrganizacion(organizacion);
 
         invitaciones.save(invitacion);
 
@@ -207,10 +199,14 @@ public class ServiceInvitacionRol {
         }
         usuario.setRol(rol);
         usuario.setOrganizacion(invitacion.getOrganizacion());
-        if (usuario.getPermisosEvento() == null) {
-            usuario.setPermisosEvento(new HashSet<>());
+        if ("OPERADOR".equalsIgnoreCase(rol.getNombre())) {
+            usuario.setPermisosEvento(new HashSet<>(Set.of(com.eventhive.app.enums.PermisoEvento.CHECK_IN)));
         } else {
-            usuario.getPermisosEvento().clear();
+            if (usuario.getPermisosEvento() == null) {
+                usuario.setPermisosEvento(new HashSet<>());
+            } else {
+                usuario.getPermisosEvento().clear();
+            }
         }
         usuarios.save(usuario);
 
@@ -226,12 +222,25 @@ public class ServiceInvitacionRol {
         }
     }
 
+    @Transactional
+    public void rechazar(String token) {
+        InvitacionRol invitacion = obtenerValida(token);
+        if (invitacion.getFechaRechazo() != null) {
+            throw new BusinessException("La invitación ya fue rechazada");
+        }
+        invitacion.setFechaRechazo(LocalDateTime.now());
+        invitaciones.save(invitacion);
+    }
+
     private InvitacionRol obtenerValida(String token) {
         if (token == null || token.isBlank()) {
             throw new BusinessException("El enlace de invitación no es válido");
         }
         InvitacionRol invitacion = invitaciones.findByTokenHashAndFechaAceptacionIsNull(hash(token))
                 .orElseThrow(() -> new ResourceNotFoundException("La invitación no existe o ya fue utilizada"));
+        if (invitacion.getFechaRechazo() != null) {
+            throw new BusinessException("La invitación fue rechazada");
+        }
         if (!invitacion.getFechaExpiracion().isAfter(LocalDateTime.now())) {
             throw new BusinessException("La invitación expiró; solicita un nuevo enlace");
         }
@@ -247,7 +256,8 @@ public class ServiceInvitacionRol {
                 invitacion.getFechaInvitacion(),
                 invitacion.getFechaExpiracion(),
                 invitacion.getFechaAceptacion(),
-                InvitacionRolEnviadaDTO.calcularEstado(invitacion.getFechaAceptacion(), invitacion.getFechaExpiracion()),
+                invitacion.getFechaRechazo(),
+                InvitacionRolEnviadaDTO.calcularEstado(invitacion.getFechaAceptacion(), invitacion.getFechaRechazo(), invitacion.getFechaExpiracion()),
                 orgNombre
         );
     }

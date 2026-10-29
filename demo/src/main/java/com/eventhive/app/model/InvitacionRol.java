@@ -49,6 +49,9 @@ public class InvitacionRol {
     @Column(name = "fecha_aceptacion")
     private LocalDateTime fechaAceptacion;
 
+    @Column(name = "fecha_rechazo")
+    private LocalDateTime fechaRechazo;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "invitado_por_id", nullable = false)
     private Usuario invitadoPor;

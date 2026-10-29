@@ -102,11 +102,13 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/health", "/health").permitAll()
+                .requestMatchers("/error").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/oauth2/**").permitAll()
                 .requestMatchers("/api/chatbot/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/invitaciones/roles/validar").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/invitaciones/roles/aceptar").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/invitaciones/roles/rechazar").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/eventos/organizador/**").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/eventos/admin/**").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/eventos/**").permitAll()
