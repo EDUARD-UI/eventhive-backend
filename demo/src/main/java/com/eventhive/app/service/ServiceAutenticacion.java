@@ -1,6 +1,9 @@
 package com.eventhive.app.service;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -69,6 +72,23 @@ public class ServiceAutenticacion {
         String accessToken = jwtUtils.generarAccessToken(userDetails);
         String refreshToken = jwtUtils.generarRefreshToken(userDetails);
 
+        Usuario u = principal.getUsuario();
+        Long orgId = null;
+        String orgNombre = null;
+        Set<com.eventhive.app.enums.PermisoEvento> permisos = new HashSet<>();
+        if (u.getOrganizacion() != null) {
+            orgId = u.getOrganizacion().getId();
+            orgNombre = u.getOrganizacion().getRazonSocial();
+        }
+        String rolNombre = u.getRol() != null ? u.getRol().getNombre() : "";
+        if ("REPRESENTANTE".equalsIgnoreCase(rolNombre)) {
+            permisos.addAll(Arrays.asList(com.eventhive.app.enums.PermisoEvento.values()));
+        } else if ("OPERADOR".equalsIgnoreCase(rolNombre)) {
+            if (u.getPermisosEvento() != null) {
+                permisos.addAll(u.getPermisosEvento());
+            }
+        }
+
         return LoginResponseDTO.builder()
                 .id(principal.getUsuario().getId())
                 .accessToken(accessToken)
@@ -76,6 +96,9 @@ public class ServiceAutenticacion {
                 .tipo("Bearer")
                 .correo(principal.getUsername())
                 .rol(principal.getUsuario().getRol().getNombre())
+                .organizacionId(orgId)
+                .organizacionNombre(orgNombre)
+                .permisosEvento(permisos)
                 .build();
     }
 
@@ -109,7 +132,8 @@ public class ServiceAutenticacion {
         }
 
         String correo = jwtUtils.getCorreoDesdeToken(tokenLimpio);
-        Usuario usuario = usuarioRepository.findByCorreo(correo)
+        Usuario usuario = usuarioRepository.findByCorreoConContexto(correo)
+                .or(() -> usuarioRepository.findByCorreo(correo))
                 .orElseThrow(() -> new BadCredentialsException("Sesión inválida: usuario no encontrado con correo: " + correo));
 
         if (!usuario.isActivo()) {
@@ -130,6 +154,22 @@ public class ServiceAutenticacion {
         UsuarioPrincipal principal = new UsuarioPrincipal(usuario);
         String nuevoAccessToken = jwtUtils.generarAccessToken(principal);
 
+        Long orgId = null;
+        String orgNombre = null;
+        Set<com.eventhive.app.enums.PermisoEvento> permisos = new HashSet<>();
+        if (usuario.getOrganizacion() != null) {
+            orgId = usuario.getOrganizacion().getId();
+            orgNombre = usuario.getOrganizacion().getRazonSocial();
+        }
+        String rolNombre = usuario.getRol() != null ? usuario.getRol().getNombre() : "";
+        if ("REPRESENTANTE".equalsIgnoreCase(rolNombre)) {
+            permisos.addAll(Arrays.asList(com.eventhive.app.enums.PermisoEvento.values()));
+        } else if ("OPERADOR".equalsIgnoreCase(rolNombre)) {
+            if (usuario.getPermisosEvento() != null) {
+                permisos.addAll(usuario.getPermisosEvento());
+            }
+        }
+
         return LoginResponseDTO.builder()
                 .id(usuario.getId())
                 .accessToken(nuevoAccessToken)
@@ -137,6 +177,9 @@ public class ServiceAutenticacion {
                 .tipo("Bearer")
                 .correo(usuario.getCorreo())
                 .rol(usuario.getRol().getNombre())
+                .organizacionId(orgId)
+                .organizacionNombre(orgNombre)
+                .permisosEvento(permisos)
                 .build();
     }
 

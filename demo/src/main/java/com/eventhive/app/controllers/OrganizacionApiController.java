@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
@@ -113,7 +114,7 @@ public class OrganizacionApiController {
     }
 
     @GetMapping("/mi-organizacion")
-    @PreAuthorize("hasRole('REPRESENTANTE')")
+    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
     public ResponseEntity<ApiResponse<OrganizacionDTO>> miOrganizacion() {
         return ResponseEntity.ok(ApiResponse.ok("Organización obtenida", serviceOrganizacion.miOrganizacion()));
     }
@@ -181,13 +182,16 @@ public class OrganizacionApiController {
     }
 
     //GESTION DE PERMISOS Y OPERADORES
-    @PatchMapping("/operadores/{operadorId}/actualizar-permisos")
+    @RequestMapping(
+            value = {"/operadores/{operadorId}/actualizar-permisos", "/operadores/{operadorId}/permisos"},
+            method = {RequestMethod.PATCH, RequestMethod.PUT, RequestMethod.POST}
+    )
     @PreAuthorize("hasRole('REPRESENTANTE')")
-    public ResponseEntity<ApiResponse<Void>> actualizarPermisos(
+    public ResponseEntity<ApiResponse<OperadorDTO>> actualizarPermisos(
             @PathVariable Long operadorId,
-            @Valid @RequestBody PermisosOperadorRequest request) {
-        serviceOrganizacion.actualizarPermisos(operadorId, request);
-        return ResponseEntity.ok(ApiResponse.ok("Permisos actualizados"));
+            @RequestBody PermisosOperadorRequest request) {
+        OperadorDTO dto = serviceOrganizacion.actualizarPermisos(operadorId, request);
+        return ResponseEntity.ok(ApiResponse.ok("Permisos actualizados", dto));
     }
 
     @DeleteMapping("/expulsar-operador/{operadorId}")

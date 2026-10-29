@@ -1,7 +1,10 @@
 package com.eventhive.app.service;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,6 +21,7 @@ import com.eventhive.app.dto.response.UsuarioDTO;
 import com.eventhive.app.dto.response.UsuarioSesionDTO;
 import com.eventhive.app.enums.EstadoCompra;
 import com.eventhive.app.enums.EstadoOrganizacion;
+import com.eventhive.app.enums.PermisoEvento;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Organizacion;
@@ -299,7 +303,8 @@ public class ServiceUsuario {
 
     // METODOS AUXILIARES Y MAPEO
     private Usuario obtenerUsuarioPorCorreo(String correo) {
-        return usuarioRepository.findByCorreoConRol(correo)
+        return usuarioRepository.findByCorreoConContexto(correo)
+                .or(() -> usuarioRepository.findByCorreoConRol(correo))
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
     }
 
@@ -313,6 +318,7 @@ public class ServiceUsuario {
         if (u.getRol() != null) {
             dto.setRolNombre(u.getRol().getNombre());
         }
+        poblarOrgYPermisos(u, dto::setOrganizacionId, dto::setOrganizacionNombre, dto::setPermisos);
         return dto;
     }
 
@@ -339,7 +345,44 @@ public class ServiceUsuario {
         dto.setTelefono(u.getTelefono());
         dto.setImagenPerfil(u.getImagenPerfil());
         dto.setRolNombre(u.getRol() != null ? u.getRol().getNombre() : "");
+        poblarOrgYPermisos(u, dto::setOrganizacionId, dto::setOrganizacionNombre, dto::setPermisos);
         return dto;
+    }
+
+    private void poblarOrgYPermisos(Usuario u,
+                                    java.util.function.Consumer<Long> setOrgId,
+                                    java.util.function.Consumer<String> setOrgNombre,
+                                    java.util.function.Consumer<Set<PermisoEvento>> setPermisos) {
+        Long orgId = null;
+        String orgNombre = null;
+        Set<PermisoEvento> permisos = new HashSet<>();
+
+        if (u.getOrganizacion() != null) {
+            orgId = u.getOrganizacion().getId();
+            orgNombre = u.getOrganizacion().getRazonSocial();
+        }
+
+        String rolNombre = u.getRol() != null ? u.getRol().getNombre() : "";
+        if ("REPRESENTANTE".equalsIgnoreCase(rolNombre)) {
+            permisos.addAll(Arrays.asList(PermisoEvento.values()));
+            if (orgId == null && u.getId() != null) {
+                try {
+                    Organizacion org = organizacionRepository.findByRepresentanteIdConRepresentante(u.getId()).orElse(null);
+                    if (org != null) {
+                        orgId = org.getId();
+                        orgNombre = org.getRazonSocial();
+                    }
+                } catch (Exception ignored) {}
+            }
+        } else if ("OPERADOR".equalsIgnoreCase(rolNombre)) {
+            if (u.getPermisosEvento() != null) {
+                permisos.addAll(u.getPermisosEvento());
+            }
+        }
+
+        setOrgId.accept(orgId);
+        setOrgNombre.accept(orgNombre);
+        setPermisos.accept(permisos);
     }
 
     public PagedResponse<UsuarioDTO> toPaged(Page<UsuarioDTO> page) {

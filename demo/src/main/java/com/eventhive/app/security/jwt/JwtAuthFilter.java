@@ -29,6 +29,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            return true;
+        }
         String path = request.getServletPath();
         if (path == null || path.isBlank()) {
             path = request.getRequestURI();
@@ -76,7 +79,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 log.error("Error inesperado al autenticar {} {}", request.getMethod(),
                         request.getRequestURI(), ex);
                 SecurityContextHolder.clearContext();
-                responderErrorInterno(response);
+                responderErrorInterno(request, response);
                 return;
             }
         }
@@ -86,7 +89,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     // Se escribe la respuesta directamente: sendError() provocaria un dispatch a /error,
     // que Spring Security volveria a proteger y terminaria devolviendo 401.
-    private void responderErrorInterno(HttpServletResponse response) throws IOException {
+    private void responderErrorInterno(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        String origin = request.getHeader("Origin");
+        if (origin != null && !origin.isBlank()) {
+            response.setHeader("Access-Control-Allow-Origin", origin);
+            response.setHeader("Access-Control-Allow-Credentials", "true");
+        }
         response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");

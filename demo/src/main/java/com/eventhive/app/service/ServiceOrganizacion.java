@@ -133,7 +133,7 @@ public class ServiceOrganizacion {
 
     // GESTION DE PERMISOS Y OPERADORES
     @Transactional
-    public void actualizarPermisos(Long operadorId, PermisosOperadorRequest request) {
+    public OperadorDTO actualizarPermisos(Long operadorId, PermisosOperadorRequest request) {
         Organizacion organizacion = organizacionDelRepresentante();
         Usuario operador = obtenerOperadorDeLaOrganizacion(operadorId, organizacion);
 
@@ -141,8 +141,14 @@ public class ServiceOrganizacion {
                 ? request.getPermisos().stream().filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet())
                 : Set.of();
 
-        operador.setPermisosEvento(permisos);
-        usuarioRepository.save(operador);
+        if (operador.getPermisosEvento() == null) {
+            operador.setPermisosEvento(new HashSet<>());
+        } else {
+            operador.getPermisosEvento().clear();
+        }
+        operador.getPermisosEvento().addAll(permisos);
+        Usuario guardado = usuarioRepository.saveAndFlush(operador);
+        return toOperadorDTO(guardado);
     }
 
     @Transactional
@@ -151,10 +157,14 @@ public class ServiceOrganizacion {
         Usuario operador = obtenerOperadorDeLaOrganizacion(operadorId, organizacion);
 
         operador.setOrganizacion(null);
-        operador.setPermisosEvento(Set.of());
+        if (operador.getPermisosEvento() != null) {
+            operador.getPermisosEvento().clear();
+        } else {
+            operador.setPermisosEvento(new HashSet<>());
+        }
         operador.setRol(rolesRepository.findByNombre("CLIENTE")
                 .orElseThrow(() -> new ResourceNotFoundException("Rol CLIENTE no configurado")));
-        usuarioRepository.save(operador);
+        usuarioRepository.saveAndFlush(operador);
 
         serviceNotification.notificarRevocacionOperador(operador, organizacion.getRazonSocial());
     }

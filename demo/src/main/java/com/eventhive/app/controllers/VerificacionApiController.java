@@ -25,8 +25,8 @@ public class VerificacionApiController {
     private final ServiceSolicitudVerificacion serviceSolicitud;
 
     //CONSULTAS
-    @GetMapping({"/mi-solicitud", "/mis-solicitudes"})
-    @PreAuthorize("hasRole('REPRESENTANTE')")
+    @GetMapping({"/mi-solicitud", "/mis-solicitudes", "/mi_solicitud", "/mis_solicitudes"})
+    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
     public ResponseEntity<ApiResponse<SolicitudVerificacionDTO>> miSolicitud() {
         SolicitudVerificacionDTO solicitud = serviceSolicitud.miSolicitud();
         if (solicitud == null) {
@@ -60,7 +60,7 @@ public class VerificacionApiController {
     }
 
     // carga solitaria del RUT
-    @PatchMapping(value = "/{solicitudId}/subir-rut", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PatchMapping(value = {"/{solicitudId}/subir-rut", "/{solicitudId}/subir_rut"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('REPRESENTANTE')")
     public ResponseEntity<ApiResponse<Void>> cargarDocumentoRut(
             @PathVariable Long solicitudId,
@@ -85,7 +85,7 @@ public class VerificacionApiController {
         return ResponseEntity.ok(ApiResponse.ok("Solicitud rechazada"));
     }
 
-    @PatchMapping("/{solicitudId}/solicitar-correccion")
+    @PatchMapping({"/{solicitudId}/solicitar-correccion", "/{solicitudId}/solicitar_correccion"})
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<SolicitudVerificacionDTO>> solicitarCorreccion(
             @PathVariable Long solicitudId, @RequestParam String motivo) {

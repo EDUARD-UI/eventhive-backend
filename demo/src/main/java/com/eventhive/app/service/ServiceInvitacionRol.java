@@ -6,6 +6,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.Locale;
 import java.util.Set;
@@ -206,20 +207,22 @@ public class ServiceInvitacionRol {
         }
         usuario.setRol(rol);
         usuario.setOrganizacion(invitacion.getOrganizacion());
-        usuario.setPermisosEvento(Set.of());
+        if (usuario.getPermisosEvento() == null) {
+            usuario.setPermisosEvento(new HashSet<>());
+        } else {
+            usuario.getPermisosEvento().clear();
+        }
         usuarios.save(usuario);
 
         invitacion.setFechaAceptacion(LocalDateTime.now());
         invitaciones.save(invitacion);
 
-        if (serviceNotification != null) {
-            if (invitacion.getInvitadoPor() != null) {
-                serviceNotification.notificarInvitacionAceptada(invitacion.getInvitadoPor(), usuario.getNombreCompleto());
-            }
-            if (invitacion.getOrganizacion() != null) {
-                serviceNotification.notificarRolAsignado(
-                        usuario, rol.getNombre(), invitacion.getOrganizacion().getRazonSocial());
-            }
+        if (invitacion.getInvitadoPor() != null) {
+            serviceNotification.notificarInvitacionAceptada(invitacion.getInvitadoPor(), usuario.getNombreCompleto());
+        }
+        if (invitacion.getOrganizacion() != null) {
+            serviceNotification.notificarRolAsignado(
+                    usuario, rol.getNombre(), invitacion.getOrganizacion().getRazonSocial());
         }
     }
 

@@ -46,8 +46,14 @@ public class ServiceSolicitudVerificacion {
     //CONSULTAS
     @Transactional(readOnly = true)
     public SolicitudVerificacionDTO miSolicitud() {
-        Usuario representante = authHelper.usuarioAutenticado();
-        return solicitudRepository.findFirstByRepresentanteId(representante.getId())
+        Usuario usuario = authHelper.usuarioAutenticado();
+        Long representanteId = null;
+        if (usuario.getOrganizacion() != null && usuario.getOrganizacion().getRepresentante() != null) {
+            representanteId = usuario.getOrganizacion().getRepresentante().getId();
+        } else {
+            representanteId = usuario.getId();
+        }
+        return solicitudRepository.findFirstByRepresentanteId(representanteId)
                 .map(this::toDTO)
                 .orElse(null);
     }

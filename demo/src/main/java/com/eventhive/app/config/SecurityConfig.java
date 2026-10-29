@@ -80,6 +80,11 @@ public class SecurityConfig {
     @Bean
     public RequestRejectedHandler requestRejectedHandler() {
         return (request, response, ex) -> {
+            String origin = request.getHeader("Origin");
+            if (origin != null && !origin.isBlank()) {
+                response.setHeader("Access-Control-Allow-Origin", origin);
+                response.setHeader("Access-Control-Allow-Credentials", "true");
+            }
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             response.setContentType("application/json");
             response.setCharacterEncoding("UTF-8");
@@ -95,6 +100,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/health", "/health").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/oauth2/**").permitAll()
@@ -136,6 +142,11 @@ public class SecurityConfig {
     @Bean
     public AuthenticationEntryPoint jsonAuthenticationEntryPoint() {
         return (request, response, authException) -> {
+            String origin = request.getHeader("Origin");
+            if (origin != null && !origin.isBlank()) {
+                response.setHeader("Access-Control-Allow-Origin", origin);
+                response.setHeader("Access-Control-Allow-Credentials", "true");
+            }
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json");
             response.setCharacterEncoding("UTF-8");
@@ -146,6 +157,11 @@ public class SecurityConfig {
     @Bean
     public AccessDeniedHandler jsonAccessDeniedHandler() {
         return (request, response, accessDeniedException) -> {
+            String origin = request.getHeader("Origin");
+            if (origin != null && !origin.isBlank()) {
+                response.setHeader("Access-Control-Allow-Origin", origin);
+                response.setHeader("Access-Control-Allow-Credentials", "true");
+            }
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             response.setContentType("application/json");
             response.setCharacterEncoding("UTF-8");

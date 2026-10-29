@@ -277,6 +277,29 @@ class EventhiveInvitacionesYPermisosTest {
         assertTrue(ex.getMessage().contains("check-in"));
     }
 
+    // 10. Deserialización flexible de PermisosOperadorRequest (array, snake_case, permisosEvento)
+    @Test
+    @DisplayName("PermisosOperadorRequest deserializa array directo y aliases con insensibilidad a mayúsculas/minúsculas")
+    void permisosOperadorRequestDeserializacionFlexible() throws Exception {
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+
+        // Caso 1: Array plano en minúsculas y snake_case
+        String jsonArray = "[\"crear_evento\", \"check-in\"]";
+        com.eventhive.app.dto.request.PermisosOperadorRequest reqArray =
+                mapper.readValue(jsonArray, com.eventhive.app.dto.request.PermisosOperadorRequest.class);
+        assertNotNull(reqArray.getPermisos());
+        assertTrue(reqArray.getPermisos().contains(PermisoEvento.CREAR_EVENTO));
+        assertTrue(reqArray.getPermisos().contains(PermisoEvento.CHECK_IN));
+
+        // Caso 2: Objeto con propiedad permisosEvento
+        String jsonObj = "{\"permisosEvento\": [\"EDITAR_EVENTO\", \"CANCELAR_EVENTO\"]}";
+        com.eventhive.app.dto.request.PermisosOperadorRequest reqObj =
+                mapper.readValue(jsonObj, com.eventhive.app.dto.request.PermisosOperadorRequest.class);
+        assertNotNull(reqObj.getPermisos());
+        assertTrue(reqObj.getPermisos().contains(PermisoEvento.EDITAR_EVENTO));
+        assertTrue(reqObj.getPermisos().contains(PermisoEvento.CANCELAR_EVENTO));
+    }
+
     // Helper methods
     private Usuario usuario(Long id, String correo, String rolNombre, Organizacion org) {
         Usuario u = new Usuario();

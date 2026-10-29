@@ -1,4 +1,4 @@
-# Documentación de endpoints de EventHive Backend
+﻿# Documentación de endpoints de EventHive Backend
 
 Este documento describe los principales endpoints del backend, indicando qué reciben, qué validaciones requieren y qué estructura devuelven.
 
@@ -1913,7 +1913,7 @@ En caso de error, la respuesta suele devolver:
 #### `GET /api/organizaciones/mi-organizacion`
 - Recibe: sin body.
 - Devuelve: `ApiResponse<OrganizacionDTO>`
-- Permisos: REPRESENTANTE.
+- Permisos: REPRESENTANTE u OPERADOR.
 - Ejemplo de respuesta:
 
 ```json
@@ -1946,32 +1946,6 @@ En caso de error, la respuesta suele devolver:
 - Permisos: REPRESENTANTE.
 - Descripción: actualiza los datos de la organización del representante autenticado y, si se envía `imagen`, reemplaza su logo en Supabase Storage. Si no se envía imagen, conserva el logo actual.
 
-#### `GET /api/organizaciones/mis-invitaciones`
-- Recibe: paginación.
-- Devuelve: `ApiResponse<PagedResponse<InvitacionRolEnviadaDTO>>`
-- Permisos: autenticado.
-- Ejemplo de respuesta:
-
-```json
-{
-  "success": true,
-  "mensaje": "Invitaciones pendientes obtenidas",
-  "data": {
-    "content": [
-      {
-        "id": 3,
-        "correoInvitado": "carlos@email.com",
-        "organizacionNombre": "Eventica SpA",
-        "invitadoPorNombre": "Ana Pérez",
-        "estado": "PENDIENTE",
-        "fechaInvitacion": "2026-09-26T10:30:00",
-        "fechaRespuesta": null
-      }
-    ]
-  }
-}
-```
-
 #### `GET /api/organizaciones/invitaciones-enviadas`
 - Recibe: paginación.
 - Devuelve: `ApiResponse<PagedResponse<InvitacionRolEnviadaDTO>>`
@@ -1986,12 +1960,13 @@ En caso de error, la respuesta suele devolver:
     "content": [
       {
         "id": 4,
-        "correoInvitado": "usuario@correo.com",
-        "organizacionNombre": "Eventica SpA",
-        "invitadoPorNombre": "Carlos Pérez",
-        "estado": "ENVIADA",
-        "fechaInvitacion": "2026-09-26T10:30:00",
-        "fechaRespuesta": null
+        "correo": "operador@eventos.com",
+        "rol": "OPERADOR",
+        "fechaInvitacion": "2026-10-21T18:30:00",
+        "fechaExpiracion": "2026-10-22T18:30:00",
+        "fechaAceptacion": null,
+        "estado": "PENDIENTE",
+        "organizacionNombre": "Eventica SpA"
       }
     ]
   }
@@ -2135,35 +2110,6 @@ Los operadores se agregan mediante invitación por correo, aceptan o rechazan la
 {
   "success": true,
   "mensaje": "Invitación enviada",
-  "data": null
-}
-```
-
-#### `PATCH /api/organizaciones/invitaciones/{invitacionId}/aceptar`
-- Recibe: `invitacionId` en path.
-- Devuelve: `ApiResponse<Void>`
-- Permisos: público/autenticado según flujo de negocio.
-- Ruta heredada para invitaciones anteriores; las invitaciones nuevas se aceptan con `POST /api/invitaciones/roles/aceptar`.
-- Ejemplo de respuesta:
-
-```json
-{
-  "success": true,
-  "mensaje": "Invitación aceptada",
-  "data": null
-}
-```
-
-#### `PATCH /api/organizaciones/invitaciones/{operadorId}/rechazar`
-- Recibe: `operadorId` en path.
-- Devuelve: `ApiResponse<Void>`
-- Permisos: autenticado.
-- Ejemplo de respuesta:
-
-```json
-{
-  "success": true,
-  "mensaje": "Invitación rechazada",
   "data": null
 }
 ```
