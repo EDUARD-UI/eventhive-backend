@@ -1948,7 +1948,7 @@ En caso de error, la respuesta suele devolver:
 
 #### `GET /api/organizaciones/mis-invitaciones`
 - Recibe: paginación.
-- Devuelve: `ApiResponse<PagedResponse<InvitacionOrganizacionDTO>>`
+- Devuelve: `ApiResponse<PagedResponse<InvitacionRolEnviadaDTO>>`
 - Permisos: autenticado.
 - Ejemplo de respuesta:
 
@@ -1974,7 +1974,7 @@ En caso de error, la respuesta suele devolver:
 
 #### `GET /api/organizaciones/invitaciones-enviadas`
 - Recibe: paginación.
-- Devuelve: `ApiResponse<PagedResponse<InvitacionOrganizacionDTO>>`
+- Devuelve: `ApiResponse<PagedResponse<InvitacionRolEnviadaDTO>>`
 - Permisos: REPRESENTANTE.
 - Ejemplo de respuesta:
 
@@ -3603,7 +3603,7 @@ Este módulo administra los dos espacios promocionales propios de Eventhive. No 
 #### `GET /api/organizaciones/invitaciones-enviadas`
 - **Roles autorizados**: `REPRESENTANTE`.
 - **Descripción**: Consulta el historial y estado de invitaciones emitidas para la organización del representante.
-- **Devuelve**: `ApiResponse<PagedResponse<InvitacionOrganizacionDTO>>`
+- **Devuelve**: `ApiResponse<PagedResponse<InvitacionRolEnviadaDTO>>`
 - **Respuesta**: HTTP 200 OK.
 
 #### `GET /api/organizaciones/mis-operadores`
@@ -3903,5 +3903,18 @@ Aunque las consultas se sirvan desde la memoria RAM, **si ocurre cualquier cambi
   - Desalojan inmediatamente su caché respectivo.
 - **Documentos de Verificación RUT**:
   - Al reenviar o subir un nuevo RUT diferido, se purga de inmediato el caché de la URL firmada para emitir la nueva referencia.
+
+---
+
+## 31. Monitoreo de Salud y Keep-Alive
+
+### Base: `/api/health` y `/health`
+
+Endpoints ultraligeros de sondeo de estado operativo, diseñados para consumir 0 memoria RAM y no realizar consultas a la base de datos ni procesamiento de seguridad JWT.
+
+#### `GET /api/health` o `GET /health`
+- **Público**: libre acceso (excluido de `JwtAuthFilter` y configurado con `permitAll()` en `SecurityConfig`).
+- Devuelve: `{"status":"UP"}` con Content-Type `application/json` y código HTTP 200 OK.
+- **Keep-Alive automático**: Tarea programada cada 13 minutos (`@Scheduled(fixedRate = 780000)`) que efectúa un ping HTTP ligero al servicio (usando `RENDER_EXTERNAL_URL` o `http://localhost:PORT/api/health`), evitando que instancias gratuitas en plataformas en la nube (Render, Koyeb) entren en suspensión por inactividad.
 
 

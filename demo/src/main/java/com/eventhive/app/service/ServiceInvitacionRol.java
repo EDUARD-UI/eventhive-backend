@@ -20,10 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.eventhive.app.dto.request.AceptarInvitacionRolRequest;
-import com.eventhive.app.dto.response.InvitacionOrganizacionDTO;
 import com.eventhive.app.dto.response.InvitacionRolDTO;
 import com.eventhive.app.dto.response.InvitacionRolEnviadaDTO;
-import com.eventhive.app.enums.EstadoInvitacion;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.InvitacionRol;
@@ -51,6 +49,7 @@ public class ServiceInvitacionRol {
     private final AuthenticatedUserHelper authHelper;
     private final PasswordEncoder passwordEncoder;
     private final ServiceCorreo serviceCorreo;
+    private final ServiceNotification serviceNotification;
 
     @Value("${eventhive.frontend-url:https://eventhive-ruby-zeta.vercel.app}")
     private String frontendUrl;
@@ -165,7 +164,7 @@ public class ServiceInvitacionRol {
     }
 
     @Transactional(readOnly = true)
-    public Page<InvitacionOrganizacionDTO> listarInvitacionesDeMiOrganizacion(Pageable pageable) {
+    public Page<InvitacionRolEnviadaDTO> listarInvitacionesDeMiOrganizacion(Pageable pageable) {
         Usuario remitente = authHelper.usuarioAutenticado();
         if (!esRol(remitente, "REPRESENTANTE")) {
             throw new AccessDeniedException("Solo los representantes pueden consultar invitaciones de organización");
@@ -178,23 +177,7 @@ public class ServiceInvitacionRol {
             throw new BusinessException("No tienes una organización para administrar");
         }
         return invitaciones.findByOrganizacionIdOrderByFechaInvitacionDesc(org.getId(), pageable)
-                .map(inv -> {
-                    InvitacionOrganizacionDTO dto = new InvitacionOrganizacionDTO();
-                    dto.setId(inv.getId());
-                    dto.setCorreoInvitado(inv.getCorreoInvitado());
-                    dto.setOrganizacionNombre(inv.getOrganizacion() != null ? inv.getOrganizacion().getRazonSocial() : "");
-                    dto.setInvitadoPorNombre(inv.getInvitadoPor() != null ? inv.getInvitadoPor().getNombreCompleto() : "");
-                    if (inv.getFechaAceptacion() != null) {
-                        dto.setEstado(EstadoInvitacion.ACEPTADA);
-                    } else if (!inv.getFechaExpiracion().isAfter(LocalDateTime.now())) {
-                        dto.setEstado(EstadoInvitacion.RECHAZADA);
-                    } else {
-                        dto.setEstado(EstadoInvitacion.PENDIENTE);
-                    }
-                    dto.setFechaInvitacion(inv.getFechaInvitacion());
-                    dto.setFechaRespuesta(inv.getFechaAceptacion());
-                    return dto;
-                });
+                .map(this::toEnviadaDTO);
     }
 
     @Transactional
@@ -228,6 +211,16 @@ public class ServiceInvitacionRol {
 
         invitacion.setFechaAceptacion(LocalDateTime.now());
         invitaciones.save(invitacion);
+
+        if (serviceNotification != null) {
+            if (invitacion.getInvitadoPor() != null) {
+                serviceNotification.notificarInvitacionAceptada(invitacion.getInvitadoPor(), usuario.getNombreCompleto());
+            }
+            if (invitacion.getOrganizacion() != null) {
+                serviceNotification.notificarRolAsignado(
+                        usuario, rol.getNombre(), invitacion.getOrganizacion().getRazonSocial());
+            }
+        }
     }
 
     private InvitacionRol obtenerValida(String token) {

@@ -45,6 +45,7 @@ class ServiceInvitacionRolTest {
     @Mock private AuthenticatedUserHelper authHelper;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private ServiceCorreo serviceCorreo;
+    @Mock private ServiceNotification serviceNotification;
     @InjectMocks private ServiceInvitacionRol service;
 
     @Test

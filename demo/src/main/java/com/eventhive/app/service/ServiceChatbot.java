@@ -6,34 +6,23 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Deque;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientResponseException;
 
-import com.eventhive.app.dto.response.ChatbotEventoDTO;
 import com.eventhive.app.dto.response.ChatbotRespuestaDTO;
-import com.eventhive.app.enums.EstadoEvento;
 import com.eventhive.app.model.Categoria;
 import com.eventhive.app.model.Evento;
 import com.eventhive.app.repository.CategoriaRepository;
@@ -43,7 +32,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 @Service
 public class ServiceChatbot {
 
-    private static final Logger log = LoggerFactory.getLogger(ServiceChatbot.class);
     private static final Locale LOCALE_ES = Locale.forLanguageTag("es-ES");
     private static final DateTimeFormatter FORMATO_FECHA_ES = DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy", LOCALE_ES);
 
@@ -100,10 +88,7 @@ public class ServiceChatbot {
     }
 
     public ChatbotRespuestaDTO procesarMensaje(String mensajeUsuario) {
-        log.info("[CHATBOT] Recibido mensaje de usuario: '{}'", mensajeUsuario);
-
         if (mensajeUsuario == null || mensajeUsuario.isBlank()) {
-            log.info("[CHATBOT] [NO_USA_MODELO] Mensaje vacío recibido. Respondido por regla local.");
             return ChatbotRespuestaDTO.builder()
                     .respuesta("¿En qué puedo ayudarte respecto a eventos, fechas o categorías en EventHive?")
                     .fuente("LOCAL_RULE")
@@ -116,7 +101,6 @@ public class ServiceChatbot {
         // 1. Guardrail de temas prohibidos
         for (String tema : TEMAS_PROHIBIDOS) {
             if (msgMin.contains(tema)) {
-                log.info("[CHATBOT] [NO_USA_MODELO] [LOCAL_GUARDRAIL] Mensaje bloqueado por coincidencia con tema prohibido ('{}').", tema);
                 return ChatbotRespuestaDTO.builder()
                         .respuesta("Lo siento, soy el asistente virtual exclusivo de EventHive. Solo puedo ayudarte con información de eventos, fechas, categorías y compra de entradas.")
                         .fuente("LOCAL_GUARDRAIL")
@@ -127,7 +111,6 @@ public class ServiceChatbot {
 
         // 2. Saludos
         if (esSaludo(msgMin)) {
-            log.info("[CHATBOT] [NO_USA_MODELO] [LOCAL_RULE] Saludo detectado.");
             return ChatbotRespuestaDTO.builder()
                     .respuesta("¡Hola! Bienvenido a EventHive. ¿Te gustaría consultar conciertos, eventos por fecha, categorías disponibles o cómo comprar tus boletas?")
                     .fuente("LOCAL_RULE")
@@ -137,7 +120,6 @@ public class ServiceChatbot {
 
         // 3. Pregunta organizador
         if (esPreguntaOrganizador(msgMin)) {
-            log.info("[CHATBOT] [NO_USA_MODELO] [LOCAL_RULE] Pregunta sobre organizador detectada.");
             return ChatbotRespuestaDTO.builder()
                     .respuesta("Para publicar tus eventos en EventHive: inicia sesión, ve a tu Perfil y selecciona 'Convertirse en Organizador'. Una vez validada tu solicitud, podrás crear y gestionar tus propios eventos y localidades.")
                     .fuente("LOCAL_RULE")
@@ -151,24 +133,14 @@ public class ServiceChatbot {
         // Si tenemos IA Groq activa y con cuota disponible, aprovechamos el modelo con contexto enriquecido
         if (permitirPeticionGroq() && groqApiKey != null && !groqApiKey.isBlank() && !groqApiKey.contains("TuApiKey")) {
             try {
-                log.info("[CHATBOT] [INVOCANDO_MODELO] Solicitando respuesta al modelo IA '{}' para: '{}'", groqModel, mensajeUsuario);
-                ChatbotRespuestaDTO respuestaIA = llamarGroqConContexto(mensajeUsuario, msgMin);
-                log.info("[CHATBOT] [IA_RESPONDE_EXITOSAMENTE] Modelo respondió con éxito.");
-                return respuestaIA;
-            } catch (HttpClientErrorException.TooManyRequests e) {
-                log.warn("[CHATBOT] [RATE_LIMIT_429] Groq respondió 429 Too Many Requests.");
-            } catch (ResourceAccessException e) {
-                log.error("[CHATBOT] [TIMEOUT_RED] Timeout al conectar con Groq: {}", e.getMessage());
-            } catch (RestClientResponseException e) {
-                log.error("[CHATBOT] [API_ERROR] Error de respuesta de Groq API: {}", e.getResponseBodyAsString());
-            } catch (Exception e) {
-                log.error("[CHATBOT] [ERROR_GENERAL] Fallo inesperado en Groq: {}", e.getMessage(), e);
+                return llamarGroqConContexto(mensajeUsuario);
+            } catch (Exception ignored) {
+                // Falla silenciosa con degradación elegante a búsqueda local o plan de contingencia
             }
         }
 
         // 5. Respuesta local inteligente (si IA no disponible o falló)
         if (esConsultaCarteleraOFechas) {
-            log.info("[CHATBOT] Resolviendo consulta de eventos/categorías localmente con base de datos.");
             return resolverConsultaEventosLocal(msgMin);
         }
 
@@ -180,7 +152,7 @@ public class ServiceChatbot {
                 .build();
     }
 
-    private ChatbotRespuestaDTO llamarGroqConContexto(String mensajeUsuario, String msgMin) {
+    private ChatbotRespuestaDTO llamarGroqConContexto(String mensajeUsuario) {
         LocalDate hoy = LocalDate.now();
         String fechaHoyFormateada = hoy.format(FORMATO_FECHA_ES);
         String diaSemana = hoy.getDayOfWeek().getDisplayName(TextStyle.FULL, LOCALE_ES);
@@ -198,8 +170,7 @@ public class ServiceChatbot {
         for (Evento e : eventosPublicados) {
             String catNom = e.getCategoria() != null ? e.getCategoria().getNombre() : "General";
             String fechaEv = e.getFecha() != null ? e.getFecha().format(FORMATO_FECHA_ES) : "Fecha por confirmar";
-            catalogoEventos.append(String.format("- ID: %d | Título: %s | Categoría: %s | Fecha: %s (%s) | Hora: %s | Lugar: %s\n",
-                    e.getId(),
+            catalogoEventos.append(String.format("- Título: %s | Categoría: %s | Fecha: %s (%s) | Hora: %s | Lugar: %s\n",
                     e.getTitulo(),
                     catNom,
                     e.getFecha(),
@@ -219,9 +190,9 @@ public class ServiceChatbot {
 
                 REGLAS OBLIGATORIAS:
                 1. SOLO responde sobre eventos que estén en la lista anterior (todos ellos están PUBLICADOS). NUNCA inventes eventos, fechas ni lugares.
-                2. Si el usuario pregunta por conciertos más cercanos, o eventos de una categoría específica (ej. conciertos, festivales, etc.) o en un mes específico (ej. mes X, noviembre, octubre), responde de acuerdo a la consulta filtrando únicamente los eventos correspondientes.
-                3. Al mencionar cualquier evento, formatea su nombre OBLIGATORIAMENTE como un enlace Markdown hacia su página de detalle: `[Nombre del Evento](/eventos/ID)`, seguido de la fecha exacta y lugar.
-                   Ejemplo: "Los eventos de la categoría Conciertos para noviembre son:\\n• [Festival de Salsa](/eventos/4) - 15 de noviembre de 2026 en Plaza Central"
+                2. Si el usuario pregunta por conciertos más cercanos, o eventos de una categoría específica (ej. conciertos, festivales, etc.) o en un mes específico (ej. noviembre, octubre), responde de acuerdo a la consulta filtrando únicamente los eventos correspondientes.
+                3. Al mencionar cualquier evento, formatea su nombre en negrita: **Nombre del Evento**, seguido de la fecha exacta y lugar.
+                   Ejemplo: "Los eventos de la categoría Conciertos para noviembre son:\\n• **Festival de Salsa** - 15 de noviembre de 2026 en Plaza Central"
                 4. Si el usuario pregunta por la fecha de hoy o fechas de eventos, responde con exactitud considerando que hoy es %s.
                 5. Si no hay eventos publicados para la categoría o mes solicitado, indícalo amablemente invitándolo a explorar otras fechas o categorías.
                 6. Mantén las respuestas cordiales, breves y directas (máximo 3 a 4 oraciones).
@@ -263,18 +234,10 @@ public class ServiceChatbot {
             throw new IllegalStateException("Respuesta de Groq sin contenido válido");
         }
 
-        // Extraer eventos que coincidan con los IDs mencionados en el markdown `[...](/eventos/ID)` o con la consulta
-        List<ChatbotEventoDTO> eventosEncontrados = extraerEventosMencionados(textoRespuesta, eventosPublicados);
-        if (eventosEncontrados.isEmpty()) {
-            // Intentar enlazar eventos por palabras clave de la consulta
-            eventosEncontrados = buscarEventosPorConsulta(msgMin, eventosPublicados);
-        }
-
         return ChatbotRespuestaDTO.builder()
                 .respuesta(textoRespuesta)
                 .fuente("IA_GROQ")
                 .modoContingencia(false)
-                .eventos(eventosEncontrados)
                 .build();
     }
 
@@ -393,74 +356,20 @@ public class ServiceChatbot {
                     .respuesta(detalleSinEventos)
                     .fuente("LOCAL_EVENTOS")
                     .modoContingencia(false)
-                    .eventos(List.of())
                     .build();
         }
-
-        List<ChatbotEventoDTO> dtos = eventos.stream()
-                .map(this::toChatbotEventoDTO)
-                .toList();
 
         StringBuilder sb = new StringBuilder(mensajeEncabezado).append("\n");
         for (Evento e : eventos) {
             String fechaFormateada = e.getFecha() != null ? e.getFecha().format(FORMATO_FECHA_ES) : "Fecha por confirmar";
             String lugarStr = e.getLugar() != null ? e.getLugar() : "Lugar por confirmar";
-            sb.append(String.format("• [%s](/eventos/%d) - %s en %s\n", e.getTitulo(), e.getId(), fechaFormateada, lugarStr));
+            sb.append(String.format("• %s - %s en %s\n", e.getTitulo(), fechaFormateada, lugarStr));
         }
-        sb.append("\nPuedes hacer clic en cualquier evento para ver sus detalles y localidades.");
 
         return ChatbotRespuestaDTO.builder()
                 .respuesta(sb.toString().trim())
                 .fuente("LOCAL_EVENTOS")
                 .modoContingencia(false)
-                .eventos(dtos)
-                .build();
-    }
-
-    private List<ChatbotEventoDTO> extraerEventosMencionados(String textoRespuesta, List<Evento> catalogo) {
-        Pattern pattern = Pattern.compile("/eventos/(\\d+)");
-        Matcher matcher = pattern.matcher(textoRespuesta);
-        Set<Long> ids = new LinkedHashSet<>();
-        while (matcher.find()) {
-            try {
-                ids.add(Long.parseLong(matcher.group(1)));
-            } catch (NumberFormatException ignored) {}
-        }
-
-        if (ids.isEmpty()) {
-            return List.of();
-        }
-
-        return catalogo.stream()
-                .filter(e -> ids.contains(e.getId()))
-                .map(this::toChatbotEventoDTO)
-                .toList();
-    }
-
-    private List<ChatbotEventoDTO> buscarEventosPorConsulta(String msgMin, List<Evento> catalogo) {
-        return catalogo.stream()
-                .filter(e -> {
-                    String titMin = e.getTitulo().toLowerCase(LOCALE_ES);
-                    String catMin = e.getCategoria() != null ? e.getCategoria().getNombre().toLowerCase(LOCALE_ES) : "";
-                    return msgMin.contains(titMin) || (!catMin.isEmpty() && msgMin.contains(catMin));
-                })
-                .limit(5)
-                .map(this::toChatbotEventoDTO)
-                .toList();
-    }
-
-    private ChatbotEventoDTO toChatbotEventoDTO(Evento e) {
-        String fechaFormateada = e.getFecha() != null ? e.getFecha().format(FORMATO_FECHA_ES) : "Fecha por confirmar";
-        String catNombre = e.getCategoria() != null ? e.getCategoria().getNombre() : "General";
-        return ChatbotEventoDTO.builder()
-                .id(e.getId())
-                .title(e.getTitulo())
-                .nombre(e.getTitulo())
-                .fecha(fechaFormateada)
-                .date(fechaFormateada)
-                .lugar(e.getLugar() != null ? e.getLugar() : "Lugar por confirmar")
-                .categoria(catNombre)
-                .url("/eventos/" + e.getId())
                 .build();
     }
 

@@ -137,7 +137,11 @@ public class ServiceOrganizacion {
         Organizacion organizacion = organizacionDelRepresentante();
         Usuario operador = obtenerOperadorDeLaOrganizacion(operadorId, organizacion);
 
-        operador.setPermisosEvento(Set.copyOf(request.getPermisos()));
+        Set<com.eventhive.app.enums.PermisoEvento> permisos = (request != null && request.getPermisos() != null)
+                ? request.getPermisos().stream().filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet())
+                : Set.of();
+
+        operador.setPermisosEvento(permisos);
         usuarioRepository.save(operador);
     }
 

@@ -58,6 +58,7 @@ class EventhiveInvitacionesYPermisosTest {
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private ServiceCorreo serviceCorreo;
     @Mock private TiqueteRepository tiqueteRepository;
+    @Mock private ServiceNotification serviceNotification;
 
     @InjectMocks private ServiceInvitacionRol serviceInvitacion;
     @InjectMocks private ServiceEvento serviceEvento;

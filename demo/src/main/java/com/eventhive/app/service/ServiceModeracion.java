@@ -93,7 +93,11 @@ public class ServiceModeracion {
         Evento evento = obtenerEnRevision(eventoId);
         serviceEvento.transicionarEstado(evento, EstadoEvento.EN_CORRECCION);
         registrarModeracion(evento, EstadoEvento.EN_CORRECCION, motivo, observacion);
-        return eventoRepository.save(evento);
+        Evento guardado = eventoRepository.save(evento);
+        String motivoTexto = motivo == MotivosRechazos.OTRO ? observacion : motivo.name() + (observacion != null ? ": " + observacion : "");
+        serviceNotification.notificarResultadoModeracionEvento(
+                guardado.getOrganizacion().getRepresentante(), guardado, false, "Corrección requerida: " + motivoTexto);
+        return guardado;
     }
 
     @Transactional

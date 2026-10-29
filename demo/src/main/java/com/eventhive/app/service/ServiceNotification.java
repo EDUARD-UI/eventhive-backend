@@ -126,12 +126,6 @@ public class ServiceNotification {
 
     // NOTIFICACIONES DE ORGANIZACIÓN Y ROLES
 
-    public void notificarInvitacionOrganizacion(Usuario invitado, String organizacionNombre) {
-        guardarNotificacion(invitado.getId(), null, null, null,
-                TipoNotification.ORGANIZACION_INVITACION, "Invitación recibida",
-                "Has recibido una invitación para formar parte de " + organizacionNombre + ".");
-    }
-
     public void notificarInvitacionAceptada(Usuario representante, String nombreAceptante) {
         guardarNotificacion(representante.getId(), null, null, null,
                 TipoNotification.ORGANIZACION_INVITACION_ACEPTADA, "Invitación aceptada",

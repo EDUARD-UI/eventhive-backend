@@ -23,7 +23,7 @@ import com.eventhive.app.dto.PagedResponse;
 import com.eventhive.app.dto.request.ActualizarOrganizacionRequest;
 import com.eventhive.app.dto.request.BuscarOrganizacionRequest;
 import com.eventhive.app.dto.request.PermisosOperadorRequest;
-import com.eventhive.app.dto.response.InvitacionOrganizacionDTO;
+import com.eventhive.app.dto.response.InvitacionRolEnviadaDTO;
 import com.eventhive.app.dto.response.OperadorDTO;
 import com.eventhive.app.dto.response.OrganizacionDTO;
 import com.eventhive.app.dto.response.OrganizacionPublicaDTO;
@@ -37,7 +37,6 @@ import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.dto.response.EventoDTO;
 import com.eventhive.app.service.ServiceEvento;
-import com.eventhive.app.service.ServiceInvitacionOrganizacion;
 import com.eventhive.app.service.ServiceInvitacionRol;
 import com.eventhive.app.service.ServiceNivelOrganizacion;
 import com.eventhive.app.service.ServiceOrganizacion;
@@ -59,7 +58,6 @@ public class OrganizacionApiController {
     private final ServiceEvento serviceEvento;
     private final ServiceNivelOrganizacion serviceNivelOrganizacion;
     private final ServiceSeguidor serviceSeguidor;
-    private final ServiceInvitacionOrganizacion serviceInvitacion;
     private final ServiceInvitacionRol serviceInvitacionRol;
     private final ServiceUsuario serviceUsuario;
     private final ServiceValoracion serviceValoracion;
@@ -129,22 +127,10 @@ public class OrganizacionApiController {
                 serviceOrganizacion.actualizarPerfilOrganizacion(request, imagen)));
     }
 
-    @GetMapping("/mis-invitaciones")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<PagedResponse<InvitacionOrganizacionDTO>>> misInvitaciones(Pageable pageable) {
-        Page<InvitacionOrganizacionDTO> page = serviceInvitacion.misInvitacionesPendientes(pageable);
-        return ResponseEntity.ok(ApiResponse.ok("Invitaciones pendientes obtenidas",
-                new PagedResponse<>(page.getContent(), page.getNumber(), page.getSize(),
-                        page.getTotalElements(), page.getTotalPages())));
-    }
-
     @GetMapping("/invitaciones-enviadas")
     @PreAuthorize("hasRole('REPRESENTANTE')")
-    public ResponseEntity<ApiResponse<PagedResponse<InvitacionOrganizacionDTO>>> invitacionesEnviadas(Pageable pageable) {
-        Page<InvitacionOrganizacionDTO> page = serviceInvitacionRol.listarInvitacionesDeMiOrganizacion(pageable);
-        if (page.isEmpty()) {
-            page = serviceInvitacion.listarInvitacionesOrganizacion(pageable);
-        }
+    public ResponseEntity<ApiResponse<PagedResponse<InvitacionRolEnviadaDTO>>> invitacionesEnviadas(Pageable pageable) {
+        Page<InvitacionRolEnviadaDTO> page = serviceInvitacionRol.listarInvitacionesDeMiOrganizacion(pageable);
         return ResponseEntity.ok(ApiResponse.ok("Invitaciones de la organización obtenidas",
                 new PagedResponse<>(page.getContent(), page.getNumber(), page.getSize(),
                         page.getTotalElements(), page.getTotalPages())));
@@ -224,20 +210,6 @@ public class OrganizacionApiController {
         }
         serviceInvitacionRol.invitar(correoFinal, "OPERADOR");
         return ResponseEntity.ok(ApiResponse.ok("Invitación enviada por correo; el enlace vence en 24 horas"));
-    }
-
-    @PatchMapping("invitaciones/{invitacionId}/aceptar")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Void>> aceptarInvitacion(@PathVariable Long invitacionId) {
-        serviceInvitacion.aceptar(invitacionId);
-        return ResponseEntity.ok(ApiResponse.ok("Invitación aceptada"));
-    }
-
-    @PatchMapping("invitaciones/{invitacionId}/rechazar")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Void>> rechazarInvitacion(@PathVariable Long invitacionId) {
-        serviceInvitacion.rechazar(invitacionId);
-        return ResponseEntity.ok(ApiResponse.ok("Invitación rechazada"));
     }
 
     //GESTION DE SEGERENCIAS DE ASCENSO

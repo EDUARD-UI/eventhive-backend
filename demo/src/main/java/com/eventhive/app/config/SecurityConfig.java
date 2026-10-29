@@ -95,6 +95,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/health", "/health").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/oauth2/**").permitAll()
                 .requestMatchers("/api/chatbot/**").permitAll()
@@ -109,7 +110,6 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/promociones", "/api/promociones/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/banners-home").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/organizaciones/mi-organizacion", "/api/organizaciones/mi-organizacion/**").authenticated()
-                .requestMatchers(HttpMethod.GET, "/api/organizaciones/mis-invitaciones").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/organizaciones/invitaciones-enviadas").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/organizaciones/mis-operadores").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/organizaciones/sugerencias-pendientes").authenticated()

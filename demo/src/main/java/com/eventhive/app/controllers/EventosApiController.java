@@ -118,7 +118,7 @@ public class EventosApiController {
     @GetMapping("/organizador/{id}")
     @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
     public ResponseEntity<ApiResponse<EventoDTO>> obtenerDeMiOrganizacion(@PathVariable Long id) {
-        Long organizacionId = authHelper.usuarioAutenticado().getOrganizacion().getId();
+        Long organizacionId = obtenerOrganizacionIdAutenticada();
         return ResponseEntity.ok(ApiResponse.ok("Evento obtenido",
                 serviceEvento.toDetalleDTO(serviceEvento.obtenerEventoDeOrganizacionPorId(organizacionId, id))));
     }
@@ -130,7 +130,7 @@ public class EventosApiController {
             @RequestParam(required = false) EstadoEvento estado,
             @RequestParam(required = false) String titulo,
             Pageable pageable) {
-        Long organizacionId = authHelper.usuarioAutenticado().getOrganizacion().getId();
+        Long organizacionId = obtenerOrganizacionIdAutenticada();
         return ResponseEntity.ok(ApiResponse.ok("Eventos obtenidos",
                 serviceEvento.toPagedDTO(serviceEvento.listarPorOrganizacion(organizacionId, categoriaId, estado, titulo, pageable))));
     }
@@ -182,7 +182,7 @@ public class EventosApiController {
                     .body(ApiResponse.error("El parámetro 'titulo' es requerido"));
         }
 
-        Long organizacionId = authHelper.usuarioAutenticado().getOrganizacion().getId();
+        Long organizacionId = obtenerOrganizacionIdAutenticada();
         return ResponseEntity.ok(ApiResponse.ok("Resultados de búsqueda",
                 serviceEvento.toPagedDTO(
                         serviceEvento.filtrarPorOrganizacionYTitulo(organizacionId, titulo, pageable))));
@@ -266,5 +266,13 @@ public class EventosApiController {
     public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long id) {
         serviceEvento.eliminarEvento(id);
         return ResponseEntity.ok(ApiResponse.ok("Evento eliminado"));
+    }
+
+    private Long obtenerOrganizacionIdAutenticada() {
+        var usuario = authHelper.usuarioAutenticado();
+        if (usuario.getOrganizacion() == null) {
+            throw new com.eventhive.app.exception.BusinessException("El usuario no pertenece a ninguna organización");
+        }
+        return usuario.getOrganizacion().getId();
     }
 }
