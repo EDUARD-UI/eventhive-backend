@@ -230,6 +230,15 @@ public class ServiceInvitacionRol {
         }
         invitacion.setFechaRechazo(LocalDateTime.now());
         invitaciones.save(invitacion);
+
+        if (invitacion.getInvitadoPor() != null) {
+            String nombreRechazante = usuarios.findByCorreoIgnoreCase(invitacion.getCorreoInvitado())
+                    .map(Usuario::getNombreCompleto)
+                    .filter(nombre -> nombre != null && !nombre.isBlank())
+                    .orElse(invitacion.getCorreoInvitado());
+            serviceNotification.notificarInvitacionRechazada(
+                    invitacion.getInvitadoPor(), nombreRechazante);
+        }
     }
 
     private InvitacionRol obtenerValida(String token) {

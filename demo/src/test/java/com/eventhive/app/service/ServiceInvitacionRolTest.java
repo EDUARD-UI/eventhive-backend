@@ -168,6 +168,28 @@ class ServiceInvitacionRolTest {
         assertEquals("hash-password", nuevo.getClave());
     }
 
+    @Test
+    void rechazarNotificaAlRemitenteConElNombreDelInvitado() {
+        Usuario remitente = usuario(2L, "REPRESENTANTE");
+        Usuario invitado = usuario(3L, "CLIENTE");
+        invitado.setNombreCompleto("Persona invitada");
+
+        InvitacionRol invitacion = new InvitacionRol();
+        invitacion.setCorreoInvitado("cliente@example.com");
+        invitacion.setFechaExpiracion(LocalDateTime.now().plusHours(1));
+        invitacion.setInvitadoPor(remitente);
+        when(invitaciones.findByTokenHashAndFechaAceptacionIsNull(any(String.class)))
+                .thenReturn(Optional.of(invitacion));
+        when(usuarios.findByCorreoIgnoreCase("cliente@example.com"))
+                .thenReturn(Optional.of(invitado));
+
+        service.rechazar("token");
+
+        assertTrue(invitacion.getFechaRechazo() != null);
+        verify(invitaciones).save(invitacion);
+        verify(serviceNotification).notificarInvitacionRechazada(remitente, "Persona invitada");
+    }
+
     private Usuario usuario(Long id, String nombreRol) {
         Usuario usuario = new Usuario();
         usuario.setId(id);

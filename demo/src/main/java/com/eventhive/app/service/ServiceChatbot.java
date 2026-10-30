@@ -44,7 +44,7 @@ public class ServiceChatbot {
     @Value("${groq.api.key:${spring.ai.openai.api-key:}}")
     private String groqApiKey;
 
-    @Value("${groq.api.model:${spring.ai.openai.chat.options.model:llama-3.3-70b-versatile}}")
+    @Value("${groq.api.model:${spring.ai.openai.chat.options.model:qwen/qwen3.8-27b}}")
     private String groqModel;
 
     @Value("${groq.api.temperature:${spring.ai.openai.chat.options.temperature:0.2}}")

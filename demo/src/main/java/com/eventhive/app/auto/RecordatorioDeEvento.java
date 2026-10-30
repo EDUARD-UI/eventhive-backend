@@ -2,6 +2,8 @@ package com.eventhive.app.auto;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 import org.springframework.scheduling.annotation.Scheduled;
@@ -21,15 +23,17 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class RecordatorioDeEvento {
 
+    private static final ZoneId ZONA_BOGOTA = ZoneId.of("America/Bogota");
+
     private final EventoRepository     eventoRepository;
     private final ServiceNotification  serviceNotification;
     private final ServiceEvento        serviceEvento;
 
     // Se ejecuta todos los días a las 9:00 AM
     // recordar a los usuarios que su evento sucedera en un dia
-    @Scheduled(cron = "0 0 9 * * *")
+    @Scheduled(cron = "0 0 9 * * *", zone = "America/Bogota")
     public void enviarRecordatorios() {
-        LocalDate manana = LocalDate.now().plusDays(1);
+        LocalDate manana = ZonedDateTime.now(ZONA_BOGOTA).toLocalDate().plusDays(1);
 
         List<Evento> eventosManana = eventoRepository
                 .findByFechaAndEstado(manana, EstadoEvento.PUBLICADO);
@@ -48,8 +52,9 @@ public class RecordatorioDeEvento {
     }
 
     // Se ejecuta todos cada hora: cierra eventos publicados cuya fecha ya pasó
-    @Scheduled(cron = "0 0 * * * *") //
+    @Scheduled(cron = "0 0 * * * *", zone = "America/Bogota")
     public void finalizarEventosVencidos() {
-        serviceEvento.finalizarEventosVencidos(LocalDate.now(), LocalTime.now());
+        ZonedDateTime ahora = ZonedDateTime.now(ZONA_BOGOTA);
+        serviceEvento.finalizarEventosVencidos(ahora.toLocalDate(), ahora.toLocalTime());
     }
 }
