@@ -1,0 +1,64 @@
+
+# Docs: https://github.com/Azure/webapps-deploy
+
+name: Build and deploy JAR app to Azure Web App - eventhive
+
+on:
+  push:
+    branches:
+      - desarrollo
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java version
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'microsoft'
+          cache: maven
+
+      - name: Build with Maven
+        working-directory: demo
+        run: mvn -B clean package -DskipTests
+
+      - name: Upload artifact for deployment
+        uses: actions/upload-artifact@v4
+        with:
+          name: java-app
+          path: demo/target/*.jar
+          if-no-files-found: error
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: java-app
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_903A790A17CD45D0BAF25ACDC994C6F5 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_CA2A0A0D54A54FF2852EDDC6A07BD8BB }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_AA49A3656F694E2AAECA8BAA373BD26C }}
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: eventhive
+          slot-name: Production
+          package: '*.jar'
