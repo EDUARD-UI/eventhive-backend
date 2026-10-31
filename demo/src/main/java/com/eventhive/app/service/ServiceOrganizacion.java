@@ -114,12 +114,27 @@ public class ServiceOrganizacion {
         if (!esAdministrador && !esRepresentante) {
             throw new BusinessException("No autorizado para consultar este RUT");
         }
-        if (organizacion.getUrlRut() == null || organizacion.getUrlRut().isBlank()) {
+
+        String urlRutDoc = null;
+        if (esAdministrador) {
+            // Requirement 5.2: Obtener desde la entidad SolicitudVerificacion
+            Long repId = organizacion.getRepresentante() != null ? organizacion.getRepresentante().getId() : null;
+            if (repId != null) {
+                var solOpt = solicitudRepository.findFirstByRepresentanteId(repId);
+                if (solOpt.isPresent() && solOpt.get().getUrlRut() != null && !solOpt.get().getUrlRut().isBlank()) {
+                    urlRutDoc = solOpt.get().getUrlRut();
+                }
+            }
+        }
+        if (urlRutDoc == null || urlRutDoc.isBlank()) {
+            urlRutDoc = organizacion.getUrlRut();
+        }
+        if (urlRutDoc == null || urlRutDoc.isBlank()) {
             throw new BusinessException("La organización no tiene un RUT almacenado");
         }
 
         long expiresInSeconds = 3600L;
-        return new RutUrlDTO(storageService.generarUrlFirmada(organizacion.getUrlRut(), expiresInSeconds),
+        return new RutUrlDTO(storageService.generarUrlFirmada(urlRutDoc, expiresInSeconds),
                 expiresInSeconds);
     }
 

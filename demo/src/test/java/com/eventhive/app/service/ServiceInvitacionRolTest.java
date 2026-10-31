@@ -72,7 +72,7 @@ class ServiceInvitacionRolTest {
         verify(invitaciones).save(invitationCaptor.capture());
         InvitacionRol invitacion = invitationCaptor.getValue();
         assertEquals("cliente@example.com", invitacion.getCorreoInvitado());
-        assertEquals("OPERADOR", invitacion.getRolDestino());
+        assertEquals("OPERADOR", invitacion.getRolNombre());
         assertEquals(organizacion, invitacion.getOrganizacion());
         assertTrue(invitacion.getFechaExpiracion().isAfter(LocalDateTime.now().plusHours(23)));
         assertTrue(invitacion.getFechaExpiracion().isBefore(LocalDateTime.now().plusHours(25)));
@@ -94,7 +94,7 @@ class ServiceInvitacionRolTest {
         assertEquals("Nombre original", cliente.getNombreCompleto());
         assertEquals("+573009998877", cliente.getTelefono());
         assertEquals("hash-original", cliente.getClave());
-        assertTrue(invitacion.getFechaAceptacion() != null);
+        verify(invitaciones).delete(invitacion);
     }
 
     @Test
@@ -148,7 +148,7 @@ class ServiceInvitacionRolTest {
                 MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8)));
         InvitacionRol invitacion = new InvitacionRol();
         invitacion.setCorreoInvitado("nueva@example.com");
-        invitacion.setRolDestino("MARKETING");
+        invitacion.setRolDestino(rolMarketing);
         invitacion.setFechaExpiracion(LocalDateTime.now().plusHours(24));
         when(invitaciones.findByTokenHashAndFechaAceptacionIsNull(hash)).thenReturn(Optional.of(invitacion));
 
@@ -185,8 +185,8 @@ class ServiceInvitacionRolTest {
 
         service.rechazar("token");
 
-        assertTrue(invitacion.getFechaRechazo() != null);
-        verify(invitaciones).save(invitacion);
+        verify(invitaciones).delete(invitacion);
+
         verify(serviceNotification).notificarInvitacionRechazada(remitente, "Persona invitada");
     }
 

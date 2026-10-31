@@ -84,6 +84,7 @@ public class ServiceEvento {
     private final AuthenticatedUserHelper authHelper;
     private final SupabaseStorageService storageService;
     private final SupabaseStorageConfig storageConfig;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory(new PrecisionModel(), 4326);
 
@@ -670,8 +671,7 @@ public class ServiceEvento {
         if (urlFoto == null || urlFoto.isBlank()) {
             return;
         }
-        String nombre = storageService.extraerNombreArchivo(urlFoto);
-        storageService.eliminarArchivo(storageConfig.getBucketEventos(), nombre);
+        storageService.eliminarImagenDeBucket(storageConfig.getBucketEventos(), urlFoto);
     }
 
     private void notificarCambioSiCorresponde(Evento guardado, EstadoEvento estadoAnterior) {
@@ -883,6 +883,9 @@ public class ServiceEvento {
 
         if (nuevoEstado == EstadoEvento.FINALIZADO) {
             evento.setPromocionado(false);
+        }
+        if (nuevoEstado == EstadoEvento.PUBLICADO && evento.getId() != null) {
+            eventPublisher.publishEvent(new com.eventhive.app.recommendation.event.EventoPublicadoEvent(evento.getId()));
         }
     }
 

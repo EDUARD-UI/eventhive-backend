@@ -42,15 +42,14 @@ public class UsuariosApiController {
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<PagedResponse<UsuarioAdminDTO>>> listar(
             @RequestParam(required = false) String nombre,
+            @RequestParam(required = false) String organizacion,
+            @RequestParam(required = false) String estado,
             @RequestParam(required = false) Long rolId,
             @RequestParam(required = false) String rol,
+            @RequestParam(required = false) Boolean activo,
             Pageable pageable) {
-        Page<UsuarioAdminDTO> page;
-        if ((nombre != null && !nombre.isBlank()) || rolId != null || (rol != null && !rol.isBlank())) {
-            page = usuarioService.buscarAdminPorFiltros(nombre, rolId, rol, pageable);
-        } else {
-            page = usuarioService.obtenerTodosAdmin(pageable);
-        }
+        Page<UsuarioAdminDTO> page = usuarioService.buscarAdminPorFiltros(
+                nombre, organizacion, estado, rolId, rol, activo, pageable);
         return ResponseEntity.ok(ApiResponse.ok("Usuarios obtenidos", usuarioService.toPagedAdmin(page)));
     }
 
@@ -58,11 +57,15 @@ public class UsuariosApiController {
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<PagedResponse<UsuarioAdminDTO>>> filtrarUsuarios(
             @RequestParam(required = false) String nombre,
+            @RequestParam(required = false) String organizacion,
+            @RequestParam(required = false) String estado,
             @RequestParam(required = false) Long rolId,
             @RequestParam(required = false) String rol,
+            @RequestParam(required = false) Boolean activo,
             Pageable pageable) {
 
-        Page<UsuarioAdminDTO> page = usuarioService.buscarAdminPorFiltros(nombre, rolId, rol, pageable);
+        Page<UsuarioAdminDTO> page = usuarioService.buscarAdminPorFiltros(
+                nombre, organizacion, estado, rolId, rol, activo, pageable);
         return ResponseEntity.ok(ApiResponse.ok("Resultados de búsqueda", usuarioService.toPagedAdmin(page)));
     }
 

@@ -183,8 +183,17 @@ En caso de error, la respuesta suele devolver:
 ### Base: `/api/usuarios`
 
 #### `GET /api/usuarios`
-- Recibe: query params `page`, `size`, `sort` (paginación). Requiere rol ADMINISTRADOR.
-- Devuelve: `ApiResponse<PagedResponse<UsuarioAdminDTO>>`; incluye teléfono, nombre del rol y resumen de organización, no correo.
+- Recibe: query params opcionales para filtros combinados o individuales:
+  - `nombre` (string): búsqueda parcial insensible a mayúsculas sobre el nombre de usuario.
+  - `organizacion` (string): búsqueda parcial insensible a mayúsculas sobre la razón social de la organización asociada.
+  - `estado` (string): estado de cuenta del usuario (`ACTIVO`, `INACTIVO`, etc.).
+  - `activo` (boolean): flag booleano alternativo de estado activo/inactivo.
+  - `rolId` (numérico): identificador del rol.
+  - `rolNombre` (string): nombre del rol (`ADMINISTRADOR`, `REPRESENTANTE`, `OPERADOR`, `MODERADOR`, `MARKETING`, `CLIENTE`).
+  - `page`, `size`, `sort`: parámetros estándar de paginación.
+- Descripción: Directorio general de usuarios para el dashboard de administración. Permite combinar libremente filtros o consultarlos individualmente. Si no se especifican filtros, retorna todos los usuarios de la plataforma de manera paginada.
+- Devuelve: `ApiResponse<PagedResponse<UsuarioAdminDTO>>`; incluye teléfono, nombre del rol y resumen de organización (`id`, `razonSocial`), sin exponer datos sensibles.
+- Permisos: ADMINISTRADOR.
 - Ejemplo de respuesta:
 
 ```json
@@ -195,15 +204,25 @@ En caso de error, la respuesta suele devolver:
     "content": [
       {
         "id": 1,
-        "nombre": "Ana",
+        "nombre": "Ana Pérez",
         "telefono": "+56912345678",
         "rolNombre": "CLIENTE",
         "organizacion": null
+      },
+      {
+        "id": 2,
+        "nombre": "Carlos Gómez",
+        "telefono": "+56987654321",
+        "rolNombre": "OPERADOR",
+        "organizacion": {
+          "id": 10,
+          "razonSocial": "Eventica SpA"
+        }
       }
     ],
     "pageNumber": 0,
     "pageSize": 10,
-    "totalElements": 1,
+    "totalElements": 2,
     "totalPages": 1,
     "hasNext": false,
     "hasPrevious": false
@@ -212,9 +231,10 @@ En caso de error, la respuesta suele devolver:
 ```
 
 #### `GET /api/usuarios/buscar`
-- Recibe: query params opcionales `nombre` (coincidencia parcial insensible a mayúsculas), `rolId` (numérico), `rol` (nombre textual del rol, ej. "MARKETING", "CLIENTE", "ADMINISTRADOR") y paginación (`page`, `size`, `sort`).
+- Recibe: los mismos parámetros que `GET /api/usuarios` (`nombre`, `organizacion`, `estado`, `activo`, `rolId`, `rolNombre`, `page`, `size`, `sort`).
 - Devuelve: `ApiResponse<PagedResponse<UsuarioAdminDTO>>`
 - Permisos: ADMINISTRADOR.
+- Descripción: Endpoint de búsqueda avanzada para el directorio de usuarios que soporta coincidencia parcial, combinación simultánea de filtros por organización y estado, y paginación.
 - Ejemplo de respuesta:
 
 ```json
@@ -238,7 +258,9 @@ En caso de error, la respuesta suele devolver:
     "pageNumber": 0,
     "pageSize": 10,
     "totalElements": 1,
-    "totalPages": 1
+    "totalPages": 1,
+    "hasNext": false,
+    "hasPrevious": false
   }
 }
 ```
@@ -313,35 +335,25 @@ En caso de error, la respuesta suele devolver:
 ```
 
 #### `GET /api/usuarios/misOrganizaciones-seguidas`
-- Recibe: paginación.
-- Devuelve: `ApiResponse<PagedResponse<OrganizacionPublicaDTO>>`
+- Recibe: sin parámetros necesarios (contexto de usuario autenticado).
+- Devuelve: `ApiResponse<List<OrganizacionSeguidaDTO>>`
 - Permisos: autenticado.
+- Descripción: Retorna la lista de organizaciones seguidas por el usuario autenticado sin duplicados (`DISTINCT`), enriquecida con `urlLogo`, `descripcion` y la cantidad de `eventosActivos`. También disponible vía `GET /api/seguidores/mis-seguidos`.
 - Ejemplo de respuesta:
 
 ```json
 {
   "success": true,
   "mensaje": "Organizaciones seguidas obtenidas",
-  "data": {
-    "content": [
-      {
-        "id": 10,
-        "razonSocial": "Eventica SpA",
-        "representante": "Carlos Pérez",
-        "fechaCreacion": "2026-09-01T09:00:00",
-        "promedioRating": 4.8,
-        "totalValoraciones": 25,
-        "totalSeguidores": 340,
-        "totalEventosCreados": 18,
-        "nivel": "NIVEL_2",
-        "estado": "APROBADA"
-      }
-    ],
-    "pageNumber": 0,
-    "pageSize": 10,
-    "totalElements": 1,
-    "totalPages": 1
-  }
+  "data": [
+    {
+      "id": 10,
+      "razonSocial": "Eventica SpA",
+      "urlLogo": "https://storage.supabase.co/eventhive/logos/eventica.png",
+      "descripcion": "Productora de conciertos y festivales culturales de gran escala.",
+      "eventosActivos": 4
+    }
+  ]
 }
 ```
 
@@ -1754,8 +1766,11 @@ En caso de error, la respuesta suele devolver:
 ### Base: `/api/organizaciones`
 
 #### `GET /api/organizaciones`
-- Recibe: parámetro opcional `estado` (enum `EstadoOrganizacion`: PENDIENTE_REVISION, APROBADA, RECHAZADA, SUSPENDIDA) y paginación (`page`, `size`, `sort`).
+- Recibe: parámetro opcional `estado` (enum `EstadoOrganizacion`: `PENDIENTE_REVISION`, `APROBADA`, `RECHAZADA`, `SUSPENDIDA`, insensible a mayúsculas/minúsculas) y parámetros de paginación (`page`, `size`, `sort`).
+- Si no se especifica el parámetro `estado`, el endpoint devuelve todas las organizaciones registradas sin discriminación de estado.
+- Las organizaciones que ya cuenten con `urlRut` registrado en su entidad son reconocidas y conservadas automáticamente en estado `APROBADA`.
 - Devuelve: `ApiResponse<PagedResponse<OrganizacionPublicaDTO>>`
+- Permisos: público.
 - Ejemplo de respuesta:
 
 ```json
@@ -1861,7 +1876,7 @@ En caso de error, la respuesta suele devolver:
 #### `GET /api/organizaciones/{organizacionId}/rut-url`
 - Recibe: `organizacionId` en path.
 - Devuelve: `ApiResponse<RutUrlDTO>` con `url` temporal y `expiresInSeconds`.
-- Descripción: obtiene un enlace temporal para consultar el documento RUT de la organización.
+- Descripción: obtiene un enlace temporal para consultar el documento RUT oficial de la organización aprobada. En flujos de verificación previa y auditoría de solicitudes pendientes, el documento a revisar se consulta desde la solicitud (`GET /api/verificacion/{solicitudId}/rut-url`).
 - Permisos: autenticado.
 - Ejemplo de respuesta:
 
@@ -2203,6 +2218,29 @@ Los operadores se agregan mediante invitación por correo, aceptan o rechazan la
 }
 ```
 
+#### `GET /api/seguidores/mis-seguidos`
+- Recibe: sin parámetros.
+- Devuelve: `ApiResponse<List<OrganizacionSeguidaDTO>>`
+- Permisos: autenticado.
+- Descripción: Retorna la lista de organizaciones seguidas por el usuario en sesión sin duplicados (`DISTINCT`), enriquecida con `urlLogo`, `descripcion` y la cantidad de `eventosActivos`.
+- Ejemplo de respuesta:
+
+```json
+{
+  "success": true,
+  "mensaje": "Organizaciones seguidas obtenidas",
+  "data": [
+    {
+      "id": 10,
+      "razonSocial": "Eventica SpA",
+      "urlLogo": "https://storage.supabase.co/eventhive/logos/eventica.png",
+      "descripcion": "Productora de conciertos y festivales culturales de gran escala.",
+      "eventosActivos": 4
+    }
+  ]
+}
+```
+
 ---
 
 ## 12. Valoraciones
@@ -2405,6 +2443,7 @@ Para el panel autenticado se recomienda `GET /api/organizaciones/mi-organizacion
     "representanteLegal": 7,
     "correoEmpresarial": "contacto@eventica.cl",
     "mensaje": null,
+    "urlRut": "documentos-rut/rut_org_10_20261021.pdf",
     "estado": "PENDIENTE",
     "fechaSolicitud": "2026-09-26T10:30:00",
     "fechaResolucion": null,
@@ -2438,6 +2477,7 @@ Para el panel autenticado se recomienda `GET /api/organizaciones/mi-organizacion
         "representanteLegal": 7,
         "correoEmpresarial": "contacto@eventica.cl",
         "mensaje": "Documento recibido",
+        "urlRut": "documentos-rut/rut_org_10_20261021.pdf",
         "estado": "PENDIENTE",
         "fechaSolicitud": "2026-09-26T10:30:00",
         "fechaResolucion": null,
@@ -2470,11 +2510,30 @@ Para el panel autenticado se recomienda `GET /api/organizaciones/mi-organizacion
     "representanteLegal": 7,
     "correoEmpresarial": "contacto@eventica.cl",
     "mensaje": "Documento recibido",
+    "urlRut": "documentos-rut/rut_org_10_20261021.pdf",
     "estado": "PENDIENTE",
     "fechaSolicitud": "2026-09-26T10:30:00",
     "fechaResolucion": null,
     "administradorNombre": null,
     "motivoRechazo": null
+  }
+}
+```
+
+#### `GET /api/verificacion/{solicitudId}/rut-url`
+- Recibe: `solicitudId` en path (admite alias `/{solicitudId}/rut_url`).
+- Devuelve: `ApiResponse<RutUrlDTO>` con `url` temporal firmada de Supabase Storage y `expiresInSeconds`.
+- Descripción: **Punto de acceso oficial del Administrador y Moderador para auditar el documento RUT cargado en la solicitud pendiente.** Obtiene la URL directamente desde la entidad `SolicitudVerificacion` (evitando consultar prematuramente la entidad `Organizacion`).
+- Permisos: `ADMINISTRADOR`, `MODERADOR`, `REPRESENTANTE`.
+- Ejemplo de respuesta:
+
+```json
+{
+  "success": true,
+  "mensaje": "URL temporal del RUT obtenida",
+  "data": {
+    "url": "https://supabase.co/storage/v1/object/sign/documentos-rut/rut_org_10_20261021.pdf?token=eyJhbG...",
+    "expiresInSeconds": 3000
   }
 }
 ```
@@ -2496,7 +2555,7 @@ Para el panel autenticado se recomienda `GET /api/organizaciones/mi-organizacion
 #### `PATCH /api/verificacion/{solicitudId}/subir-rut`
 - Recibe: `solicitudId` en path y archivo obligatorio `rut` como multipart/form-data.
 - Devuelve: `ApiResponse<Void>`
-- Descripción: carga el RUT de la organización y envía la solicitud a la cola de verificación del Administrador. El registro inicial puede existir sin este documento.
+- Descripción: carga el RUT de la organización en `SolicitudVerificacion` y envía la solicitud a la cola de verificación del Administrador. El registro inicial puede existir sin este documento.
 - Permisos: REPRESENTANTE.
 - Ejemplo de respuesta:
 
@@ -2510,10 +2569,21 @@ Para el panel autenticado se recomienda `GET /api/organizaciones/mi-organizacion
 
 #### `PUT /api/verificacion/{solicitudId}/aprobar`
 - Recibe: `solicitudId` en path.
-- Devuelve: `ApiResponse<String>` (el endpoint actualmente deja `data` en `null`).
-- Descripción: aprueba la verificación de la organización después de revisar los datos y el RUT.
+- Devuelve: `ApiResponse<String>` con mensaje de éxito.
+- Descripción: Aprueba la verificación de la organización en una **transacción atómica** (`@Transactional`):
+  1. Cambia el estado de `SolicitudVerificacion` a `ACEPTADA`.
+  2. Obtiene la URL del RUT almacenada en la solicitud y la transfiere a la entidad `Organizacion`.
+  3. Actualiza el estado de `Organizacion` a `APROBADA`.
 - Permisos: ADMINISTRADOR.
 - Ejemplo de respuesta:
+
+```json
+{
+  "success": true,
+  "mensaje": "Organización verificada.",
+  "data": null
+}
+```
 
 ```json
 {
@@ -3421,7 +3491,8 @@ Este módulo administra los dos espacios promocionales propios de Eventhive. No 
     "data": {
       "correo": "persona@example.com",
       "rol": "OPERADOR",
-      "fechaExpiracion": "2026-10-22T18:00:00",
+      "fechaEnvio": "2026-10-21T18:30:00",
+      "fechaExpiracion": "2026-10-22T18:30:00",
       "organizacionNombre": "Organización Viva",
       "estado": "PENDIENTE"
     }
@@ -3431,7 +3502,7 @@ Este módulo administra los dos espacios promocionales propios de Eventhive. No 
 #### `GET /api/invitaciones/roles/enviadas`
 - **Roles autorizados**: `ADMINISTRADOR`, `REPRESENTANTE`.
 - **Parámetros**: Parámetros estándar de paginación (`page`, `size`, `sort`).
-- **Descripción**: Si el solicitante es representante, devuelve las invitaciones enviadas para su organización; si es administrador, devuelve las invitaciones emitidas por la administración.
+- **Descripción**: Consulta las invitaciones emitidas por la administración (si es administrador) o para su organización (si es representante). **Filtra estrictamente para devolver únicamente invitaciones en estado `PENDIENTE` o `EXPIRADA`**. El rol está asociado como entidad JPA `Rol`.
 - **Devuelve**: `ApiResponse<PagedResponse<InvitacionRolEnviadaDTO>>`
 - **Ejemplo de respuesta**:
   ```json
@@ -3445,6 +3516,7 @@ Este módulo administra los dos espacios promocionales propios de Eventhive. No 
           "correo": "operador@eventos.com",
           "rol": "OPERADOR",
           "fechaInvitacion": "2026-10-21T18:30:00",
+          "fechaEnvio": "2026-10-21T18:30:00",
           "fechaExpiracion": "2026-10-22T18:30:00",
           "fechaAceptacion": null,
           "estado": "PENDIENTE",
@@ -3475,8 +3547,8 @@ Este módulo administra los dos espacios promocionales propios de Eventhive. No 
 - **Reglas**:
   - Si el correo ya tiene una cuenta `CLIENTE`, se asocia directamente el nuevo rol y la organización definida por la invitación; los datos personales y contraseña existentes no se sobreescriben.
   - Si el usuario no existe, se crea la cuenta con estado activo y las credenciales proporcionadas.
-  - El rol y la organización provienen exclusivamente del registro backend de la invitación; el frontend no puede alterar el rol asignado.
-  - La invitación queda marcada con `fechaAceptacion` inmediata, impidiendo su reutilización.
+  - El rol (`Rol`) y la organización provienen exclusivamente del registro backend de la invitación; el cliente no puede alterar el rol asignado.
+  - **Aceptación y eliminación automática:** En el mismo flujo transaccional (`@Transactional`), la invitación es eliminada de la base de datos tras otorgar el rol con éxito, garantizando que no queden registros pendientes ni inconsistencias.
 - **Respuesta**: HTTP 201 Created.
   ```json
   {
@@ -3489,14 +3561,44 @@ Este módulo administra los dos espacios promocionales propios de Eventhive. No 
 - **Roles autorizados**: Público / Destinatario de la invitación.
 - **Parámetro**: Acepta `token` vía query param (`?token=...`) o JSON en el body (`{ "token": "..." }`).
 - **Reglas**:
-  - Marca la invitación como rechazada (`fechaRechazo = now()`).
-  - Las invitaciones no se pueden reenviar mientras se encuentren pendientes; el invitado debe aceptarla o rechazarla.
-  - Al ser rechazada, su estado cambia a `RECHAZADA` y no se podrá usar posteriormente.
+  - Invalida y remueve la invitación sin requerir columnas huérfanas de rechazo.
 - **Respuesta**: HTTP 200 OK.
   ```json
   {
     "success": true,
     "mensaje": "Invitación rechazada correctamente"
+  }
+  ```
+
+#### `DELETE /api/invitaciones/roles/{id}`
+- **Roles autorizados**: `ADMINISTRADOR`, `REPRESENTANTE`.
+- **Parámetro**: `id` en path.
+- **Descripción**: Permite cancelar y eliminar una invitación enviada. Valida los permisos de pertenencia a la organización del representante o de la administración.
+- **Respuesta**: HTTP 200 OK.
+  ```json
+  {
+    "success": true,
+    "mensaje": "Invitación eliminada correctamente"
+  }
+  ```
+
+#### `POST /api/invitaciones/roles/{id}/reenviar`
+- **Roles autorizados**: `ADMINISTRADOR`, `REPRESENTANTE`.
+- **Parámetro**: `id` en path.
+- **Descripción y Reglas de Negocio**:
+  - **Condición obligatoria**: Solo se permite reenviar invitaciones que se encuentren en estado `EXPIRADA`.
+  - Si una invitación aún está en estado `PENDIENTE`, el backend bloquea la acción con un error de negocio (`400 Bad Request`), impidiendo spam innecesario.
+  - Al reenviarse:
+    1. Actualiza su estado de `EXPIRADA` a `PENDIENTE`.
+    2. Actualiza `fechaInvitacion` y `fechaEnvio` a la fecha/hora actual.
+    3. Extiende la vigencia a 24 horas a partir del momento del reenvío.
+    4. Genera un nuevo token criptográfico seguro de 32 bytes.
+    5. Despacha el correo electrónico con el enlace de acceso.
+- **Respuesta**: HTTP 200 OK.
+  ```json
+  {
+    "success": true,
+    "mensaje": "Invitación reenviada correctamente"
   }
   ```
 
@@ -3825,6 +3927,10 @@ Para la operación en producción (por ejemplo en Render) y desarrollo local, se
 | `JWT_SECRET` | Clave secreta para firma HMAC de tokens JWT | `64+ caracteres aleatorios` |
 | `SUPABASE_URL` | URL del proyecto Supabase Storage | `https://[ref].supabase.co` |
 | `SUPABASE_SECRET_KEY` | Llave de servicio de Supabase | `...` |
+| `RECOMMENDATION_SERVICE_URL` | URL base del microservicio FastAPI de recomendaciones | `http://localhost:8001` o `https://api-predictive.render.com` |
+| `RECOMMENDATION_SERVICE_TIMEOUT_CONNECT_MS` | Timeout de conexión HTTP hacia el servicio Python (ms) | `3000` |
+| `RECOMMENDATION_SERVICE_TIMEOUT_READ_MS` | Timeout de lectura/respuesta HTTP hacia el servicio Python (ms) | `5000` |
+| `RECOMMENDATION_SERVICE_TOKEN` | Token Bearer opcional para autenticación inter-servicio | `sec_token_...` |
 
 ---
 
@@ -3882,5 +3988,340 @@ Endpoints ultraligeros de sondeo de estado operativo, diseñados para consumir 0
 - **Público**: libre acceso (excluido de `JwtAuthFilter` y configurado con `permitAll()` en `SecurityConfig`).
 - Devuelve: `{"status":"UP"}` con Content-Type `application/json` y código HTTP 200 OK.
 - **Keep-Alive automático**: Tarea programada cada 13 minutos (`@Scheduled(fixedRate = 780000)`) que efectúa un ping HTTP ligero al servicio (usando `RENDER_EXTERNAL_URL` o `http://localhost:PORT/api/health`), evitando que instancias gratuitas en plataformas en la nube (Render, Koyeb) entren en suspensión por inactividad.
+
+---
+
+## 32. Sistema de Recomendaciones Predictivas y Notificaciones de Afinidad
+
+### Base: `/api/recommendations` (alias `/api/recomendaciones`)
+
+El sistema de recomendaciones personalizadas de EventHive integra el backend Spring Boot con un microservicio predictivo desarrollado en **Python FastAPI** (`eventhive_predictive_python`). El sistema opera bajo un esquema híbrido de consulta bajo demanda y notificaciones reactivas de alta afinidad por correo electrónico.
+
+#### `GET /api/recommendations` o `GET /api/recomendaciones`
+- **Roles autorizados**: Autenticado (`CLIENTE`, `REPRESENTANTE`, `OPERADOR`, `MODERADOR`, `MARKETING`, `ADMINISTRADOR`).
+- **Parámetros**:
+  - `limit` (query param, entero opcional, por defecto `10`): cantidad máxima de eventos recomendados a devolver.
+- **Descripción del flujo**:
+  1. Identifica al usuario autenticado en sesión.
+  2. Consulta sus preferencias y afinidades históricas por categoría (eventos favoritos y compras confirmadas).
+  3. Solicita al microservicio predictivo la puntuación y ordenamiento de eventos activos recomendados para el perfil.
+  4. **Fallback resiliente**: Si el microservicio Python se encuentra fuera de línea, agota los timeouts configurados (3 segundos de conexión, 5 segundos de lectura) o el usuario es nuevo sin interacciones, el backend ejecuta un fallback transparente devolviendo los eventos públicos más populares y con mejor valoración sin interrumpir la experiencia del usuario.
+- **Devuelve**: `ApiResponse<List<EventoDTO>>`
+- **Ejemplo de respuesta**:
+
+```json
+{
+  "success": true,
+  "mensaje": "Recomendaciones obtenidas",
+  "data": [
+    {
+      "id": 15,
+      "nombre": "Festival Musical de Verano 2026",
+      "descripcion": "El encuentro musical independiente más grande de la región.",
+      "fecha": "2026-12-15T18:00:00",
+      "lugar": "Parque Metropolitano",
+      "ciudad": "Bogotá",
+      "direccion": "Calle 63 # 45-10",
+      "categoriaId": 3,
+      "categoriaNombre": "Música",
+      "organizacionId": 5,
+      "organizacionNombre": "Festivales Viva",
+      "urlPortada": "https://supabase.co/storage/v1/object/public/eventos/festival2026.jpg",
+      "precioMinimo": 45000.0,
+      "precioMaximo": 120000.0,
+      "estado": "PUBLICADO",
+      "puntuacionMedia": 4.9,
+      "totalValoraciones": 32
+    }
+  ]
+}
+```
+
+#### Flujo Reactivo de Notificación por Publicación (`EventoPublicadoEvent`)
+Al publicar un evento (transición al estado `PUBLICADO`), el sistema ejecuta de forma automática y asíncrona un proceso de segmentación y notificación:
+1. `ServiceEvento` dispara el evento de dominio Spring `EventoPublicadoEvent`.
+2. `ServicioRecomendacion` captura el evento en segundo plano mediante `@Async` y `@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)`.
+3. Se recopila el universo de candidatos activos con historial en la categoría del evento.
+4. Se envían los candidatos al microservicio Python (`POST /api/v1/recommendations/evaluate`).
+5. Se seleccionan hasta **15 usuarios con el mayor nivel de afinidad**.
+6. **Deduplicación atómica**: Cada recomendación se registra en la tabla `recomendacion_envios` (`RecomendacionEnvio`) vinculando `evento_id` y `usuario_id` con constraint `UNIQUE`. Si el usuario ya fue notificado previamente para ese evento, el sistema omite el envío.
+7. Se despachan los correos personalizados de recomendación vía Gmail API (`ServiceCorreo.enviarRecomendacionEvento`).
+
+---
+
+## 33. Guía de Flujos Complejos y de Mayor Importancia
+
+Esta sección detalla cómo utilizar los endpoints de EventHive en los procesos neurálgicos de la plataforma, acompañados de diagramas de secuencia, reglas de negocio y consideraciones técnicas.
+
+---
+
+### Flujo 1: Registro, Verificación de RUT y Aprobación de Organizaciones
+
+El proceso de verificación garantiza que las organizaciones sean entidades legales válidas antes de permitirles publicar eventos masivos. Contempla tanto el registro estándar diferido como la importación acelerada de datos con RUT precargado.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Rep as Representante Legal
+    actor Admin as Administrador
+    participant Auth as Auth / Verificación Controller
+    participant DB as PostgreSQL (Supabase)
+    participant Storage as Supabase Storage
+
+    alt Escenario A: Organización con RUT precargado en DB
+        Rep->>Auth: Inicia sesión / Consulta estado
+        Auth->>DB: Verifica Organizacion.urlRut != null
+        Auth-->>Rep: Estado APROBADA (RUT ya validado)
+    else Escenario B: Registro diferido estándar
+        Rep->>Auth: POST /api/auth/registro-organizador
+        Auth->>DB: Crea Usuario (REPRESENTANTE) + Organizacion (PENDIENTE_REVISION)
+        Auth-->>Rep: Cuenta creada (sin exigir RUT inmediato)
+        Rep->>Storage: Carga PDF de RUT
+        Rep->>Auth: PATCH /api/verificacion/{solicitudId}/subir-rut (multipart/form-data)
+        Auth->>DB: Guarda urlRut en SolicitudVerificacion (estado PENDIENTE)
+        Auth-->>Rep: Solicitud en cola de revisión
+        
+        Admin->>Auth: GET /api/verificacion/pendientes
+        Auth->>DB: Consulta solicitudes con estado PENDIENTE
+        Auth-->>Admin: Lista de solicitudes con datos de empresa y urlRut
+        
+        Admin->>Auth: GET /api/verificacion/{solicitudId}/rut-url
+        Auth->>Storage: Genera enlace firmado temporal (50 min)
+        Auth-->>Admin: { url: "https://...supabase.co/.../sign/rut.pdf", expiresInSeconds: 3000 }
+        
+        alt Aprobación
+            Admin->>Auth: PUT /api/verificacion/{solicitudId}/aprobar
+            Auth->>DB: @Transactional: 1) Solicitud -> ACEPTADA<br/>2) Copia urlRut a Organizacion<br/>3) Organizacion -> APROBADA
+            Auth-->>Admin: Organización verificada
+        else Solicitud de Corrección
+            Admin->>Auth: PATCH /api/verificacion/{solicitudId}/solicitar-correccion?motivo=...
+            Auth->>DB: Solicitud -> EN_CORRECCION
+            Auth-->>Admin: Solicitud devuelta para corrección
+            Rep->>Auth: PATCH /api/verificacion/{solicitudId}/reenviar
+        else Rechazo Definitivo
+            Admin->>Auth: PUT /api/verificacion/{solicitudId}/rechazar?motivo=...
+            Auth->>DB: Solicitud -> RECHAZADA (No transfiere RUT a Organizacion)
+            Auth-->>Admin: Solicitud rechazada
+        end
+    end
+```
+
+#### Reglas de Negocio Clave del Flujo de RUT:
+1. **Prioridad de RUT precargado**: Si la entidad `Organizacion` ya contiene un valor en su columna `url_rut`, el backend la considera de inmediato como `APROBADA`. No se le vuelve a exigir el documento ni se duplican solicitudes.
+2. **Fuente de auditoría para el Administrador**: Al auditar solicitudes en revisión, el Administrador debe consumir el documento desde `GET /api/verificacion/{solicitudId}/rut-url` (entidad `SolicitudVerificacion`), **nunca** directamente desde `Organizacion`.
+3. **Transaccionalidad en la aprobación**: La aprobación (`PUT /api/verificacion/{solicitudId}/aprobar`) se ejecuta en una sola transacción atómica:
+   - Marca la solicitud como `ACEPTADA`.
+   - Transfiere la `urlRut` desde la solicitud a la entidad `Organizacion`.
+   - Modifica el estado de la organización a `APROBADA`.
+   - Invalida los cachés correspondientes.
+4. **Rechazo seguro**: Un rechazo (`PUT /api/verificacion/{solicitudId}/rechazar`) cambia el estado de la solicitud pero **no** asigna el RUT ni aprueba a la organización.
+
+---
+
+### Flujo 2: Sistema de Invitaciones y Roles en Organizaciones
+
+Permite a los Representantes sumar Operadores a su organización y a los Administradores incorporar Moderadores o miembros de Marketing, con validación criptográfica y auto-limpieza.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Inviter as Administrador / Representante
+    actor Dest as Usuario Invitado
+    participant API as InvitacionRolApiController
+    participant Service as ServiceInvitacionRol
+    participant Mail as CorreoSender (Gmail API)
+    participant DB as PostgreSQL
+
+    Inviter->>API: POST /api/invitaciones/roles { correo, rol }
+    API->>Service: invitar(correo, rol)
+    Note over Service: Valida permisos:<br/>Admin -> MODERADOR / MARKETING<br/>Representante -> OPERADOR (su org)
+    Service->>DB: Persiste InvitacionRol con RolDestino (Entidad Rol)<br/>Genera Token SHA-256 (32 bytes) y fechaEnvio = now()
+    Service->>Mail: enviarInvitacionRol(correo, rol, token)
+    Mail-->>Service: Envío exitoso
+    Service-->>API: 201 Created
+    API-->>Inviter: Invitación enviada
+
+    Note over API,DB: Consulta de invitaciones enviadas:<br/>GET /api/invitaciones/roles/enviadas<br/>Solo retorna estados PENDIENTE o EXPIRADA
+
+    alt Caso: Invitación vencida (> 24 horas)
+        Inviter->>API: POST /api/invitaciones/roles/{id}/reenviar
+        API->>Service: reenviar(id)
+        Note over Service: Verifica estado == EXPIRADA.<br/>Si está PENDIENTE -> Lanza 400 Bad Request
+        Service->>DB: Actualiza estado a PENDIENTE, nuevo token, fechaEnvio = now()
+        Service->>Mail: Reenvía correo con nuevo enlace
+        Service-->>Inviter: 200 OK (Invitación reenviada)
+    end
+
+    alt Caso: Eliminación manual de invitación
+        Inviter->>API: DELETE /api/invitaciones/roles/{id}
+        API->>Service: eliminar(id)
+        Service->>DB: Remueve registro de InvitacionRol
+        Service-->>Inviter: 200 OK (Invitación eliminada)
+    end
+
+    alt Caso: Aceptación de la invitación
+        Dest->>API: GET /api/invitaciones/roles/validar?token=...
+        API->>Service: validar(token)
+        Service-->>Dest: { correo, rol, fechaExpiracion, estado: "PENDIENTE" }
+
+        Dest->>API: POST /api/invitaciones/roles/aceptar { token, nombre, clave, telefono }
+        API->>Service: aceptar(request)
+        Note over Service: @Transactional:<br/>1) Asigna Rol y Organización al usuario<br/>2) Elimina automáticamente la entidad InvitacionRol
+        Service->>DB: invitaciones.delete(invitacion)
+        Service-->>Dest: 201 Created (Invitación aceptada y procesada)
+    end
+```
+
+#### Reglas de Negocio Clave del Sistema de Invitaciones:
+1. **Entidad Rol obligatoria**: El rol destino se persiste como relación `@ManyToOne Rol rolDestino`, impidiendo el uso de strings libres propensos a errores tipográficos.
+2. **Listado depurado**: `GET /api/invitaciones/roles/enviadas` únicamente devuelve invitaciones en estado `PENDIENTE` o `EXPIRADA`.
+3. **Reenvío condicional estricto**: `POST /api/invitaciones/roles/{id}/reenviar` rechaza llamadas si la invitación todavía se encuentra en estado `PENDIENTE`. Solo procede si `isExpirada()` es verdadero.
+4. **Auto-eliminación tras aceptación**: Cuando el invitado completa el registro o vinculación mediante `POST /api/invitaciones/roles/aceptar`, la invitación se elimina físicamente de la base de datos dentro de la misma transacción para evitar duplicados o registros residuales.
+5. **Sin campo `fechaRechazo`**: El campo y columna `fecha_rechazo` ha sido eliminado por completo del modelo.
+
+---
+
+### Flujo 3: Ciclo de Vida, Moderación y Publicación de Eventos
+
+Controla la creación de eventos, su revisión humana o automática y su posterior publicación global.
+
+```mermaid
+stateDiagram-v2
+    [*] --> BORRADOR: Guardar borrador inicial
+    BORRADOR --> PENDIENTE_REVISION: Solicitar publicación
+    
+    state Moderacion {
+        PENDIENTE_REVISION --> EN_CORRECCION: Moderador solicita corrección
+        EN_CORRECCION --> PENDIENTE_REVISION: Organizador actualiza datos
+        PENDIENTE_REVISION --> RECHAZADO: Contenido viola políticas
+        PENDIENTE_REVISION --> PUBLICADO: Aprobación humana o automática
+    }
+
+    state Publicado {
+        PUBLICADO --> [*]: Desalojo reactivo de caché (@CacheEvict)
+        PUBLICADO --> DisparoRecomendaciones: EventoPublicadoEvent
+    }
+
+    PUBLICADO --> FINALIZADO: Fecha de evento concluida
+    PUBLICADO --> CANCELADO: Cancelación justificada
+```
+
+#### Pasos para Publicar un Evento:
+1. **Creación**: El representante o un operador con permiso `CREAR_EVENTO` crea el evento en `BORRADOR` mediante `POST /api/eventos`.
+2. **Carga de localidades y tiquetes**: Se configuran las zonas de admisión en `POST /api/localidades`.
+3. **Solicitud de revisión**: Se invoca `POST /api/eventos/{id}/solicitar-revision`, pasando el estado a `PENDIENTE_REVISION`.
+4. **Moderación**:
+   - El sistema ejecuta un primer filtrado de palabras prohibidas con `ServiceModeracionAutomatica`.
+   - Los moderadores consultan `GET /api/moderaciones/eventos/pendientes`.
+   - Pueden aprobar (`PATCH /api/moderaciones/eventos/{id}/aprobar`) o requerir cambios (`PATCH /api/moderaciones/eventos/{id}/solicitar-correccion?motivo=...`).
+5. **Publicación y Efectos Secundarios**:
+   - Al pasar a `PUBLICADO`, Spring desaloja de inmediato los cachés en memoria de eventos destacados, carrusel y categorías.
+   - Se emite de inmediato un `EventoPublicadoEvent` que despierta al motor de recomendaciones.
+
+---
+
+### Flujo 4: Motor de Recomendaciones Predictivas e Integración Híbrida Java-Python
+
+Orquesta la comunicación síncrona y asíncrona entre el backend en Spring Boot y el microservicio predictivo en Python FastAPI.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Evento as ServiceEvento
+    participant Rec as ServicioRecomendacion
+    participant Client as ClientePythonRecomendacion
+    participant Python as Microservicio FastAPI (Python)
+    participant DB as PostgreSQL (recomendacion_envios)
+    participant Mail as CorreoSender (Gmail API)
+
+    Evento->>Rec: EventoPublicadoEvent (Asíncrono, post-commit)
+    Note over Rec: Recopila usuarios activos con interés<br/>en la categoría del evento
+    Rec->>Client: evaluarCandidatos(evento, candidatos)
+    Client->>Python: POST /api/v1/recommendations/evaluate<br/>(Timeout: 3s connect, 5s read)
+    
+    alt Servicio Python responde exitosamente
+        Python-->>Client: { recomendaciones: [ { usuarioId, puntuacion, afinidad } ] }
+        Client-->>Rec: EvaluacionRecomendacionResponse
+        Note over Rec: Ordena por afinidad y selecciona<br/>hasta 15 usuarios prioritarios
+        loop Por cada usuario seleccionado
+            Rec->>DB: Verifica y registra en recomendacion_envios (UNIQUE: evento_id, usuario_id)
+            alt No notificado previamente
+                Rec->>Mail: enviarRecomendacionEvento(usuario.correo, evento)
+                Mail-->>Rec: Correo enviado
+                Rec->>DB: Actualiza estado = ENVIADO
+            else Ya notificado
+                Note over Rec: Omite envío duplicado
+            end
+        end
+    else Timeout o Caída del Microservicio Python
+        Client-->>Rec: Fallback vacío / Manejo de excepción seguro
+        Note over Rec: Registra warning sin lanzar error.<br/>La publicación del evento NO se interrumpe.
+    end
+```
+
+#### Contrato de Comunicación con el Microservicio Python:
+- **Endpoint**: `POST /api/v1/recommendations/evaluate`
+- **Request Body**:
+  ```json
+  {
+    "evento": {
+      "id": 15,
+      "categoriaId": 3,
+      "categoriaNombre": "Música"
+    },
+    "candidatos": [
+      {
+        "usuarioId": 42,
+        "favoritosCategoria": 8,
+        "comprasCategoria": 3,
+        "entradasCompradas": 7
+      }
+    ]
+  }
+  ```
+- **Response Body**:
+  ```json
+  {
+    "recomendaciones": [
+      {
+        "usuarioId": 42,
+        "puntuacion": 0.89,
+        "afinidad": "ALTA"
+      }
+    ]
+  }
+  ```
+
+---
+
+### Flujo 5: Gestión Flexible y Defensiva de Archivos Multimedia en Supabase Storage
+
+EventHive acepta y gestiona referencias de imágenes provistas por diferentes vías: subidas desde el frontend, URLs directas de Supabase Storage o imágenes externas ingresadas manualmente en scripts de poblamiento (Unsplash, CDNs, URLs relativas).
+
+```mermaid
+flowchart TD
+    A[Operación: Actualizar o Eliminar Imagen] --> B{¿URL es nula o vacía?}
+    B -- Sí --> C[No ejecutar ninguna acción sobre Storage]
+    B -- No --> D{extraerRutaEnBucket}
+    
+    D --> E{¿Pertenece al Storage de Supabase?}
+    E -- No (ej: Unsplash, placeholder) --> F[Ignorar borrado físico de Storage<br/>Actualizar solo base de datos]
+    E -- Sí --> G[Extraer ruta relativa limpia del objeto]
+    
+    G --> H[Llamada defensiva a SupabaseStorageService.eliminarImagen]
+    H --> I{¿Respuesta de Storage?}
+    I -- Éxito --> J[Archivo eliminado físicamente]
+    I -- Error / 404 / Timeout --> K[Capturar Throwable en bloque try-catch<br/>Registrar warn en logs]
+    
+    J --> L[Completar transacción de Base de Datos]
+    K --> L[Completar transacción de Base de Datos sin fallar]
+    F --> L
+    C --> L
+```
+
+#### Buenas Prácticas para el Manejo de Archivos:
+1. **Nunca asumir formato fijo**: No asumir que todas las imágenes contienen el subdominio de Supabase o la estructura `/object/public/`.
+2. **Prioridad a la consistencia de datos**: Si un archivo previo no puede identificarse o eliminarse físicamente en el storage, **la transacción de base de datos nunca debe cancelarse ni arrojar HTTP 500**.
+3. **Imágenes por defecto**: Las entidades `Evento`, `Organizacion`, `Usuario`, `Categoria` y `Banner` aceptan URLs externas como portadas o logos de prueba sin provocar errores al ser reemplazadas o eliminadas.
 
 

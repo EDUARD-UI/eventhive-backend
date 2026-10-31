@@ -131,6 +131,68 @@ public class ServiceCorreo {
         sender.enviar(destino.trim(), asunto.trim(), html);
     }
 
+    public void enviarRecomendacionEvento(
+            String nombre,
+            String correo,
+            com.eventhive.app.recommendation.dto.EventoRecomendacionDTO evento
+    ) {
+        if (correo == null || correo.isBlank() || evento == null) {
+            return;
+        }
+
+        String fecha = evento.getFecha() != null
+                ? evento.getFecha().toString()
+                : "Por confirmar";
+
+        String html = """
+            <!DOCTYPE html>
+            <html lang="es">
+            <head><meta charset="UTF-8"></head>
+            <body style="font-family:Arial,sans-serif;background:#f4f6fa;padding:24px;">
+              <div style="max-width:600px;margin:auto;background:#fff;padding:30px;border-radius:12px;">
+                <h1 style="color:#131b2e;">EventHive</h1>
+                <h2 style="color:#087fea;">¡Encontramos un evento para ti!</h2>
+                <p>Hola %s,</p>
+                <p>Por tu actividad en EventHive, creemos que este evento podría interesarte.</p>
+                <div style="background:#f4f6fa;padding:20px;border-radius:8px;">
+                  <h2>%s</h2>
+                  <p>%s</p>
+                  <p><strong>Categoría:</strong> %s</p>
+                  <p><strong>Fecha:</strong> %s</p>
+                  <p><strong>Lugar:</strong> %s</p>
+                </div>
+                <p>Ingresa a EventHive para conocer más detalles.</p>
+              </div>
+            </body>
+            </html>
+            """.formatted(
+                escaparHtml(nombre),
+                escaparHtml(evento.getTitulo()),
+                escaparHtml(evento.getDescripcion()),
+                escaparHtml(evento.getCategoriaNombre()),
+                escaparHtml(fecha),
+                escaparHtml(evento.getLugar())
+            );
+
+        sender.enviarAsync(
+            correo,
+            "Un evento que podría interesarte — EventHive",
+            html
+        );
+    }
+
+    private String escaparHtml(String valor) {
+        if (valor == null) {
+            return "";
+        }
+        return valor
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&#39;");
+    }
+
     //METOODS AUXILIARES
 
     private Boleto aBoleto(Tiquete t) {

@@ -295,10 +295,16 @@ public class SupabaseStorageService {
         if (url == null || url.isBlank() || bucket == null || bucket.isBlank()) {
             return;
         }
-        String nombre = extraerNombreArchivo(url);
-        if (nombre != null && !nombre.isBlank()) {
-            eliminarArchivo(bucket, nombre);
+        try {
+            String ruta = extraerRutaEnBucket(bucket, url);
+            if (ruta != null && !ruta.isBlank()) {
+                eliminarArchivo(bucket, ruta);
+            }
+        } catch (Throwable t) {
+            log.warn("No se pudo procesar la eliminación segura de la imagen '{}' en bucket '{}': {}", url, bucket, t.getMessage());
         }
+
+
     }
 
 
@@ -340,7 +346,7 @@ public class SupabaseStorageService {
                     Void.class
             );
 
-        } catch (RuntimeException e) {
+        } catch (Throwable e) {
 
             /*
              * El fallo al eliminar un archivo viejo
@@ -353,6 +359,55 @@ public class SupabaseStorageService {
         }
     }
 
+
+    public String extraerRutaEnBucket(String bucket, String urlOReferencia) {
+        if (urlOReferencia == null || urlOReferencia.isBlank() || bucket == null || bucket.isBlank()) {
+            return null;
+        }
+
+        String referencia = urlOReferencia.trim();
+
+        int queryPos = referencia.indexOf('?');
+        if (queryPos >= 0) {
+            referencia = referencia.substring(0, queryPos);
+        }
+        int hashPos = referencia.indexOf('#');
+        if (hashPos >= 0) {
+            referencia = referencia.substring(0, hashPos);
+        }
+
+        if (referencia.startsWith("http://") || referencia.startsWith("https://")) {
+            String supabaseBaseUrl = config.getUrl() != null ? config.getUrl().toLowerCase(java.util.Locale.ROOT) : "";
+            boolean esHostSupabase = !supabaseBaseUrl.isBlank() && referencia.toLowerCase(java.util.Locale.ROOT).contains(supabaseBaseUrl);
+            boolean contienePatronStorage = referencia.contains("/storage/v1/object/");
+
+            if (!esHostSupabase && !contienePatronStorage) {
+                log.info("La imagen no pertenece a Supabase Storage ({}), no se intentará eliminar.", urlOReferencia);
+                return null;
+            }
+
+            String marcadorBucket = "/" + bucket + "/";
+            int idxBucket = referencia.indexOf(marcadorBucket);
+            if (idxBucket >= 0) {
+                String subRuta = referencia.substring(idxBucket + marcadorBucket.length());
+                return subRuta.isBlank() ? null : subRuta;
+            } else {
+                log.info("El archivo no pertenece al bucket esperado '{}': {}", bucket, urlOReferencia);
+                return null;
+            }
+        }
+
+        if (referencia.startsWith(bucket + "/")) {
+            String subRuta = referencia.substring((bucket + "/").length());
+            return subRuta.isBlank() ? null : subRuta;
+        }
+
+        if (!referencia.contains("/")) {
+            return referencia;
+        }
+
+        return null;
+    }
 
     public String extraerNombreArchivo(
             String urlPublica

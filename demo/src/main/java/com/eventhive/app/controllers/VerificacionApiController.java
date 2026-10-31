@@ -49,6 +49,13 @@ public class VerificacionApiController {
                 serviceSolicitud.obtenerSolicitud(solicitudId)));
     }
 
+    @GetMapping({"/{solicitudId:[0-9]+}/rut-url", "/{solicitudId:[0-9]+}/rut_url"})
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR','MODERADOR','REPRESENTANTE')")
+    public ResponseEntity<ApiResponse<com.eventhive.app.dto.response.RutUrlDTO>> obtenerUrlRut(@PathVariable Long solicitudId) {
+        return ResponseEntity.ok(ApiResponse.ok("URL temporal del RUT obtenida",
+                serviceSolicitud.obtenerUrlRut(solicitudId)));
+    }
+
     //OPERACIONES DE SOLICITUDES
     // Registro público: cuenta + organización en PENDIENTE_REVISION
     @PostMapping(value = "/registro-organizador", consumes = MediaType.APPLICATION_JSON_VALUE)

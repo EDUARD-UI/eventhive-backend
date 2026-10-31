@@ -71,7 +71,7 @@ class ModeracionOrganizacionMarketingTest {
     @Test
     @DisplayName("Transición inválida de estado en evento lanza excepción")
     void transicionInvalidaLanzaExcepcion() {
-        ServiceEvento se = new ServiceEvento(null, null, null, null, null, null, null, null, null, null, null, null, null);
+        ServiceEvento se = new ServiceEvento(null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         Evento evento = new Evento();
         evento.setEstado(EstadoEvento.BORRADOR);
 

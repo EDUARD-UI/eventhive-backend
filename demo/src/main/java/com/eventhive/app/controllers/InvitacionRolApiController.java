@@ -7,7 +7,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -73,5 +75,19 @@ public class InvitacionRolApiController {
         }
         service.rechazar(tokenFinal.trim());
         return ResponseEntity.ok(ApiResponse.ok("Invitación rechazada correctamente"));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR','REPRESENTANTE')")
+    public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long id) {
+        service.eliminar(id);
+        return ResponseEntity.ok(ApiResponse.ok("Invitación eliminada correctamente"));
+    }
+
+    @PostMapping("/{id}/reenviar")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR','REPRESENTANTE')")
+    public ResponseEntity<ApiResponse<Void>> reenviar(@PathVariable Long id) {
+        service.reenviar(id);
+        return ResponseEntity.ok(ApiResponse.ok("Invitación reenviada correctamente"));
     }
 }

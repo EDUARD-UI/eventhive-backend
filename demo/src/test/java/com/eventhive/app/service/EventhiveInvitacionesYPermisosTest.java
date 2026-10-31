@@ -89,7 +89,7 @@ class EventhiveInvitacionesYPermisosTest {
         InvitacionRol guardada = captor.getValue();
 
         assertEquals("mod@eventhive.com", guardada.getCorreoInvitado());
-        assertEquals("MODERADOR", guardada.getRolDestino());
+        assertEquals("MODERADOR", guardada.getRolNombre());
         assertEquals(null, guardada.getOrganizacion());
         verify(serviceCorreo).enviarInvitacionRol(eq("mod@eventhive.com"), eq("MODERADOR"), any());
     }
@@ -131,7 +131,7 @@ class EventhiveInvitacionesYPermisosTest {
         InvitacionRol guardada = captor.getValue();
 
         assertEquals("operador@eventos.com", guardada.getCorreoInvitado());
-        assertEquals("OPERADOR", guardada.getRolDestino());
+        assertEquals("OPERADOR", guardada.getRolNombre());
         assertNotNull(guardada.getOrganizacion());
         assertEquals(10L, guardada.getOrganizacion().getId());
         verify(serviceCorreo).enviarInvitacionRol(eq("operador@eventos.com"), eq("OPERADOR"), any());
@@ -161,7 +161,7 @@ class EventhiveInvitacionesYPermisosTest {
         when(authHelper.usuarioAutenticado()).thenReturn(admin);
         when(usuarios.findByCorreoIgnoreCase("mkt@eventhive.com")).thenReturn(Optional.empty());
         when(roles.findByNombre("MARKETING")).thenReturn(Optional.of(rolMarketing));
-        when(invitaciones.existsByCorreoInvitadoIgnoreCaseAndFechaAceptacionIsNullAndFechaRechazoIsNullAndFechaExpiracionAfter(
+        when(invitaciones.existsByCorreoInvitadoIgnoreCaseAndFechaAceptacionIsNullAndFechaExpiracionAfter(
                 eq("mkt@eventhive.com"), any())).thenReturn(true);
 
         BusinessException ex = assertThrows(BusinessException.class,
@@ -171,27 +171,22 @@ class EventhiveInvitacionesYPermisosTest {
     }
 
     @Test
-    @DisplayName("Rechazar invitación actualiza fechaRechazo y no permite volver a usarla")
-    void rechazarInvitacionActualizaFechaRechazo() throws Exception {
+    @DisplayName("Rechazar invitación elimina el registro y no permite volver a usarla")
+    void rechazarInvitacionEliminaRegistro() throws Exception {
         String token = "token12345678901234567890123456789012";
         String hash = hash(token);
 
         InvitacionRol invitacion = new InvitacionRol();
         invitacion.setTokenHash(hash);
         invitacion.setCorreoInvitado("user@test.com");
-        invitacion.setRolDestino("OPERADOR");
+        invitacion.setRolDestino(rol("OPERADOR"));
         invitacion.setFechaExpiracion(LocalDateTime.now().plusHours(12));
 
         when(invitaciones.findByTokenHashAndFechaAceptacionIsNull(hash)).thenReturn(Optional.of(invitacion));
-        when(invitaciones.save(any(InvitacionRol.class))).thenAnswer(i -> i.getArgument(0));
 
         serviceInvitacion.rechazar(token);
 
-        assertNotNull(invitacion.getFechaRechazo());
-        verify(invitaciones).save(invitacion);
-
-        BusinessException ex = assertThrows(BusinessException.class, () -> serviceInvitacion.validar(token));
-        assertTrue(ex.getMessage().contains("rechazada"));
+        verify(invitaciones).delete(invitacion);
     }
 
     @Test
@@ -206,7 +201,7 @@ class EventhiveInvitacionesYPermisosTest {
         InvitacionRol expirada = new InvitacionRol();
         expirada.setTokenHash(hash);
         expirada.setCorreoInvitado("user@test.com");
-        expirada.setRolDestino("MODERADOR");
+        expirada.setRolDestino(rol("MODERADOR"));
         expirada.setFechaExpiracion(LocalDateTime.now().minusHours(1));
 
         when(invitaciones.findByTokenHashAndFechaAceptacionIsNull(hash)).thenReturn(Optional.of(expirada));

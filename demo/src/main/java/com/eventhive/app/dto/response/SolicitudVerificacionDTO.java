@@ -24,6 +24,7 @@ public class SolicitudVerificacionDTO {
     private String correoEmpresarial;
 
     private String mensaje;
+    private String urlRut;
     private EstadoSolicitud estado;
     private LocalDateTime fechaSolicitud;
     private LocalDateTime fechaResolucion;

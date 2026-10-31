@@ -74,14 +74,22 @@ public class ServiceUsuario {
 
     @Transactional(readOnly = true)
     public Page<UsuarioAdminDTO> buscarAdminPorFiltros(String nombre, Long rolId, Pageable pageable) {
-        return buscarAdminPorFiltros(nombre, rolId, null, pageable);
+        return buscarAdminPorFiltros(nombre, null, null, rolId, null, null, pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<UsuarioAdminDTO> buscarAdminPorFiltros(String nombre, Long rolId, String rolNombre, Pageable pageable) {
+        return buscarAdminPorFiltros(nombre, null, null, rolId, rolNombre, null, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<UsuarioAdminDTO> buscarAdminPorFiltros(String nombre, String organizacion, String estado, Long rolId, String rolNombre, Boolean activo, Pageable pageable) {
+        String nombreLimpio = (nombre != null && !nombre.isBlank()) ? nombre.trim() : null;
+        String orgLimpia = (organizacion != null && !organizacion.isBlank()) ? organizacion.trim() : null;
+
         Long resolvedRolId = rolId;
         if (resolvedRolId == null && rolNombre != null && !rolNombre.isBlank()) {
-            String limpio = rolNombre.trim().toUpperCase();
+            String limpio = rolNombre.trim().toUpperCase(java.util.Locale.ROOT);
             if (limpio.startsWith("ROLE_")) {
                 limpio = limpio.substring(5);
             }
@@ -92,7 +100,30 @@ public class ServiceUsuario {
                 return Page.empty(pageable);
             }
         }
-        return buscarPorFiltros(nombre, resolvedRolId, pageable).map(this::toAdminDTO);
+
+        EstadoOrganizacion estadoOrg = null;
+        Boolean resolvedActivo = activo;
+        if (estado != null && !estado.isBlank()) {
+            String est = estado.trim().toUpperCase(java.util.Locale.ROOT);
+            if ("ACTIVO".equals(est)) {
+                resolvedActivo = Boolean.TRUE;
+            } else if ("INACTIVO".equals(est)) {
+                resolvedActivo = Boolean.FALSE;
+            } else {
+                try {
+                    estadoOrg = EstadoOrganizacion.valueOf(est);
+                } catch (IllegalArgumentException ignored) {
+                    return Page.empty(pageable);
+                }
+            }
+        }
+
+        if (nombreLimpio == null && orgLimpia == null && estadoOrg == null && resolvedActivo == null && resolvedRolId == null) {
+            return obtenerTodosAdmin(pageable);
+        }
+
+        return usuarioRepository.buscarAdminConFiltros(nombreLimpio, orgLimpia, estadoOrg, resolvedActivo, resolvedRolId, pageable)
+                .map(this::toAdminDTO);
     }
 
     @Transactional(readOnly = true)

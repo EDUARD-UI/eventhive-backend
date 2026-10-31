@@ -23,6 +23,7 @@ import org.springframework.util.StringUtils;
 import com.eventhive.app.dto.request.AceptarInvitacionRolRequest;
 import com.eventhive.app.dto.response.InvitacionRolDTO;
 import com.eventhive.app.dto.response.InvitacionRolEnviadaDTO;
+import com.eventhive.app.enums.EstadoInvitacion;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.InvitacionRol;
@@ -30,6 +31,7 @@ import com.eventhive.app.model.Organizacion;
 import com.eventhive.app.model.Rol;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.repository.InvitacionRolRepository;
+import com.eventhive.app.repository.OrganizacionRepository;
 import com.eventhive.app.repository.RolesRepository;
 import com.eventhive.app.repository.UsuarioRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
@@ -46,7 +48,7 @@ public class ServiceInvitacionRol {
     private final InvitacionRolRepository invitaciones;
     private final UsuarioRepository usuarios;
     private final RolesRepository roles;
-    private final com.eventhive.app.repository.OrganizacionRepository organizacionRepository;
+    private final OrganizacionRepository organizacionRepository;
     private final AuthenticatedUserHelper authHelper;
     private final PasswordEncoder passwordEncoder;
     private final ServiceCorreo serviceCorreo;
@@ -66,15 +68,15 @@ public class ServiceInvitacionRol {
 
         Usuario remitente = authHelper.usuarioAutenticado();
         String correoNormalizado = correo.trim().toLowerCase(Locale.ROOT);
-        String rol = rolDestino.trim().toUpperCase(Locale.ROOT);
+        String rolNombre = rolDestino.trim().toUpperCase(Locale.ROOT);
         Organizacion organizacion = null;
 
         if (esRol(remitente, "ADMINISTRADOR")) {
-            if (!contiene(CODIGOS_ADMIN, rol)) {
+            if (!contiene(CODIGOS_ADMIN, rolNombre)) {
                 throw new BusinessException("Administración solo puede invitar MODERADOR o MARKETING");
             }
         } else if (esRol(remitente, "REPRESENTANTE")) {
-            if (!"OPERADOR".equals(rol)) {
+            if (!"OPERADOR".equals(rolNombre)) {
                 throw new BusinessException("Los representantes solo pueden invitar OPERADOR");
             }
             organizacion = remitente.getOrganizacion();
@@ -91,48 +93,44 @@ public class ServiceInvitacionRol {
         }
 
         usuarios.findByCorreoIgnoreCase(correoNormalizado).ifPresent(existente -> {
-            validarRolInvitado(existente, rol);
+            validarRolInvitado(existente, rolNombre);
             if (existente.getOrganizacion() != null) {
                 throw new BusinessException("La cuenta ya pertenece a una organización");
             }
         });
 
-        roles.findByNombre(rol)
-                .orElseThrow(() -> new ResourceNotFoundException("Rol " + rol + " no configurado"));
+        Rol rolEntidad = roles.findByNombre(rolNombre)
+                .orElseThrow(() -> new ResourceNotFoundException("Rol " + rolNombre + " no configurado"));
 
-        if (invitaciones.existsByCorreoInvitadoIgnoreCaseAndFechaAceptacionIsNullAndFechaRechazoIsNullAndFechaExpiracionAfter(
+        if (invitaciones.existsByCorreoInvitadoIgnoreCaseAndFechaAceptacionIsNullAndFechaExpiracionAfter(
                 correoNormalizado, LocalDateTime.now())) {
-            throw new BusinessException("Ya existe una invitación pendiente para este correo. Debe ser aceptada o rechazada antes de enviar una nueva.");
+            throw new BusinessException("Ya existe una invitación pendiente para este correo. Debe ser aceptada antes de enviar una nueva.");
         }
 
-        byte[] bytes = new byte[32];
-        SECURE_RANDOM.nextBytes(bytes);
-        String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        String token = generarToken();
 
         InvitacionRol invitacion = new InvitacionRol();
         invitacion.setCorreoInvitado(correoNormalizado);
-        invitacion.setRolDestino(rol);
+        invitacion.setRolDestino(rolEntidad);
         invitacion.setTokenHash(hash(token));
         invitacion.setFechaInvitacion(LocalDateTime.now());
         invitacion.setFechaExpiracion(LocalDateTime.now().plusHours(24));
+        invitacion.setEstado(EstadoInvitacion.PENDIENTE);
         invitacion.setInvitadoPor(remitente);
         invitacion.setOrganizacion(organizacion);
 
         invitaciones.save(invitacion);
 
-        String baseUrl = (frontendUrl != null && !frontendUrl.isBlank())
-                ? frontendUrl
-                : "https://eventhive-ruby-zeta.vercel.app";
-        String link = baseUrl.replaceAll("/+$", "") + "/aceptar-invitacion?token=" + token;
-        serviceCorreo.enviarInvitacionRol(invitacion.getCorreoInvitado(), rol, link);
+        String link = construirLinkInvitacion(token);
+        serviceCorreo.enviarInvitacionRol(invitacion.getCorreoInvitado(), rolEntidad.getNombre(), link);
     }
 
     @Transactional(readOnly = true)
     public InvitacionRolDTO validar(String token) {
         InvitacionRol invitacion = obtenerValida(token);
         String orgNombre = invitacion.getOrganizacion() != null ? invitacion.getOrganizacion().getRazonSocial() : null;
-        return new InvitacionRolDTO(invitacion.getCorreoInvitado(), invitacion.getRolDestino(),
-                invitacion.getFechaExpiracion(), orgNombre, "PENDIENTE");
+        return new InvitacionRolDTO(invitacion.getCorreoInvitado(), invitacion.getRolNombre(),
+                invitacion.getFechaExpiracion(), orgNombre, invitacion.getEstado());
     }
 
     @Transactional(readOnly = true)
@@ -146,10 +144,10 @@ public class ServiceInvitacionRol {
             if (org == null) {
                 throw new BusinessException("No tienes una organización para administrar");
             }
-            return invitaciones.findByOrganizacionIdOrderByFechaInvitacionDesc(org.getId(), pageable)
+            return invitaciones.findActivasYExpiradasPorOrganizacion(org.getId(), pageable)
                     .map(this::toEnviadaDTO);
         } else if (esRol(remitente, "ADMINISTRADOR")) {
-            return invitaciones.findByInvitadoPorIdOrderByFechaInvitacionDesc(remitente.getId(), pageable)
+            return invitaciones.findActivasYExpiradasPorInvitador(remitente.getId(), pageable)
                     .map(this::toEnviadaDTO);
         } else {
             throw new AccessDeniedException("No tienes permiso para consultar invitaciones");
@@ -169,20 +167,22 @@ public class ServiceInvitacionRol {
         if (org == null) {
             throw new BusinessException("No tienes una organización para administrar");
         }
-        return invitaciones.findByOrganizacionIdOrderByFechaInvitacionDesc(org.getId(), pageable)
+        return invitaciones.findActivasYExpiradasPorOrganizacion(org.getId(), pageable)
                 .map(this::toEnviadaDTO);
     }
 
     @Transactional
     public void aceptar(AceptarInvitacionRolRequest request) {
         InvitacionRol invitacion = obtenerValida(request.getToken());
-        Rol rol = roles.findByNombre(invitacion.getRolDestino())
-                .orElseThrow(() -> new ResourceNotFoundException("El rol invitado ya no está disponible"));
+        Rol rol = invitacion.getRolDestino();
+        if (rol == null) {
+            throw new ResourceNotFoundException("El rol invitado ya no está disponible");
+        }
 
         Usuario usuario = usuarios.findByCorreoIgnoreCase(invitacion.getCorreoInvitado()).orElse(null);
         boolean cuentaExistente = usuario != null;
         if (cuentaExistente) {
-            validarRolInvitado(usuario, invitacion.getRolDestino());
+            validarRolInvitado(usuario, rol.getNombre());
         } else {
             validarDatosNuevaCuenta(request);
             usuario = new Usuario();
@@ -210,35 +210,101 @@ public class ServiceInvitacionRol {
         }
         usuarios.save(usuario);
 
+        Usuario remitente = invitacion.getInvitadoPor();
+        Organizacion orgInvitacion = invitacion.getOrganizacion();
+
+        invitacion.setEstado(EstadoInvitacion.ACEPTADA);
         invitacion.setFechaAceptacion(LocalDateTime.now());
+        invitaciones.delete(invitacion);
+
+        if (remitente != null) {
+            serviceNotification.notificarInvitacionAceptada(remitente, usuario.getNombreCompleto());
+        }
+        if (orgInvitacion != null) {
+            serviceNotification.notificarRolAsignado(
+                    usuario, rol.getNombre(), orgInvitacion.getRazonSocial());
+        }
+    }
+
+    @Transactional
+    public void eliminar(Long id) {
+        InvitacionRol invitacion = invitaciones.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Invitación no encontrada"));
+
+        Usuario actual = authHelper.usuarioAutenticado();
+        if (esRol(actual, "ADMINISTRADOR")) {
+            invitaciones.delete(invitacion);
+            return;
+        }
+
+        if (esRol(actual, "REPRESENTANTE")) {
+            Organizacion org = actual.getOrganizacion();
+            if (org == null) {
+                org = organizacionRepository.findByRepresentanteIdConRepresentante(actual.getId()).orElse(null);
+            }
+            if (org != null && invitacion.getOrganizacion() != null && org.getId().equals(invitacion.getOrganizacion().getId())) {
+                invitaciones.delete(invitacion);
+                return;
+            }
+        }
+
+        throw new AccessDeniedException("No estás autorizado para eliminar esta invitación");
+    }
+
+    @Transactional
+    public void reenviar(Long id) {
+        InvitacionRol invitacion = invitaciones.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Invitación no encontrada"));
+
+        Usuario actual = authHelper.usuarioAutenticado();
+        validarPermisoGestion(actual, invitacion);
+
+        if (!invitacion.isExpirada()) {
+            throw new BusinessException("Solo se pueden reenviar invitaciones en estado EXPIRADA");
+        }
+
+        String nuevoToken = generarToken();
+        invitacion.setTokenHash(hash(nuevoToken));
+        invitacion.setFechaInvitacion(LocalDateTime.now());
+        invitacion.setFechaExpiracion(LocalDateTime.now().plusHours(24));
+        invitacion.setEstado(EstadoInvitacion.PENDIENTE);
         invitaciones.save(invitacion);
 
-        if (invitacion.getInvitadoPor() != null) {
-            serviceNotification.notificarInvitacionAceptada(invitacion.getInvitadoPor(), usuario.getNombreCompleto());
-        }
-        if (invitacion.getOrganizacion() != null) {
-            serviceNotification.notificarRolAsignado(
-                    usuario, rol.getNombre(), invitacion.getOrganizacion().getRazonSocial());
-        }
+        String link = construirLinkInvitacion(nuevoToken);
+        serviceCorreo.enviarInvitacionRol(invitacion.getCorreoInvitado(), invitacion.getRolNombre(), link);
     }
 
     @Transactional
     public void rechazar(String token) {
         InvitacionRol invitacion = obtenerValida(token);
-        if (invitacion.getFechaRechazo() != null) {
-            throw new BusinessException("La invitación ya fue rechazada");
-        }
-        invitacion.setFechaRechazo(LocalDateTime.now());
-        invitaciones.save(invitacion);
+        Usuario invitadoPor = invitacion.getInvitadoPor();
+        String correo = invitacion.getCorreoInvitado();
 
-        if (invitacion.getInvitadoPor() != null) {
-            String nombreRechazante = usuarios.findByCorreoIgnoreCase(invitacion.getCorreoInvitado())
+        invitaciones.delete(invitacion);
+
+        if (invitadoPor != null) {
+            String nombreRechazante = usuarios.findByCorreoIgnoreCase(correo)
                     .map(Usuario::getNombreCompleto)
                     .filter(nombre -> nombre != null && !nombre.isBlank())
-                    .orElse(invitacion.getCorreoInvitado());
-            serviceNotification.notificarInvitacionRechazada(
-                    invitacion.getInvitadoPor(), nombreRechazante);
+                    .orElse(correo);
+            serviceNotification.notificarInvitacionRechazada(invitadoPor, nombreRechazante);
         }
+    }
+
+    private void validarPermisoGestion(Usuario actual, InvitacionRol invitacion) {
+        if (esRol(actual, "ADMINISTRADOR")) {
+            return;
+        }
+        if (esRol(actual, "REPRESENTANTE")) {
+            Organizacion org = actual.getOrganizacion();
+            if (org == null) {
+                org = organizacionRepository.findByRepresentanteIdConRepresentante(actual.getId()).orElse(null);
+            }
+            if (org != null && invitacion.getOrganizacion() != null && org.getId().equals(invitacion.getOrganizacion().getId())) {
+                return;
+            }
+        }
+        throw new AccessDeniedException("No estás autorizado para gestionar esta invitación");
     }
 
     private InvitacionRol obtenerValida(String token) {
@@ -247,10 +313,7 @@ public class ServiceInvitacionRol {
         }
         InvitacionRol invitacion = invitaciones.findByTokenHashAndFechaAceptacionIsNull(hash(token))
                 .orElseThrow(() -> new ResourceNotFoundException("La invitación no existe o ya fue utilizada"));
-        if (invitacion.getFechaRechazo() != null) {
-            throw new BusinessException("La invitación fue rechazada");
-        }
-        if (!invitacion.getFechaExpiracion().isAfter(LocalDateTime.now())) {
+        if (invitacion.isExpirada()) {
             throw new BusinessException("La invitación expiró; solicita un nuevo enlace");
         }
         return invitacion;
@@ -261,14 +324,27 @@ public class ServiceInvitacionRol {
         return new InvitacionRolEnviadaDTO(
                 invitacion.getId(),
                 invitacion.getCorreoInvitado(),
-                invitacion.getRolDestino(),
+                invitacion.getRolNombre(),
                 invitacion.getFechaInvitacion(),
+                invitacion.getFechaEnvio(),
                 invitacion.getFechaExpiracion(),
                 invitacion.getFechaAceptacion(),
-                invitacion.getFechaRechazo(),
-                InvitacionRolEnviadaDTO.calcularEstado(invitacion.getFechaAceptacion(), invitacion.getFechaRechazo(), invitacion.getFechaExpiracion()),
+                invitacion.getEstado(),
                 orgNombre
         );
+    }
+
+    private String generarToken() {
+        byte[] bytes = new byte[32];
+        SECURE_RANDOM.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private String construirLinkInvitacion(String token) {
+        String baseUrl = (frontendUrl != null && !frontendUrl.isBlank())
+                ? frontendUrl
+                : "https://eventhive-ruby-zeta.vercel.app";
+        return baseUrl.replaceAll("/+$", "") + "/aceptar-invitacion?token=" + token;
     }
 
     private String hash(String token) {

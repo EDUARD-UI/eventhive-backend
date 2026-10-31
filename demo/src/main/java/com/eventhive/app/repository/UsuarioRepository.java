@@ -1,5 +1,6 @@
 package com.eventhive.app.repository;
 
+import com.eventhive.app.enums.EstadoOrganizacion;
 import com.eventhive.app.model.Usuario;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -103,5 +104,33 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     """)
     Page<Usuario> findOperadoresByOrganizacionId(
             @Param("organizacionId") Long organizacionId,
+            Pageable pageable);
+
+    // Consulta filtrada para el panel de administración con carga eficiente de rol y organización.
+    @Query(value = """
+        SELECT u FROM Usuario u
+        JOIN FETCH u.rol r
+        LEFT JOIN FETCH u.organizacion o
+        WHERE (:nombre IS NULL OR :nombre = '' OR LOWER(u.nombreCompleto) LIKE LOWER(CONCAT('%', :nombre, '%')) OR LOWER(u.correo) LIKE LOWER(CONCAT('%', :nombre, '%')) OR (o IS NOT NULL AND LOWER(o.razonSocial) LIKE LOWER(CONCAT('%', :nombre, '%'))))
+          AND (:organizacion IS NULL OR :organizacion = '' OR (o IS NOT NULL AND LOWER(o.razonSocial) LIKE LOWER(CONCAT('%', :organizacion, '%'))))
+          AND (:estadoOrg IS NULL OR (o IS NOT NULL AND o.estado = :estadoOrg))
+          AND (:activo IS NULL OR u.activo = :activo)
+          AND (:rolId IS NULL OR r.id = :rolId)
+        """,
+        countQuery = """
+        SELECT COUNT(u.id) FROM Usuario u
+        LEFT JOIN u.organizacion o
+        WHERE (:nombre IS NULL OR :nombre = '' OR LOWER(u.nombreCompleto) LIKE LOWER(CONCAT('%', :nombre, '%')) OR LOWER(u.correo) LIKE LOWER(CONCAT('%', :nombre, '%')) OR (o IS NOT NULL AND LOWER(o.razonSocial) LIKE LOWER(CONCAT('%', :nombre, '%'))))
+          AND (:organizacion IS NULL OR :organizacion = '' OR (o IS NOT NULL AND LOWER(o.razonSocial) LIKE LOWER(CONCAT('%', :organizacion, '%'))))
+          AND (:estadoOrg IS NULL OR (o IS NOT NULL AND o.estado = :estadoOrg))
+          AND (:activo IS NULL OR u.activo = :activo)
+          AND (:rolId IS NULL OR u.rol.id = :rolId)
+        """)
+    Page<Usuario> buscarAdminConFiltros(
+            @Param("nombre") String nombre,
+            @Param("organizacion") String organizacion,
+            @Param("estadoOrg") EstadoOrganizacion estadoOrg,
+            @Param("activo") Boolean activo,
+            @Param("rolId") Long rolId,
             Pageable pageable);
 }

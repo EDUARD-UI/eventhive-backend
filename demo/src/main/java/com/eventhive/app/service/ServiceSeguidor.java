@@ -27,6 +27,7 @@ public class ServiceSeguidor {
     private final SeguidorRepository seguidorRepository;
     private final OrganizacionRepository organizacionRepository;
     private final AuthenticatedUserHelper authHelper;
+    private final com.eventhive.app.repository.EventoRepository eventoRepository;
 
     //CONSULTAS
 
@@ -41,8 +42,19 @@ public class ServiceSeguidor {
     @Transactional(readOnly = true)
     public Page<OrganizacionPublicaDTO> listarOrganizacionesSeguidas(Pageable pageable) {
         Usuario seguidor = authHelper.usuarioAutenticado();
-        return seguidorRepository.findOrganizacionesBySeguidorId(seguidor.getId(), pageable)
-                .map(this::toOrganizacionPublicaDTO);
+        Page<Organizacion> page = seguidorRepository.findOrganizacionesBySeguidorId(seguidor.getId(), pageable);
+        java.util.List<Long> ids = page.getContent().stream().map(Organizacion::getId).toList();
+        java.util.Map<Long, Long> activosMap = ids.isEmpty() ? java.util.Map.of() :
+                eventoRepository.countActivosByOrganizacionIds(ids).stream()
+                        .collect(java.util.stream.Collectors.toMap(
+                                (Object[] r) -> (Long) r[0],
+                                (Object[] r) -> (Long) r[1]));
+
+        return page.map(o -> {
+            OrganizacionPublicaDTO dto = toOrganizacionPublicaDTO(o);
+            dto.setEventosActivos(activosMap.getOrDefault(o.getId(), 0L));
+            return dto;
+        });
     }
 
     @Transactional(readOnly = true)
@@ -113,6 +125,8 @@ public class ServiceSeguidor {
         dto.setId(organizacion.getId());
         dto.setRazonSocial(organizacion.getRazonSocial());
         dto.setRepresentante(organizacion.getRepresentante() != null ? organizacion.getRepresentante().getNombreCompleto() : null);
+        dto.setDescripcion(organizacion.getDescripcion());
+        dto.setUrlLogo(organizacion.getUrlLogo());
         dto.setFechaCreacion(organizacion.getFechaCreacion());
         dto.setPromedioRating(organizacion.getPromedioRating());
         dto.setTotalValoraciones(organizacion.getTotalValoraciones());

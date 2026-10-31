@@ -30,8 +30,8 @@ public interface SeguidorRepository extends JpaRepository<Seguidor, Long> {
     List<Usuario> findAllSeguidoresByOrganizacionId(@Param("organizacionId") Long organizacionId);
 
     // Obtiene las organizaciones que sigue un usuario de forma paginada con su representante precargado.
-    @Query(value = "SELECT o FROM Seguidor s JOIN s.organizacion o LEFT JOIN FETCH o.representante WHERE s.seguidor.id = :seguidorId",
-           countQuery = "SELECT COUNT(s.id) FROM Seguidor s WHERE s.seguidor.id = :seguidorId")
+    @Query(value = "SELECT DISTINCT o FROM Seguidor s JOIN s.organizacion o LEFT JOIN FETCH o.representante WHERE s.seguidor.id = :seguidorId",
+           countQuery = "SELECT COUNT(DISTINCT s.organizacion.id) FROM Seguidor s WHERE s.seguidor.id = :seguidorId")
     Page<Organizacion> findOrganizacionesBySeguidorId(@Param("seguidorId") Long seguidorId, Pageable pageable);
 
     // Cuenta el total de seguidores que posee una organización.

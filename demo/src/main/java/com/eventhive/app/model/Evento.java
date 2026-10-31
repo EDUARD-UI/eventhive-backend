@@ -74,9 +74,9 @@ public class Evento {//planes de promocionado
     @Column(name = "ubicacion", columnDefinition = "geography(Point,4326)")
     private Point ubicacion;
 
-    // URL del Codigo PULEP
-    @Column(name = "url_pulep", length = 500)
-    private String urlPulep;
+
+
+
 
     @Column(name = "url_imagen_destacado", length = 500)
     private String urlImagenDestacado;

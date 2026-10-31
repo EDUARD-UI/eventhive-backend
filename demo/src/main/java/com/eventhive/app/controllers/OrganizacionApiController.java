@@ -67,18 +67,46 @@ public class OrganizacionApiController {
     // ?estado=APROBADA | PENDIENTE_REVISION | SUSPENDIDA (opcional; sin parámetro devuelve todas)
     @GetMapping
     public ResponseEntity<ApiResponse<PagedResponse<OrganizacionPublicaDTO>>> listar(
-            @RequestParam(required = false) EstadoOrganizacion estado, Pageable pageable) {
+            @RequestParam(required = false) String estado,
+            @RequestParam(required = false) String nombre,
+            @RequestParam(required = false) String razonSocial,
+            Pageable pageable) {
+        EstadoOrganizacion estadoOrg = null;
+        if (estado != null && !estado.isBlank()) {
+            try {
+                estadoOrg = EstadoOrganizacion.valueOf(estado.trim().toUpperCase(java.util.Locale.ROOT));
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.ok(ApiResponse.ok("Organizaciones obtenidas",
+                        new PagedResponse<>(java.util.Collections.emptyList(), pageable.getPageNumber(), pageable.getPageSize(), 0L, 0)));
+            }
+        }
+        String nombreBusqueda = (razonSocial != null && !razonSocial.isBlank()) ? razonSocial : nombre;
+        Page<OrganizacionPublicaDTO> page;
+        if (nombreBusqueda != null && !nombreBusqueda.isBlank()) {
+            page = serviceUsuario.buscarOrganizacionesPorRazonSocial(nombreBusqueda, estadoOrg, pageable);
+        } else {
+            page = serviceUsuario.obtenerOrganizaciones(estadoOrg, pageable);
+        }
         return ResponseEntity.ok(ApiResponse.ok("Organizaciones obtenidas",
-                serviceUsuario.toPagedOrganizacion(serviceUsuario.obtenerOrganizaciones(estado, pageable))));
+                serviceUsuario.toPagedOrganizacion(page)));
     }
 
     @PostMapping("/buscar")
     public ResponseEntity<ApiResponse<PagedResponse<OrganizacionPublicaDTO>>> buscarPorRazonSocial(
             @Valid @RequestBody BuscarOrganizacionRequest request,
-            @RequestParam(required = false) EstadoOrganizacion estado,
+            @RequestParam(required = false) String estado,
             Pageable pageable) {
+        EstadoOrganizacion estadoOrg = null;
+        if (estado != null && !estado.isBlank()) {
+            try {
+                estadoOrg = EstadoOrganizacion.valueOf(estado.trim().toUpperCase(java.util.Locale.ROOT));
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.ok(ApiResponse.ok("Organizaciones encontradas",
+                        new PagedResponse<>(java.util.Collections.emptyList(), pageable.getPageNumber(), pageable.getPageSize(), 0L, 0)));
+            }
+        }
         Page<OrganizacionPublicaDTO> page = serviceUsuario.buscarOrganizacionesPorRazonSocial(
-                request.getRazonSocial(), estado, pageable);
+                request.getRazonSocial(), estadoOrg, pageable);
         return ResponseEntity.ok(ApiResponse.ok("Organizaciones encontradas",
                 serviceUsuario.toPagedOrganizacion(page)));
     }

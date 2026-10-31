@@ -2,6 +2,8 @@ package com.eventhive.app.dto.response;
 
 import java.time.LocalDateTime;
 
+import com.eventhive.app.enums.EstadoInvitacion;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -16,39 +18,32 @@ public class InvitacionRolEnviadaDTO {
     private String correo;
     private String rol;
     private LocalDateTime fechaInvitacion;
+    private LocalDateTime fechaEnvio;
     private LocalDateTime fechaExpiracion;
     private LocalDateTime fechaAceptacion;
-    private LocalDateTime fechaRechazo;
-    private String estado;
+    private EstadoInvitacion estado;
     private String organizacionNombre;
 
     public InvitacionRolEnviadaDTO(Long id, String correo, String rol,
                                    LocalDateTime fechaInvitacion, LocalDateTime fechaExpiracion,
-                                   LocalDateTime fechaAceptacion, String estado, String organizacionNombre) {
-        this(id, correo, rol, fechaInvitacion, fechaExpiracion, fechaAceptacion, null, estado, organizacionNombre);
+                                   LocalDateTime fechaAceptacion, EstadoInvitacion estado, String organizacionNombre) {
+        this(id, correo, rol, fechaInvitacion, fechaInvitacion, fechaExpiracion, fechaAceptacion, estado, organizacionNombre);
     }
 
     public InvitacionRolEnviadaDTO(Long id, String correo, String rol,
                                    LocalDateTime fechaInvitacion, LocalDateTime fechaExpiracion,
                                    LocalDateTime fechaAceptacion) {
-        this(id, correo, rol, fechaInvitacion, fechaExpiracion, fechaAceptacion, null,
-                calcularEstado(fechaAceptacion, null, fechaExpiracion), null);
+        this(id, correo, rol, fechaInvitacion, fechaInvitacion, fechaExpiracion, fechaAceptacion,
+                calcularEstado(fechaAceptacion, fechaExpiracion), null);
     }
 
-    public static String calcularEstado(LocalDateTime fechaAceptacion, LocalDateTime fechaExpiracion) {
-        return calcularEstado(fechaAceptacion, null, fechaExpiracion);
-    }
-
-    public static String calcularEstado(LocalDateTime fechaAceptacion, LocalDateTime fechaRechazo, LocalDateTime fechaExpiracion) {
+    public static EstadoInvitacion calcularEstado(LocalDateTime fechaAceptacion, LocalDateTime fechaExpiracion) {
         if (fechaAceptacion != null) {
-            return "ACEPTADA";
-        }
-        if (fechaRechazo != null) {
-            return "RECHAZADA";
+            return EstadoInvitacion.ACEPTADA;
         }
         if (fechaExpiracion != null && !fechaExpiracion.isAfter(LocalDateTime.now())) {
-            return "EXPIRADA";
+            return EstadoInvitacion.EXPIRADA;
         }
-        return "PENDIENTE";
+        return EstadoInvitacion.PENDIENTE;
     }
 }

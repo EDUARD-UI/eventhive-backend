@@ -142,8 +142,8 @@ public class ServiceCategoria {
     //METODOS AUXILIARES Y DE MAPEO
     private void eliminarFotoAnterior(String urlFoto) {
         if (urlFoto == null || urlFoto.isBlank()) return;
-        String nombre = storageService.extraerNombreArchivo(urlFoto);
-        storageService.eliminarArchivo(storageConfig.getBucketCategorias(), nombre);
+        storageService.eliminarImagenDeBucket(storageConfig.getBucketCategorias(), urlFoto);
+
     }
 
     public CategoriaDTO rowToDTO(Object[] row) {

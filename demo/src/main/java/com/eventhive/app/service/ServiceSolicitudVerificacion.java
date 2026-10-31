@@ -53,9 +53,52 @@ public class ServiceSolicitudVerificacion {
         } else {
             representanteId = usuario.getId();
         }
-        return solicitudRepository.findFirstByRepresentanteId(representanteId)
+        Organizacion org = usuario.getOrganizacion();
+        if (org == null && representanteId != null) {
+            org = organizacionRepository.findByRepresentanteIdConRepresentante(representanteId).orElse(null);
+        }
+        // Requirement 5.1: Organizaciones con RUT previamente cargado se reconocen como APROBADA
+        if (org != null && org.getUrlRut() != null && !org.getUrlRut().isBlank()) {
+            if (org.getEstado() != EstadoOrganizacion.APROBADA) {
+                org.setEstado(EstadoOrganizacion.APROBADA);
+                organizacionRepository.save(org);
+            }
+        }
+        SolicitudVerificacionDTO dto = solicitudRepository.findFirstByRepresentanteId(representanteId)
                 .map(this::toDTO)
                 .orElse(null);
+        if (dto != null && org != null && org.getUrlRut() != null && !org.getUrlRut().isBlank()) {
+            dto.setEstado(EstadoSolicitud.APROBADA);
+            if (dto.getUrlRut() == null || dto.getUrlRut().isBlank()) {
+                dto.setUrlRut(org.getUrlRut());
+            }
+        }
+        return dto;
+    }
+
+    @Transactional(readOnly = true)
+    public com.eventhive.app.dto.response.RutUrlDTO obtenerUrlRut(Long solicitudId) {
+        Usuario usuario = authHelper.usuarioAutenticado();
+        SolicitudVerificacion solicitud = solicitudRepository.findById(solicitudId)
+                .orElseThrow(() -> new BusinessException("Solicitud de verificación no encontrada"));
+
+        boolean esAdmin = usuario.getRol() != null && ("ADMINISTRADOR".equalsIgnoreCase(usuario.getRol().getNombre())
+                || "MODERADOR".equalsIgnoreCase(usuario.getRol().getNombre()));
+        boolean esRepresentante = solicitud.getRepresentanteLegal() != null
+                && solicitud.getRepresentanteLegal().getId().equals(usuario.getId());
+
+        if (!esAdmin && !esRepresentante) {
+            throw new BusinessException("No estás autorizado para consultar este documento RUT");
+        }
+
+        String urlRut = solicitud.getUrlRut();
+        if (urlRut == null || urlRut.isBlank()) {
+            throw new BusinessException("La solicitud no tiene un documento RUT adjunto");
+        }
+
+        long expiresInSeconds = 3600L;
+        return new com.eventhive.app.dto.response.RutUrlDTO(
+                storageService.generarUrlFirmada(urlRut, expiresInSeconds), expiresInSeconds);
     }
 
     @Transactional(readOnly = true)
@@ -153,6 +196,9 @@ public class ServiceSolicitudVerificacion {
         Usuario representante = solicitud.getRepresentanteLegal();
 
         Organizacion organizacion = representante.getOrganizacion();
+        if (organizacion == null) {
+            organizacion = organizacionRepository.findByRepresentanteIdConRepresentante(representante.getId()).orElse(null);
+        }
         if (organizacion == null) {
             throw new BusinessException("El usuario no tiene organización asociada");
         }
@@ -282,11 +328,15 @@ public class ServiceSolicitudVerificacion {
         dto.setFechaSolicitud(s.getFechaSolicitud());
         dto.setFechaResolucion(s.getFechaResolucion());
         dto.setMotivoRechazo(s.getMotivoRechazo());
+        dto.setUrlRut(s.getUrlRut());
 
         if (s.getRepresentanteLegal() != null) {
             dto.setRepresentanteId(s.getRepresentanteLegal().getId());
             dto.setRepresentanteNombre(s.getRepresentanteLegal().getNombreCompleto());
             dto.setRepresentanteCorreo(s.getRepresentanteLegal().getCorreo());
+            if (s.getRepresentanteLegal().getOrganizacion() != null) {
+                dto.setOrganizacionId(s.getRepresentanteLegal().getOrganizacion().getId());
+            }
         }
         if (s.getAdministradorQueResolvi() != null) {
             dto.setAdministradorNombre(s.getAdministradorQueResolvi().getNombreCompleto());
