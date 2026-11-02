@@ -22,7 +22,7 @@ public class LocalidadesApiController {
 
     //CONSULTAS
     @GetMapping
-    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
+    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR','MODERADOR','ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<List<LocalidadDTO>>> listar(@PathVariable Long eventoId) {
         return ResponseEntity.ok(ApiResponse.ok("Localidades obtenidas",
                 serviceLocalidad.listarPorEvento(eventoId)
@@ -34,7 +34,7 @@ public class LocalidadesApiController {
 
     //OPERACIONES CRUD
     @PostMapping
-    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
+    @PreAuthorize("hasRole('REPRESENTANTE')")
     public ResponseEntity<ApiResponse<LocalidadDTO>> agregar(@PathVariable Long eventoId,
             @Valid @RequestBody LocalidadRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -43,7 +43,7 @@ public class LocalidadesApiController {
     }
 
     @PutMapping("/{localidadId}")
-    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
+    @PreAuthorize("hasRole('REPRESENTANTE')")
     public ResponseEntity<ApiResponse<LocalidadDTO>> actualizar(@PathVariable Long eventoId,
             @PathVariable Long localidadId,
             @Valid @RequestBody LocalidadRequest request) {
@@ -52,7 +52,7 @@ public class LocalidadesApiController {
     }
 
     @DeleteMapping("/{localidadId}")
-    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
+    @PreAuthorize("hasRole('REPRESENTANTE')")
     public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable Long eventoId,
             @PathVariable Long localidadId) {
         serviceLocalidad.eliminar(eventoId, localidadId);

@@ -613,6 +613,9 @@ public class ServiceEvento {
     //validar IDOR que el usuario pertenezca a la organizacion del evento
     public void verificarPermiso(Evento evento, PermisoEvento permisoRequerido) {
         Usuario usuario = authHelper.usuarioAutenticado();
+        if (usuario.getRol() != null && "ADMINISTRADOR".equalsIgnoreCase(usuario.getRol().getNombre())) {
+            return;
+        }
 
         boolean perteneceALaOrganizacion = usuario.getOrganizacion() != null
                 && evento.getOrganizacion() != null
@@ -625,13 +628,16 @@ public class ServiceEvento {
     }
 
     private void validarPermisoSobreEvento(Usuario usuario, PermisoEvento permisoRequerido) {
+        if (usuario.getRol() != null && "ADMINISTRADOR".equalsIgnoreCase(usuario.getRol().getNombre())) {
+            return;
+        }
         Organizacion organizacion = usuario.getOrganizacion();
         if (organizacion == null) {
             throw new AccessDeniedException("No perteneces a ninguna organización");
         }
 
-        boolean esRepresentante = organizacion.getRepresentante() != null
-                && organizacion.getRepresentante().getId().equals(usuario.getId());
+        boolean esRepresentante = (usuario.getRol() != null && "REPRESENTANTE".equalsIgnoreCase(usuario.getRol().getNombre()))
+                || (organizacion.getRepresentante() != null && organizacion.getRepresentante().getId().equals(usuario.getId()));
         if (esRepresentante) {
             return;
         }
@@ -725,10 +731,14 @@ public class ServiceEvento {
 
     public EventoDTO toDetalleDTO(Evento e) {
         EventoDTO dto = toDTO(e);
+        List<com.eventhive.app.model.Localidad> locs = (e.getLocalidades() != null && !e.getLocalidades().isEmpty())
+                ? e.getLocalidades()
+                : (localidadRepository != null && e.getId() != null ? localidadRepository.findByEventoId(e.getId()) : List.of());
+
         dto.setLocalidades(
-                e.getLocalidades() == null
+                locs == null
                         ? List.of()
-                        : e.getLocalidades().stream().map(localidad -> {
+                        : locs.stream().map(localidad -> {
                     LocalidadDTO l = new LocalidadDTO();
                     l.setId(localidad.getId());
                     l.setNombre(localidad.getNombre());

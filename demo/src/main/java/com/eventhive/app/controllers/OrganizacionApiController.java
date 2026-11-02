@@ -209,19 +209,7 @@ public class OrganizacionApiController {
                         page.getTotalElements(), page.getTotalPages())));
     }
 
-    //GESTION DE PERMISOS Y OPERADORES
-    @RequestMapping(
-            value = {"/operadores/{operadorId}/actualizar-permisos", "/operadores/{operadorId}/permisos"},
-            method = {RequestMethod.PATCH, RequestMethod.PUT, RequestMethod.POST}
-    )
-    @PreAuthorize("hasRole('REPRESENTANTE')")
-    public ResponseEntity<ApiResponse<OperadorDTO>> actualizarPermisos(
-            @PathVariable Long operadorId,
-            @RequestBody PermisosOperadorRequest request) {
-        OperadorDTO dto = serviceOrganizacion.actualizarPermisos(operadorId, request);
-        return ResponseEntity.ok(ApiResponse.ok("Permisos actualizados", dto));
-    }
-
+    //GESTION DE OPERADORES
     @DeleteMapping("/expulsar-operador/{operadorId}")
     @PreAuthorize("hasRole('REPRESENTANTE')")
     public ResponseEntity<ApiResponse<Void>> expulsarOperador(@PathVariable Long operadorId) {

@@ -44,7 +44,7 @@ public class ServiceChatbot {
     @Value("${groq.api.key:${spring.ai.openai.api-key:}}")
     private String groqApiKey;
 
-    @Value("${groq.api.model:${spring.ai.openai.chat.options.model:qwen/qwen3.8-27b}}")
+    @Value("${groq.api.model:${spring.ai.openai.chat.options.model:llama-3.3-70b-versatile}}")
     private String groqModel;
 
     @Value("${groq.api.temperature:${spring.ai.openai.chat.options.temperature:0.2}}")
@@ -80,8 +80,8 @@ public class ServiceChatbot {
         this.categoriaRepository = categoriaRepository;
 
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(Duration.ofSeconds(3));
-        requestFactory.setReadTimeout(Duration.ofSeconds(6));
+        requestFactory.setConnectTimeout(Duration.ofSeconds(4));
+        requestFactory.setReadTimeout(Duration.ofSeconds(15));
 
         this.restClient = RestClient.builder()
                 .baseUrl(normalizarBaseUrl(baseUrl))
@@ -135,8 +135,10 @@ public class ServiceChatbot {
             try {
                 return llamarGroqConContexto(mensajeUsuario);
             } catch (Exception ex) {
-                log.warn("Fallo al llamar servicio de IA: {}", ex.getMessage());
+                log.warn("Fallo al llamar servicio de IA Groq: {}. Activando contingencia/reglas locales.", ex.getMessage(), ex);
             }
+        } else if (groqApiKey == null || groqApiKey.isBlank()) {
+            log.info("Groq API Key no configurada (Eventhive-HiveBot / GROQ_API_KEY vacía). Usando motor de respuestas local.");
         }
 
         if (esConsultaCarteleraOFechas) {

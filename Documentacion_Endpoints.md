@@ -2086,20 +2086,6 @@ Los operadores se agregan mediante invitación por correo, aceptan o rechazan la
 }
 ```
 
-#### `PATCH /api/organizaciones/operadores/{operadorId}/actualizar-permisos`
-- Recibe: `operadorId` y body `PermisosOperadorRequest`.
-- Devuelve: `ApiResponse<Void>`
-- Permisos: REPRESENTANTE.
-- Ejemplo de respuesta:
-
-```json
-{
-  "success": true,
-  "mensaje": "Permisos actualizados",
-  "data": null
-}
-```
-
 #### `DELETE /api/organizaciones/expulsar-operador/{operadorId}`
 - Recibe: `operadorId` en path.
 - Devuelve: `ApiResponse<Void>`
@@ -2758,6 +2744,58 @@ Para el panel autenticado se recomienda `GET /api/organizaciones/mi-organizacion
     "totalPages": 1,
     "hasNext": false,
     "hasPrevious": false
+  }
+}
+```
+
+#### `GET /api/moderaciones/eventos/{eventoId}` o `GET /api/moderaciones/eventos/{eventoId}/detalle`
+- **Recibe**: `eventoId` en path.
+- **Roles autorizados**: `MODERADOR`, `ADMINISTRADOR`.
+- **Descripción**: **Endpoint de detalle completo del evento para moderación.** Devuelve la información completa del evento incluyendo la lista de localidades con su nombre, capacidad, precio y cupos disponibles, datos de la categoría y de la organización propietaria.
+- **Devuelve**: `ApiResponse<EventoDTO>`
+- **Ejemplo de respuesta**:
+
+```json
+{
+  "success": true,
+  "mensaje": "Detalle del evento para moderación obtenido",
+  "data": {
+    "id": 15,
+    "titulo": "Festival de Jazz",
+    "descripcion": "Evento musical con artistas locales",
+    "lugar": "Parque Central, Santiago",
+    "foto": "https://storage.supabase.co/eventos/festival-jazz.jpg",
+    "fecha": "2026-10-14",
+    "hora": "19:30:00",
+    "estado": "PENDIENTE_REVISION",
+    "promocionado": false,
+    "latitud": -33.4489,
+    "longitud": -70.6693,
+    "categoria": {
+      "id": 1,
+      "nombre": "Música"
+    },
+    "organizacion": {
+      "id": 20,
+      "nombre": "Eventica SpA",
+      "urlLogo": "https://storage.supabase.co/perfilOrganizacion/eventica.png"
+    },
+    "localidades": [
+      {
+        "id": 101,
+        "nombre": "VIP General",
+        "precio": 85000.00,
+        "capacidad": 250,
+        "disponibles": 250
+      },
+      {
+        "id": 102,
+        "nombre": "Platea Preferencial",
+        "precio": 45000.00,
+        "capacidad": 500,
+        "disponibles": 500
+      }
+    ]
   }
 }
 ```
@@ -3700,26 +3738,9 @@ Este módulo administra los dos espacios promocionales propios de Eventhive. No 
   }
   ```
 
-#### `PATCH /api/organizaciones/operadores/{operadorId}/actualizar-permisos`
-- **Roles autorizados**: `REPRESENTANTE`.
-- **Descripción**: Permite al representante asignar o revocar permisos a un operador de su propia organización. Permisos soportados: `CHECK_IN`, `CREAR_EVENTO`, `EDITAR_EVENTO`, `CANCELAR_EVENTO`. Un operador sin un permiso específico recibirá HTTP 403 Forbidden si intenta invocar las acciones restringidas.
-- **Body**: `PermisosOperadorRequest`:
-  ```json
-  {
-    "permisos": ["CHECK_IN", "EDITAR_EVENTO"]
-  }
-  ```
-- **Respuesta**: HTTP 200 OK.
-  ```json
-  {
-    "success": true,
-    "mensaje": "Permisos actualizados"
-  }
-  ```
-
 #### `DELETE /api/organizaciones/expulsar-operador/{operadorId}`
 - **Roles autorizados**: `REPRESENTANTE`.
-- **Descripción**: Desvincula al operador de la organización, remueve todos sus permisos sobre eventos y restablece su rol a `CLIENTE`.
+- **Descripción**: Desvincula al operador de la organización y restablece su rol a `CLIENTE`.
 - **Respuesta**: HTTP 200 OK.
   ```json
   {
@@ -3809,17 +3830,16 @@ Este módulo administra los dos espacios promocionales propios de Eventhive. No 
   - Consulta de estadísticas y ventas de la organización.
   - Invitación de operadores exclusivamente para su organización (`POST /api/organizaciones/invitar`).
   - Consulta de invitaciones emitidas (`GET /api/organizaciones/invitaciones-enviadas`).
-  - Gestión de operadores y asignación granular de permisos (`GET /api/organizaciones/mis-operadores`, `PATCH .../actualizar-permisos`, `DELETE .../expulsar-operador/{id}`).
-  - Control total sobre creación, edición, publicación y cancelación de eventos de su organización.
+  - Gestión de operadores (`GET /api/organizaciones/mis-operadores`, `DELETE .../expulsar-operador/{id}`).
+  - Control total sobre creación, edición, publicación y cancelación de eventos y localidades de su organización.
   - Contratación y confirmación de planes publicitarios de posicionamiento para sus eventos.
 - **OPERADOR**:
-  - Actúa exclusivamente bajo los permisos asignados por su representante:
-    - `CREAR_EVENTO`: creación de eventos en borrador para su organización.
-    - `EDITAR_EVENTO`: modificación de eventos, localidades y envío a revisión.
-    - `CANCELAR_EVENTO`: cancelación, suspensión o retiro de eventos.
-    - `CHECK_IN`: validación de tiquetes y registro de ingreso a eventos.
-  - Si carece de alguno de estos permisos o intenta operar eventos de otra organización, el backend responde con **HTTP 403 Forbidden**.
-  - No puede invitar usuarios, modificar permisos ni alterar su propio rol.
+  - Pertenece a la organización de su representante.
+  - Por arquitectura y seguridad mediante `@PreAuthorize`, su acceso operativo está enfocado exclusivamente en:
+    - Validación y control de acceso / ingreso de tiquetes (`POST /api/boletos/checkin`, `POST /api/boletos/validar`).
+    - Consulta y actualización de su propio perfil de usuario.
+  - No tiene permisos para crear, editar, solicitar revisión o cancelar eventos ni localidades.
+  - No puede invitar usuarios ni alterar su rol.
 - **MODERADOR**:
   - Bandeja de eventos pendientes de revisión (`GET /api/moderaciones/eventos/pendientes`).
   - Aprobación o solicitud de correcciones en eventos (`PATCH .../aprobar`, `PATCH .../solicitar-correccion`).

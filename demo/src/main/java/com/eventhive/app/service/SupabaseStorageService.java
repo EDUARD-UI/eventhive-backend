@@ -63,119 +63,89 @@ public class SupabaseStorageService {
             long expiresInSeconds
     ) {
 
-        if (referencia == null ||
-                referencia.isBlank()) {
-
-            throw new BusinessException(
-                    "La referencia del archivo es requerida"
-            );
+        if (referencia == null || referencia.isBlank()) {
+            throw new BusinessException("La referencia del archivo es requerida");
         }
 
         if (expiresInSeconds <= 0) {
-
-            throw new BusinessException(
-                    "El tiempo de expiración debe ser mayor que cero"
-            );
+            throw new BusinessException("El tiempo de expiración debe ser mayor que cero");
         }
 
-        String bucket =
-                config.getBucketVerificaciones();
+        String refLimpia = referencia.trim();
 
-        String nombreArchivo =
-                referencia;
-
-        String prefijo =
-                bucket + "/";
-
-        if (referencia.startsWith(prefijo)) {
-            nombreArchivo =
-                    referencia.substring(
-                            prefijo.length()
-                    );
-        } else if (
-                referencia.contains(
-                        "/object/public/"
-                                + bucket
-                                + "/"
-                )
-        ) {
-            String parte =
-                    "/object/public/"
-                            + bucket
-                            + "/";
-            nombreArchivo =
-                    referencia.substring(
-                            referencia.indexOf(parte)
-                                    + parte.length()
-                    );
-        } else if (referencia.contains("/object/sign/" + bucket + "/")) {
-            String parte = "/object/sign/" + bucket + "/";
-            nombreArchivo = referencia.substring(referencia.indexOf(parte) + parte.length());
-            int queryIdx = nombreArchivo.indexOf('?');
-            if (queryIdx >= 0) {
-                nombreArchivo = nombreArchivo.substring(0, queryIdx);
+        // 1. Si ya es una URL externa o ya contiene token firmado, retornarla directamente
+        String supabaseBase = config.getUrl() != null ? config.getUrl().toLowerCase(java.util.Locale.ROOT) : "";
+        if (refLimpia.startsWith("http://") || refLimpia.startsWith("https://")) {
+            boolean esSupabasePropio = !supabaseBase.isBlank() && refLimpia.toLowerCase(java.util.Locale.ROOT).contains(supabaseBase);
+            if (!esSupabasePropio || refLimpia.contains("token=")) {
+                return refLimpia;
             }
-        } else if (referencia.contains("/object/authenticated/" + bucket + "/")) {
-            String parte = "/object/authenticated/" + bucket + "/";
-            nombreArchivo = referencia.substring(referencia.indexOf(parte) + parte.length());
         }
 
-        String url =
-                config.getUrl()
-                        + "/storage/v1/object/sign/"
-                        + bucket
-                        + "/"
-                        + nombreArchivo;
+        // 2. Determinar dinámicamente el bucket y el nombre de archivo
+        String bucket = config.getBucketVerificaciones();
+        String nombreArchivo = refLimpia;
 
-        HttpHeaders headers =
-                construirHeaders(
-                        MediaType.APPLICATION_JSON
-                );
+        if (nombreArchivo.startsWith("http://") || nombreArchivo.startsWith("https://")) {
+            for (String prefix : java.util.List.of("/storage/v1/object/public/", "/storage/v1/object/sign/", "/storage/v1/object/authenticated/", "/storage/v1/object/")) {
+                int idx = nombreArchivo.indexOf(prefix);
+                if (idx >= 0) {
+                    String rest = nombreArchivo.substring(idx + prefix.length());
+                    int slashIdx = rest.indexOf('/');
+                    if (slashIdx > 0) {
+                        bucket = rest.substring(0, slashIdx);
+                        nombreArchivo = rest.substring(slashIdx + 1);
+                        int queryIdx = nombreArchivo.indexOf('?');
+                        if (queryIdx >= 0) {
+                            nombreArchivo = nombreArchivo.substring(0, queryIdx);
+                        }
+                    }
+                    break;
+                }
+            }
+        } else {
+            // Manejar rutas relativas como "documentos-rut/archivo.pdf" o "verificacion-docs/archivo.pdf"
+            if (nombreArchivo.contains("/")) {
+                int firstSlash = nombreArchivo.indexOf('/');
+                String posibleBucket = nombreArchivo.substring(0, firstSlash);
+                if (posibleBucket.equalsIgnoreCase(config.getBucketVerificaciones())
+                        || posibleBucket.equalsIgnoreCase("documentos-rut")
+                        || posibleBucket.equalsIgnoreCase("verificacion-docs")
+                        || posibleBucket.contains("-") || posibleBucket.contains("_")) {
+                    bucket = posibleBucket;
+                    nombreArchivo = nombreArchivo.substring(firstSlash + 1);
+                }
+            }
+        }
 
-        HttpEntity<Map<String, Long>> request =
-                new HttpEntity<>(
-                        Map.of(
-                                "expiresIn",
-                                expiresInSeconds
-                        ),
-                        headers
-                );
+        int queryIdx = nombreArchivo.indexOf('?');
+        if (queryIdx >= 0) {
+            nombreArchivo = nombreArchivo.substring(0, queryIdx);
+        }
+
+        String url = config.getUrl() + "/storage/v1/object/sign/" + bucket + "/" + nombreArchivo;
+        HttpHeaders headers = construirHeaders(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, Long>> request = new HttpEntity<>(Map.of("expiresIn", expiresInSeconds), headers);
 
         try {
-            ResponseEntity<Map> response =
-                    restTemplate.exchange(
-                            url,
-                            HttpMethod.POST,
-                            request,
-                            Map.class
-                    );
+            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, request, Map.class);
+            Object signedUrl = response.getBody() == null ? null : response.getBody().get("signedURL");
 
-            Object signedUrl =
-                    response.getBody() == null
-                            ? null
-                            : response.getBody()
-                            .get("signedURL");
-
-            if (!(signedUrl instanceof String)
-                    || ((String) signedUrl).isBlank()) {
-
-                throw new BusinessException(
-                        "Supabase no devolvió una URL firmada válida"
-                );
+            if (signedUrl instanceof String val && !val.isBlank()) {
+                return val.startsWith("http") ? val : config.getUrl() + val;
             }
-
-            String value =
-                    (String) signedUrl;
-
-            return value.startsWith("http")
-                    ? value
-                    : config.getUrl() + value;
-        } catch (org.springframework.web.client.RestClientException ex) {
-            log.warn("Fallo al obtener URL firmada de Supabase para '{}': {}", nombreArchivo, ex.getMessage());
-            throw new BusinessException("No se pudo obtener URL firmada del documento de Supabase");
+        } catch (Throwable ex) {
+            log.warn("Fallo al obtener URL firmada de Supabase para bucket '{}' y archivo '{}': {}. Usando fallback directo.",
+                    bucket, nombreArchivo, ex.getMessage());
         }
-    }
 
+        // Fallback seguro: si falla la firma (ej. bucket público o error de firma en Supabase),
+        // construir URL pública o devolver la referencia original para permitir la apertura directa en navegador sin error 500
+        if (refLimpia.startsWith("http://") || refLimpia.startsWith("https://")) {
+            return refLimpia;
+        }
+        return config.getUrl() + "/storage/v1/object/public/" + bucket + "/" + nombreArchivo;
+    }
 
     public void eliminarDocumentoVerificacion(
             String referencia

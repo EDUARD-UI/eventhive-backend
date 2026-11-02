@@ -111,11 +111,19 @@ public class EventosApiController {
     }
 
     @GetMapping("/organizador/{id}")
-    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
+    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR','MODERADOR','ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<EventoDTO>> obtenerDeMiOrganizacion(@PathVariable Long id) {
-        Long organizacionId = obtenerOrganizacionIdAutenticada();
-        Evento evento = serviceEvento.obtenerEventoDeOrganizacionPorId(organizacionId, id);
-        if (evento.getEstado() == EstadoEvento.FINALIZADO) {
+        var usuario = authHelper.usuarioAutenticado();
+        boolean esAdminOMod = usuario.getRol() != null && ("ADMINISTRADOR".equalsIgnoreCase(usuario.getRol().getNombre())
+                || "MODERADOR".equalsIgnoreCase(usuario.getRol().getNombre()));
+        Evento evento;
+        if (esAdminOMod) {
+            evento = serviceEvento.obtenerEventoAdministrativo(id);
+        } else {
+            Long organizacionId = obtenerOrganizacionIdAutenticada();
+            evento = serviceEvento.obtenerEventoDeOrganizacionPorId(organizacionId, id);
+        }
+        if (evento.getEstado() == EstadoEvento.FINALIZADO && !esAdminOMod) {
             throw new ResourceNotFoundException("Evento no encontrado");
         }
         return ResponseEntity.ok(ApiResponse.ok("Evento obtenido",

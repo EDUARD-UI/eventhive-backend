@@ -4,6 +4,7 @@ import com.eventhive.app.dto.request.ModeracionEventoRequest;
 import com.eventhive.app.dto.response.EventoDTO;
 import com.eventhive.app.dto.response.ModeracionEstadisticasDTO;
 import com.eventhive.app.dto.response.ModeracionEventoDTO;
+import com.eventhive.app.model.Evento;
 import com.eventhive.app.service.ServiceEvento;
 import com.eventhive.app.service.ServiceModeracion;
 import jakarta.validation.Valid;
@@ -68,6 +69,14 @@ public class ModeracionesApiController {
     }
 
     // MODERACION A EVENTOS
+    @GetMapping({"/eventos/{eventoId}", "/eventos/{eventoId}/detalle"})
+    @PreAuthorize("hasAnyRole('MODERADOR','ADMINISTRADOR')")
+    public ResponseEntity<ApiResponse<EventoDTO>> detalleEventoModeracion(@PathVariable Long eventoId) {
+        Evento evento = serviceEvento.obtenerEventoAdministrativo(eventoId);
+        return ResponseEntity.ok(ApiResponse.ok("Detalle del evento para moderación obtenido",
+                serviceEvento.toDetalleDTO(evento)));
+    }
+
     @GetMapping("/eventos/pendientes")
     @PreAuthorize("hasRole('MODERADOR')")
     public ResponseEntity<ApiResponse<PagedResponse<EventoDTO>>> pendientesRevision(Pageable pageable) {
