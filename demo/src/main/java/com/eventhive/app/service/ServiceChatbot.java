@@ -44,7 +44,7 @@ public class ServiceChatbot {
     @Value("${groq.api.key:${spring.ai.openai.api-key:}}")
     private String groqApiKey;
 
-    @Value("${groq.api.model:${spring.ai.openai.chat.options.model:llama-3.3-70b-versatile}}")
+    @Value("${groq.api.model:${HIVEBOT_MODEL:${CHATBOT_MODEL:${GROQ_MODEL:qwen/qwen3.8-27b}}}}")
     private String groqModel;
 
     @Value("${groq.api.temperature:${spring.ai.openai.chat.options.temperature:0.2}}")
@@ -202,9 +202,9 @@ public class ServiceChatbot {
                 fechaHoyFormateada
         );
 
-        String modelPrincipal = (groqModel != null && !groqModel.isBlank() && !groqModel.contains("qwen"))
-                ? groqModel
-                : "llama-3.3-70b-versatile";
+        String modelPrincipal = (groqModel != null && !groqModel.isBlank())
+                ? groqModel.trim()
+                : "qwen/qwen3.8-27b";
 
         JsonNode response;
         try {

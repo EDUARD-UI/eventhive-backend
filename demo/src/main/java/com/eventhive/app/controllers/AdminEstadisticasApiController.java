@@ -2,6 +2,9 @@ package com.eventhive.app.controllers;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -9,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.eventhive.app.dto.ApiResponse;
+import com.eventhive.app.dto.PagedResponse;
 import com.eventhive.app.dto.response.EventoEstadoConteoDTO;
 import com.eventhive.app.dto.response.EventosPorCategoriaDTO;
 import com.eventhive.app.dto.response.IngresosPlataformaDTO;
@@ -47,10 +51,13 @@ public class AdminEstadisticasApiController {
                 serviceEstadisticas.eventosPorCategoria()));
     }
 
-    @GetMapping("/top-eventos-ventas")
-    public ResponseEntity<ApiResponse<List<TopEventoVentasDTO>>> topEventosPorVentas() {
-        return ResponseEntity.ok(ApiResponse.ok("Top 5 eventos por ventas obtenido",
-                serviceEstadisticas.topEventosPorVentas()));
+    @GetMapping({"/top-eventos-ventas", "/ganancias-boletas", "/ganancias-por-boletas"})
+    public ResponseEntity<ApiResponse<PagedResponse<TopEventoVentasDTO>>> topEventosPorVentas(
+            @PageableDefault(size = 10) Pageable pageable) {
+        Page<TopEventoVentasDTO> page = serviceEstadisticas.topEventosPorVentas(pageable);
+        return ResponseEntity.ok(ApiResponse.ok("Ganancias por boletas obtenidas",
+                new PagedResponse<>(page.getContent(), page.getNumber(), page.getSize(),
+                        page.getTotalElements(), page.getTotalPages())));
     }
 
     @GetMapping("/top-organizaciones-ventas")

@@ -2,6 +2,7 @@ package com.eventhive.app.repository;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -13,7 +14,7 @@ import com.eventhive.app.model.ItemCompra;
 
 public interface ItemCompraRepository extends JpaRepository<ItemCompra, Long> {
 
-    @Query("""
+    @Query(value = """
         SELECT new com.eventhive.app.dto.response.TopEventoVentasDTO(
             e.id, e.titulo, o.id, o.razonSocial,
             SUM(i.cantidad), SUM(i.cantidad * i.precioUnitario))
@@ -25,8 +26,16 @@ public interface ItemCompraRepository extends JpaRepository<ItemCompra, Long> {
           AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
         GROUP BY e.id, e.titulo, o.id, o.razonSocial
         ORDER BY SUM(i.cantidad) DESC, SUM(i.cantidad * i.precioUnitario) DESC, e.id ASC
+        """,
+        countQuery = """
+        SELECT COUNT(DISTINCT e.id)
+        FROM ItemCompra i
+        JOIN i.compra c
+        JOIN i.evento e
+        WHERE c.estado = com.eventhive.app.enums.EstadoCompra.CONFIRMADA
+          AND e.estado = com.eventhive.app.enums.EstadoEvento.PUBLICADO
         """)
-    List<TopEventoVentasDTO> topEventosPorVentas(Pageable pageable);
+    Page<TopEventoVentasDTO> topEventosPorVentas(Pageable pageable);
 
     @Query("""
         SELECT new com.eventhive.app.dto.response.TopOrganizacionVentasDTO(

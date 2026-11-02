@@ -104,7 +104,6 @@ class ServiceEventoCreacionTest {
         evento.setOrganizacion(representante.getOrganizacion());
         when(authHelper.usuarioAutenticado()).thenReturn(representante);
         when(eventoRepository.findByIdConReferencias(12L)).thenReturn(Optional.of(evento));
-        when(eventoRepository.countActivosByOrganizacionId(3L)).thenReturn(0L);
         when(serviceModeracionAutomatica.evaluarEvento(evento)).thenReturn(ResultadoReglaModeracion.ok());
 
         serviceEvento.enviarRevision(12L);

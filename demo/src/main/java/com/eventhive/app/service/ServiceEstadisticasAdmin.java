@@ -5,7 +5,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -74,8 +76,9 @@ public class ServiceEstadisticasAdmin {
         return categoriaRepository.contarEventosPorCategoria();
     }
 
-    public List<TopEventoVentasDTO> topEventosPorVentas() {
-        return itemCompraRepository.topEventosPorVentas(PageRequest.of(0, TOP));
+    public Page<TopEventoVentasDTO> topEventosPorVentas(Pageable pageable) {
+        Pageable p = pageable != null && pageable.isPaged() ? pageable : PageRequest.of(0, 10);
+        return itemCompraRepository.topEventosPorVentas(p);
     }
 
     public List<TopOrganizacionVentasDTO> topOrganizacionesPorVentas() {

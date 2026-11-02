@@ -442,11 +442,15 @@ public class ServiceEvento {
         }
 
         Organizacion organizacion = evento.getOrganizacion();
-        verificarLimiteDeNivel(organizacion);
 
-        if (organizacion.getEstado() != EstadoOrganizacion.APROBADA) {
+        if (organizacion.getEstado() == EstadoOrganizacion.SUSPENDIDA) {
+            throw new BusinessException("La organización se encuentra suspendida y no puede enviar eventos a revisión");
+        }
+
+        boolean tieneRutCargado = organizacion.getUrlRut() != null && !organizacion.getUrlRut().isBlank();
+        if (organizacion.getEstado() != EstadoOrganizacion.APROBADA && !tieneRutCargado) {
             throw new BusinessException(
-                    "Tu organización debe estar aprobada (RUT verificado) antes de publicar un evento");
+                    "Tu organización debe contar con el documento RUT cargado antes de enviar un evento a revisión o publicarlo");
         }
 
         transicionarEstado(evento, EstadoEvento.PENDIENTE_REVISION);
@@ -602,12 +606,7 @@ public class ServiceEvento {
 
     //METODOS DE AUXILIARES Y IDOR
     private void verificarLimiteDeNivel(Organizacion organizacion) {
-        int maximo = organizacion.getNivel().maxEventosActivos();
-        long activos = eventoRepository.countActivosByOrganizacionId(organizacion.getId());
-        if (activos >= maximo) {
-            throw new BusinessException(
-                    "Alcanzaste el límite de " + maximo + " eventos activos para tu nivel " + organizacion.getNivel());
-        }
+        // Regla eliminada: Las organizaciones pueden publicar eventos de forma ilimitada sin tope por nivel
     }
 
     //validar IDOR que el usuario pertenezca a la organizacion del evento

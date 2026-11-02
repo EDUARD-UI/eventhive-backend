@@ -37,6 +37,7 @@ import com.eventhive.app.enums.EstadoOrganizacion;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.model.Usuario;
 import com.eventhive.app.dto.response.EventoDTO;
+import com.eventhive.app.dto.response.EventoEntradasResumenDTO;
 import com.eventhive.app.service.ServiceEvento;
 import com.eventhive.app.service.ServiceInvitacionRol;
 import com.eventhive.app.service.ServiceNivelOrganizacion;
@@ -179,6 +180,14 @@ public class OrganizacionApiController {
     public ResponseEntity<ApiResponse<PanelEntradasDTO>> estadisticasMiOrganizacion(Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.ok("Estadísticas de la organización obtenidas",
                 serviceOrganizacion.obtenerPanelEntradas(pageable)));
+    }
+
+    @GetMapping({"/mi-organizacion/ganancias-boletas", "/mi-organizacion/ganancias"})
+    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR')")
+    public ResponseEntity<ApiResponse<PagedResponse<EventoEntradasResumenDTO>>> gananciasBoletasMiOrganizacion(Pageable pageable) {
+        PanelEntradasDTO panel = serviceOrganizacion.obtenerPanelEntradas(pageable);
+        return ResponseEntity.ok(ApiResponse.ok("Ganancias por boletas de la organización obtenidas",
+                panel.getEventos()));
     }
 
     @GetMapping("/mi-organizacion/seguidores")

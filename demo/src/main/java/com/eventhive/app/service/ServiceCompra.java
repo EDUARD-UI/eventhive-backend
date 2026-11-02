@@ -102,9 +102,12 @@ public class ServiceCompra {
                 .filter(com.eventhive.app.model.PlanPromocion::isActivo)
                 .orElseThrow(() -> new ResourceNotFoundException("Plan de promoción no encontrado o inactivo"));
         validarPropietarioPosicionamiento(evento, usuario);
-        if (evento.getOrganizacion().getEstado() != EstadoOrganizacion.APROBADA
+        Organizacion orgEvento = evento.getOrganizacion();
+        boolean rutValido = orgEvento.getEstado() == EstadoOrganizacion.APROBADA
+                || (orgEvento.getUrlRut() != null && !orgEvento.getUrlRut().isBlank());
+        if (orgEvento.getEstado() == EstadoOrganizacion.SUSPENDIDA || !rutValido
                 || evento.getEstado() != EstadoEvento.PUBLICADO) {
-            throw new BusinessException("Solo se puede pagar el posicionamiento de un evento publicado de una organización aprobada");
+            throw new BusinessException("Solo se puede pagar el posicionamiento de un evento publicado de una organización activa con RUT");
         }
         if (Boolean.TRUE.equals(evento.getPromocionado())
                 || posicionamientoEventoRepository.existsByEventoIdAndEstadoIn(eventoId,

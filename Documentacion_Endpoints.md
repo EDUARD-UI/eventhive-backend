@@ -1111,7 +1111,10 @@ En caso de error, la respuesta suele devolver:
 - Recibe: `id` del evento en path, sin body.
 - Devuelve: `ApiResponse<Void>`
 - Descripción: envía el evento a revisión.
-- Permisos: REPRESENTANTE o OPERADOR.
+- Permisos: REPRESENTANTE o ADMINISTRADOR.
+- Reglas de negocio:
+  - **Publicación ilimitada**: Se eliminó la restricción de límite de eventos activos; las organizaciones pueden crear y publicar tantos eventos como deseen sin tope por nivel.
+  - **Flexibilización de RUT**: Se permite el envío a revisión y publicación a toda organización que tenga su documento RUT cargado en la base de datos o se encuentre en estado `APROBADA`. Solo se bloquea si la organización está explícitamente `SUSPENDIDA` o no cuenta con RUT cargado.
 - Ejemplo de respuesta:
 
 ```json
@@ -2022,6 +2025,11 @@ Los operadores se agregan mediante invitación por correo, aceptan o rechazan la
   - `ingresosNetos`: suma de los ingresos netos de la organización (el precio base de las localidades vendidas, sin descontar comisiones adicionales asumidas por el comprador).
   - `totalEventosActivos`: número de eventos en estado `PUBLICADO` de la organización.
   - `eventos`: paginación de `EventoEntradasResumenDTO` con resumen por evento (`id`, `titulo`, `fecha`, `hora`, `estado`, `boletasVendidas`, `ingresosNetos`), omitiendo desglose por localidades por optimización del contrato.
+
+#### `GET /api/organizaciones/mi-organizacion/ganancias-boletas` (Alias: `/ganancias`)
+- Recibe: paginación estándar (`page`, `size`, `sort`).
+- Devuelve: `ApiResponse<PagedResponse<EventoEntradasResumenDTO>>` con el desglose paginado directo de las boletas vendidas y ganancias generadas por cada evento de la organización.
+- Permisos: REPRESENTANTE u OPERADOR asociado.
 - Ejemplo de respuesta:
 
 ```json
@@ -3271,22 +3279,31 @@ Todos los endpoints son de solo lectura, no reciben parámetros y requieren rol 
 }
 ```
 
-#### `GET /api/admin/estadisticas/top-eventos-ventas`
-- Devuelve: `ApiResponse<List<TopEventoVentasDTO>>` con los cinco eventos con mayor volumen de ventas de entradas.
+#### `GET /api/admin/estadisticas/top-eventos-ventas` (Alias: `/ganancias-boletas`, `/ganancias-por-boletas`)
+- Recibe: paginación estándar (`page`, `size`, `sort`). Por defecto `page=0, size=10`.
+- Devuelve: `ApiResponse<PagedResponse<TopEventoVentasDTO>>` con el listado paginado de eventos ordenados por volumen de ventas y ganancias recaudadas por boletas.
 - Regla: se calcula **exclusivamente sobre eventos en estado `PUBLICADO`** con compras confirmadas.
 - Ejemplo de `data`:
 
 ```json
-[
-  {
-    "eventoId": 15,
-    "nombre": "Festival de Jazz",
-    "organizacionId": 10,
-    "organizacion": "Eventica SpA",
-    "entradasVendidas": 240,
-    "totalVentas": 6000000
-  }
-]
+{
+  "content": [
+    {
+      "eventoId": 15,
+      "nombre": "Festival de Jazz",
+      "organizacionId": 10,
+      "organizacion": "Eventica SpA",
+      "entradasVendidas": 240,
+      "totalVentas": 6000000
+    }
+  ],
+  "pageNumber": 0,
+  "pageSize": 10,
+  "totalElements": 1,
+  "totalPages": 1,
+  "hasNext": false,
+  "hasPrevious": false
+}
 ```
 
 #### `GET /api/admin/estadisticas/top-organizaciones-ventas`
@@ -3862,7 +3879,7 @@ Este módulo administra los dos espacios promocionales propios de Eventhive. No 
 
 ### Base: `/api/chatbot` o `/api/chat`
 
-Módulo del asistente virtual inteligente de EventHive para atención a visitantes y usuarios sobre la cartelera de eventos, compra de boletería y registro de organizadores. Cuenta con integración a Groq (Llama 3.3/3.1), resolución directa de eventos publicados en PostgreSQL (Supabase), guardrails para ahorro de tokens y un plan de contingencia ante caídas de red o límites de cuota.
+Módulo del asistente virtual inteligente de EventHive para atención a visitantes y usuarios sobre la cartelera de eventos, compra de boletería y registro de organizadores. Cuenta con integración a Groq (modelo por defecto `qwen/qwen3.8-27b`, configurable dinámicamente mediante las variables de entorno `GROQ_MODEL`, `HIVEBOT_MODEL` o `CHATBOT_MODEL` en Azure), resolución directa de eventos publicados en PostgreSQL (Supabase), guardrails para ahorro de tokens y un plan de contingencia ante caídas de red o límites de cuota que garantiza respuestas en HTTP 200 sin arrojar errores 500 al cliente.
 
 #### `POST /api/chat` o `POST /api/chatbot/mensaje`
 - **Público**: no requiere token JWT ni autenticación (excluido explícitamente en `JwtAuthFilter` y habilitado con `permitAll()` en `SecurityConfig`). Rutas soportadas: `/api/chat`, `/api/chat/mensaje`, `/api/chatbot`, `/api/chatbot/mensaje`.
