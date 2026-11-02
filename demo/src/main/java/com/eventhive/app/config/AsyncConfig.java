@@ -34,6 +34,8 @@ public class AsyncConfig {
                 new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy()
         );
 
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(5);
         executor.initialize();
 
         return executor;

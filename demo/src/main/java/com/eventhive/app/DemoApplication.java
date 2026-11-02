@@ -13,6 +13,14 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 public class DemoApplication {
 
+	static {
+		// Precarga de clases de Logback para evitar NoClassDefFoundError en JVM shutdown hooks
+		try {
+			Class.forName("ch.qos.logback.classic.spi.ThrowableProxy");
+		} catch (Throwable ignored) {
+		}
+	}
+
 	public static void main(String[] args) {
 		SpringApplication.run(DemoApplication.class, args);
 	}
