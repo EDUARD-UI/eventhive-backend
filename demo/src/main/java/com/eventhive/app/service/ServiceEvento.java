@@ -60,6 +60,7 @@ import com.eventhive.app.repository.EventoRepository;
 import com.eventhive.app.repository.LocalidadRepository;
 import com.eventhive.app.repository.ModeracionEventoRepository;
 import com.eventhive.app.repository.OrganizacionRepository;
+import com.eventhive.app.repository.SolicitudVerificacionRepository;
 import com.eventhive.app.repository.TiqueteRepository;
 import com.eventhive.app.repository.specification.EventoSpecification;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
@@ -81,6 +82,7 @@ public class ServiceEvento {
     private final TiqueteRepository tiqueteRepository;
     private final ModeracionEventoRepository moderacionEventoRepository;
     private final OrganizacionRepository organizacionRepository;
+    private final SolicitudVerificacionRepository solicitudVerificacionRepository;
     private final AuthenticatedUserHelper authHelper;
     private final SupabaseStorageService storageService;
     private final SupabaseStorageConfig storageConfig;
@@ -317,18 +319,16 @@ public class ServiceEvento {
         return eventoRepository.findAll(spec, OrdenEventos.promocionadosPrimero(pageable)).map(this::toDTO);
     }
 
-    // Eventos para el mapa: filtra por categoría y/o radio de distancia
+    // Eventos para el mapa: filtra por categoría y/o radio de distancia (máximo 10 eventos por fecha)
     @Transactional(readOnly = true)
     @Cacheable(value = CacheConfig.CACHE_EVENTOS_MAPA, key = "{#categoriaId, #lat, #lng, #radioKm}")
     public List<EventoMapaDTO> buscarParaMapa(Long categoriaId, Double lat, Double lng, Double radioKm) {
 
-        boolean algunoInformado = lat != null || lng != null || radioKm != null;
-        boolean todosInformados = lat != null && lng != null && radioKm != null;
-        if (algunoInformado && !todosInformados) {
-            throw new BusinessException("Para filtrar por distancia debe enviar 'lat', 'lng' y 'radioKm' juntos");
+        Double radioMetros = null;
+        if (lat != null && lng != null) {
+            double radio = (radioKm != null && radioKm > 0) ? radioKm : 50.0;
+            radioMetros = radio * 1000.0;
         }
-
-        Double radioMetros = radioKm != null ? radioKm * 1000 : null;
 
         return eventoRepository.findParaMapa(categoriaId, lat, lng, radioMetros).stream()
                 .map(p -> new EventoMapaDTO(
@@ -447,7 +447,12 @@ public class ServiceEvento {
             throw new BusinessException("La organización se encuentra suspendida y no puede enviar eventos a revisión");
         }
 
-        boolean tieneRutCargado = organizacion.getUrlRut() != null && !organizacion.getUrlRut().isBlank();
+        boolean tieneRutCargado = (organizacion.getUrlRut() != null && !organizacion.getUrlRut().isBlank())
+                || (solicitudVerificacionRepository != null
+                    && organizacion.getRepresentante() != null
+                    && solicitudVerificacionRepository.findFirstByRepresentanteId(organizacion.getRepresentante().getId())
+                        .filter(s -> s.getUrlRut() != null && !s.getUrlRut().isBlank())
+                        .isPresent());
         if (organizacion.getEstado() != EstadoOrganizacion.APROBADA && !tieneRutCargado) {
             throw new BusinessException(
                     "Tu organización debe contar con el documento RUT cargado antes de enviar un evento a revisión o publicarlo");

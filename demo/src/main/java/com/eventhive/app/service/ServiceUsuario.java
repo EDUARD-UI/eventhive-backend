@@ -442,7 +442,7 @@ public class ServiceUsuario {
         dto.setTotalSeguidores(o.getTotalSeguidores());
         dto.setTotalEventosCreados(o.getTotalEventosCreados());
         dto.setNivel(o.getNivel());
-        dto.setEstado(o.getEstado());
+        dto.setEstado(o.getEstado() != null ? o.getEstado() : EstadoOrganizacion.PENDIENTE_REVISION);
         return dto;
     }
 }

@@ -41,11 +41,17 @@ public class ClientePythonRecomendacion {
 
     public EvaluacionRecomendacionResponse evaluar(EvaluacionRecomendacionRequest request) {
         try {
-            return restClient.post()
+            EvaluacionRecomendacionResponse response = restClient.post()
                 .uri("/api/v1/recommendations/evaluate")
                 .body(request)
                 .retrieve()
                 .body(EvaluacionRecomendacionResponse.class);
+
+            if (response != null) {
+                log.info("Modelo predictivo Python respondió OK [status=200, items={}]",
+                        response.getRecomendaciones() != null ? response.getRecomendaciones().size() : 0);
+            }
+            return response;
         } catch (Exception ex) {
             log.warn("No se pudo comunicar con el microservicio Python de recomendaciones: {}", ex.getMessage());
             return null;

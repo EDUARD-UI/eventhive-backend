@@ -21,11 +21,9 @@ public class ChatbotRateLimiter {
             .build();
 
     public boolean permitir(String ip) {
-        if (ip == null || ip.isBlank()) {
-            throw new IllegalArgumentException("La dirección IP de la solicitud es obligatoria");
-        }
+        String claveIp = (ip != null && !ip.isBlank()) ? ip.trim() : "127.0.0.1";
 
-        RequestWindow window = requestWindows.get(ip, ignored -> new RequestWindow());
+        RequestWindow window = requestWindows.get(claveIp, ignored -> new RequestWindow());
         long now = System.nanoTime();
         synchronized (window) {
             while (!window.requests.isEmpty()

@@ -219,6 +219,9 @@ public class ServiceChatbot {
             JsonNode choice = response.get("choices").get(0);
             if (choice.has("message") && choice.get("message").has("content")) {
                 textoRespuesta = choice.get("message").get("content").asText().trim();
+                if (textoRespuesta.contains("<think>")) {
+                    textoRespuesta = textoRespuesta.replaceAll("(?s)<think>.*?</think>", "").trim();
+                }
             }
         }
 
@@ -389,6 +392,13 @@ public class ServiceChatbot {
             Pattern.compile("^(hola|buenas|buen dia|buenos dias|buenas tardes|buenas noches|hey|que tal|saludos).*", Pattern.CASE_INSENSITIVE);
 
     private boolean esSaludo(String msg) {
+        if (esConsultaCartelera(msg) || esPreguntaOrganizador(msg)) {
+            return false;
+        }
+        if (msg.contains("?") || msg.contains("¿") || msg.contains(" donde ") || msg.contains(" cuándo ") || msg.contains(" cuando ")
+                || msg.contains(" que ") || msg.contains(" qué ") || msg.contains(" precio ") || msg.contains(" boleta ") || msg.contains(" entrada ")) {
+            return false;
+        }
         return PATRON_SALUDO.matcher(msg).matches();
     }
 

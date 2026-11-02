@@ -838,7 +838,7 @@ En caso de error, la respuesta suele devolver:
 #### `GET /api/eventos/mapa`
 - Recibe: `categoriaId`, `lat`, `lng`, `radioKm` opcionales.
 - Devuelve: `ApiResponse<List<EventoMapaDTO>>`
-- Descripción: eventos para renderizar en mapa; los promocionados aparecen primero y luego se ordenan por fecha, hora e ID ascendente.
+- Descripción: Eventos para renderizar en el mapa reducidos a los **10 primeros eventos por fecha** (`ORDER BY e.fecha ASC, e.hora ASC, e.id ASC LIMIT 10`). Si se envía `categoriaId`, retorna los primeros 10 eventos por fecha de dicha categoría. En ambos casos, si se envían coordenadas del usuario (`lat` y `lng`), se suma automáticamente el filtro de proximidad geográfica (utilizando `radioKm` o un radio por defecto de 50 km).
 - Ejemplo de respuesta:
 
 ```json
@@ -1163,7 +1163,7 @@ En caso de error, la respuesta suele devolver:
 #### `GET /api/eventos/{eventoId}/localidades`
 - Recibe: `eventoId` en path.
 - Devuelve: `ApiResponse<List<LocalidadDTO>>`
-- Permisos: REPRESENTANTE o OPERADOR.
+- Permisos: Público (si el evento se encuentra en estado `PUBLICADO`) o usuarios autenticados con rol `MODERADOR`, `ADMINISTRADOR`, `REPRESENTANTE` u `OPERADOR`. Permite a los moderadores examinar las localidades, nombres y capacidades de los eventos a moderar sin generar error 403.
 - Ejemplo de respuesta:
 
 ```json
@@ -2188,7 +2188,16 @@ Los operadores se agregan mediante invitación por correo, aceptan o rechazan la
 - Recibe: `organizacionId` en path.
 - Devuelve: `ApiResponse<Void>`
 - Permisos: autenticado.
-- Ejemplo de respuesta:
+- Aliases: también disponible vía `POST /api/organizaciones/{organizacionId}/seguir`.
+- **Regla de negocio obligatoria**: El **representante legal** o miembro de la organización **NO puede seguir a su propia organización**. Si el usuario autenticado intenta seguir a su propia organización o si es su representante legal registrado, el backend rechaza la solicitud retornando `HTTP 400 Bad Request` con el mensaje:
+  ```json
+  {
+    "success": false,
+    "mensaje": "El representante de la organización no puede seguir a su propia organización",
+    "data": null
+  }
+  ```
+- Ejemplo de respuesta exitosa:
 
 ```json
 {

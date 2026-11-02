@@ -35,8 +35,8 @@ public interface OrganizacionRepository extends JpaRepository<Organizacion, Long
     Page<Organizacion> findAllConRepresentante(Pageable pageable);
 
     // Obtiene las organizaciones filtradas por su estado con su representante legal precargado.
-    @Query(value = "SELECT o FROM Organizacion o LEFT JOIN FETCH o.representante WHERE o.estado = :estado",
-           countQuery = "SELECT COUNT(o.id) FROM Organizacion o WHERE o.estado = :estado")
+    @Query(value = "SELECT o FROM Organizacion o LEFT JOIN FETCH o.representante WHERE COALESCE(o.estado, com.eventhive.app.enums.EstadoOrganizacion.PENDIENTE_REVISION) = :estado",
+           countQuery = "SELECT COUNT(o.id) FROM Organizacion o WHERE COALESCE(o.estado, com.eventhive.app.enums.EstadoOrganizacion.PENDIENTE_REVISION) = :estado")
     Page<Organizacion> findByEstadoConRepresentante(@Param("estado") EstadoOrganizacion estado, Pageable pageable);
 
     // Obtiene las organizaciones ordenadas prioritariamente por nivel de confianza y cantidad de seguidores.
@@ -45,8 +45,8 @@ public interface OrganizacionRepository extends JpaRepository<Organizacion, Long
     Page<Organizacion> findTopOrganizaciones(Pageable pageable);
 
     // Obtiene las organizaciones con un estado determinado ordenadas por nivel y cantidad de seguidores.
-    @Query(value = "SELECT o FROM Organizacion o LEFT JOIN FETCH o.representante WHERE o.estado = :estado ORDER BY o.nivel DESC, o.totalSeguidores DESC",
-           countQuery = "SELECT COUNT(o.id) FROM Organizacion o WHERE o.estado = :estado")
+    @Query(value = "SELECT o FROM Organizacion o LEFT JOIN FETCH o.representante WHERE COALESCE(o.estado, com.eventhive.app.enums.EstadoOrganizacion.PENDIENTE_REVISION) = :estado ORDER BY o.nivel DESC, o.totalSeguidores DESC",
+           countQuery = "SELECT COUNT(o.id) FROM Organizacion o WHERE COALESCE(o.estado, com.eventhive.app.enums.EstadoOrganizacion.PENDIENTE_REVISION) = :estado")
     Page<Organizacion> findTopByEstado(@Param("estado") EstadoOrganizacion estado, Pageable pageable);
 
     // Verifica si existe una organización registrada con el correo de contacto empresarial indicado.
@@ -58,13 +58,13 @@ public interface OrganizacionRepository extends JpaRepository<Organizacion, Long
     Page<Organizacion> findByRazonSocial(@org.springframework.data.repository.query.Param("razonSocial") String razonSocial, Pageable pageable);
 
     // Busca organizaciones con un estado específico cuyo nombre contenga el texto indicado con representante precargado.
-    @Query(value = "SELECT o FROM Organizacion o LEFT JOIN FETCH o.representante WHERE o.estado = :estado AND LOWER(o.razonSocial) LIKE LOWER(CONCAT('%', :razonSocial, '%'))",
-           countQuery = "SELECT COUNT(o.id) FROM Organizacion o WHERE o.estado = :estado AND LOWER(o.razonSocial) LIKE LOWER(CONCAT('%', :razonSocial, '%'))")
+    @Query(value = "SELECT o FROM Organizacion o LEFT JOIN FETCH o.representante WHERE COALESCE(o.estado, com.eventhive.app.enums.EstadoOrganizacion.PENDIENTE_REVISION) = :estado AND LOWER(o.razonSocial) LIKE LOWER(CONCAT('%', :razonSocial, '%'))",
+           countQuery = "SELECT COUNT(o.id) FROM Organizacion o WHERE COALESCE(o.estado, com.eventhive.app.enums.EstadoOrganizacion.PENDIENTE_REVISION) = :estado AND LOWER(o.razonSocial) LIKE LOWER(CONCAT('%', :razonSocial, '%'))")
     Page<Organizacion> findByRazonSocialAndEstado(@Param("razonSocial") String razonSocial,
                                                    @Param("estado") EstadoOrganizacion estado,
                                                    Pageable pageable);
 
     // Obtiene el conteo total de organizaciones agrupado por cada estado registrado en la plataforma.
-    @Query("SELECT new com.eventhive.app.dto.response.OrganizacionEstadoConteoDTO(o.estado, COUNT(o.id)) FROM Organizacion o GROUP BY o.estado")
+    @Query("SELECT new com.eventhive.app.dto.response.OrganizacionEstadoConteoDTO(COALESCE(o.estado, com.eventhive.app.enums.EstadoOrganizacion.PENDIENTE_REVISION), COUNT(o.id)) FROM Organizacion o GROUP BY COALESCE(o.estado, com.eventhive.app.enums.EstadoOrganizacion.PENDIENTE_REVISION)")
     List<OrganizacionEstadoConteoDTO> contarPorEstado();
 }

@@ -49,12 +49,13 @@ public class ServiceEstadisticasAdmin {
     //CONSULTAS
     public OrganizacionesPorValidacionDTO organizacionesPorValidacion() {
         Map<EstadoOrganizacion, Long> conteo = organizacionRepository.contarPorEstado().stream()
-                .collect(Collectors.toMap(OrganizacionEstadoConteoDTO::getEstado, OrganizacionEstadoConteoDTO::getCantidad));
+                .filter(dto -> dto.getEstado() != null)
+                .collect(Collectors.toMap(OrganizacionEstadoConteoDTO::getEstado, OrganizacionEstadoConteoDTO::getCantidad, Long::sum));
 
         List<OrganizacionEstadoConteoDTO> porEstado = Arrays.stream(EstadoOrganizacion.values())
                 .map(e -> new OrganizacionEstadoConteoDTO(e, conteo.getOrDefault(e, 0L)))
                 .toList();
-        long total = porEstado.stream().mapToLong(OrganizacionEstadoConteoDTO::getCantidad).sum();
+        long total = organizacionRepository.count();
 
         return new OrganizacionesPorValidacionDTO(
                 solicitudRepository.countByEstado(EstadoSolicitud.PENDIENTE),

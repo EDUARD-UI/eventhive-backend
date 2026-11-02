@@ -135,6 +135,20 @@ public class OrganizacionApiController {
                 serviceOrganizacion.obtenerUrlRut(organizacionId)));
     }
 
+    @PostMapping("/{organizacionId}/seguir")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> seguir(@PathVariable Long organizacionId) {
+        serviceSeguidor.seguir(organizacionId);
+        return ResponseEntity.ok(ApiResponse.ok("Ahora sigues a este organizador"));
+    }
+
+    @DeleteMapping("/{organizacionId}/seguir")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> dejarDeSeguir(@PathVariable Long organizacionId) {
+        serviceSeguidor.dejarDeSeguir(organizacionId);
+        return ResponseEntity.ok(ApiResponse.ok("Dejaste de seguir al organizador"));
+    }
+
     @GetMapping("/top")
     public ResponseEntity<ApiResponse<PagedResponse<OrganizacionPublicaDTO>>> topOrganizaciones(
             @RequestParam(required = false) EstadoOrganizacion estado, Pageable pageable) {

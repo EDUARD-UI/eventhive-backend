@@ -69,9 +69,14 @@ public class ServiceSeguidor {
         Usuario seguidor = authHelper.usuarioAutenticado();
         Organizacion organizacion = buscarOrganizacion(organizacionId);
 
-        if (seguidor.getOrganizacion() != null
-                && seguidor.getOrganizacion().getId().equals(organizacionId))
-            throw new BusinessException("No puedes seguir tu propia organización");
+        boolean esRepresentantePropio = (organizacion.getRepresentante() != null
+                && organizacion.getRepresentante().getId().equals(seguidor.getId()))
+                || (seguidor.getOrganizacion() != null
+                && seguidor.getOrganizacion().getId().equals(organizacionId));
+
+        if (esRepresentantePropio) {
+            throw new BusinessException("El representante de la organización no puede seguir a su propia organización");
+        }
 
         if (seguidorRepository.existsByOrganizacionIdAndSeguidorId(organizacionId, seguidor.getId()))
             throw new BusinessException("Ya sigues a esta organización");

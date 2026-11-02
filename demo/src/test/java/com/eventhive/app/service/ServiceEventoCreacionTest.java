@@ -32,6 +32,7 @@ import com.eventhive.app.repository.EventoRepository;
 import com.eventhive.app.repository.LocalidadRepository;
 import com.eventhive.app.repository.ModeracionEventoRepository;
 import com.eventhive.app.repository.OrganizacionRepository;
+import com.eventhive.app.repository.SolicitudVerificacionRepository;
 import com.eventhive.app.repository.TiqueteRepository;
 import com.eventhive.app.utils.AuthenticatedUserHelper;
 
@@ -58,6 +59,8 @@ class ServiceEventoCreacionTest {
     private ModeracionEventoRepository moderacionEventoRepository;
     @Mock
     private OrganizacionRepository organizacionRepository;
+    @Mock
+    private SolicitudVerificacionRepository solicitudVerificacionRepository;
     @Mock
     private AuthenticatedUserHelper authHelper;
     @Mock

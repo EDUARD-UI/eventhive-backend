@@ -128,7 +128,8 @@ public interface EventoRepository extends JpaRepository<Evento, Long>, JpaSpecif
                      CAST(:radioMetros AS double precision)
                    )
               )
-        ORDER BY e.promocionado DESC, e.fecha ASC, e.hora ASC, e.id ASC
+        ORDER BY e.fecha ASC, e.hora ASC, e.id ASC
+        LIMIT 10
         """, nativeQuery = true)
     List<EventoMapaProjection> findParaMapa(@Param("categoriaId") Long categoriaId,
                                             @Param("lat") Double lat,

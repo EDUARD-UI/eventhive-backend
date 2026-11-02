@@ -22,7 +22,7 @@ public class LocalidadesApiController {
 
     //CONSULTAS
     @GetMapping
-    @PreAuthorize("hasAnyRole('REPRESENTANTE','OPERADOR','MODERADOR','ADMINISTRADOR')")
+    @PreAuthorize("permitAll()")
     public ResponseEntity<ApiResponse<List<LocalidadDTO>>> listar(@PathVariable Long eventoId) {
         return ResponseEntity.ok(ApiResponse.ok("Localidades obtenidas",
                 serviceLocalidad.listarPorEvento(eventoId)

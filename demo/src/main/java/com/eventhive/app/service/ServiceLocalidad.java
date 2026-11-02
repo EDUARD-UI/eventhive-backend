@@ -7,12 +7,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.eventhive.app.dto.request.LocalidadRequest;
 import com.eventhive.app.dto.response.LocalidadDTO;
+import com.eventhive.app.enums.EstadoEvento;
 import com.eventhive.app.enums.PermisoEvento;
 import com.eventhive.app.exception.BusinessException;
 import com.eventhive.app.exception.ResourceNotFoundException;
 import com.eventhive.app.model.Evento;
 import com.eventhive.app.model.Localidad;
+import com.eventhive.app.model.Usuario;
 import com.eventhive.app.repository.LocalidadRepository;
+import com.eventhive.app.utils.AuthenticatedUserHelper;
 
 import lombok.RequiredArgsConstructor;
 
@@ -22,10 +25,27 @@ public class ServiceLocalidad {
 
     private final LocalidadRepository localidadRepository;
     private final ServiceEvento serviceEvento;
+    private final AuthenticatedUserHelper authHelper;
 
     @Transactional(readOnly = true)
     public List<Localidad> listarPorEvento(Long eventoId) {
         Evento evento = serviceEvento.obtenerReferenciasEvento(eventoId);
+        if (evento.getEstado() == EstadoEvento.PUBLICADO) {
+            return localidadRepository.findByEventoId(eventoId);
+        }
+
+        Usuario usuario = null;
+        try {
+            usuario = authHelper.usuarioAutenticado();
+        } catch (Exception ignored) {}
+
+        if (usuario != null && usuario.getRol() != null) {
+            String rol = usuario.getRol().getNombre();
+            if ("ADMINISTRADOR".equalsIgnoreCase(rol) || "MODERADOR".equalsIgnoreCase(rol)) {
+                return localidadRepository.findByEventoId(eventoId);
+            }
+        }
+
         serviceEvento.verificarPermiso(evento, PermisoEvento.EDITAR_EVENTO);
         return localidadRepository.findByEventoId(eventoId);
     }

@@ -22,7 +22,8 @@ public class SupabaseStorageConfig {
     }
 
     public String getBucketVerificaciones() {
-        return properties.getBucket().getVerificaciones();
+        String b = properties.getBucket().getVerificaciones();
+        return (b != null && !b.isBlank()) ? b : "verificacion-docs";
     }
 
     public String getBucketEventos() {

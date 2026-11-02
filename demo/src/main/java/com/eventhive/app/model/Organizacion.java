@@ -43,6 +43,10 @@ public class Organizacion {
     @Column(name = "url_rut", length = 500)
     private String urlRut;
 
+    public String getRutDocumentoUrl() {
+        return urlRut;
+    }
+
     @Column(name = "url_logo", length = 500)
     private String urlLogo;
 

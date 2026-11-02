@@ -17,9 +17,9 @@ public class SupabaseStorageProperties {
     @Getter
     @Setter
     public static class Bucket {
-        private String verificaciones;
-        private String eventos; //el bucket de eventos almacena la imagen de evento y imagen de promocion del evento
-        private String categorias;
+        private String verificaciones = "verificacion-docs";
+        private String eventos = "eventos-images"; //el bucket de eventos almacena la imagen de evento y imagen de promocion del evento
+        private String categorias = "categorias-images";
         private String bannersHome = "banners-home";
         private String perfilOrganizacion = "perfilOrganizacion";
         private String imagenPerfil = "imagenPerfil";
