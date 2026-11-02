@@ -18,14 +18,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/chatbot")
+@RequestMapping({"/api/chatbot", "/api/chat"})
 @RequiredArgsConstructor
 public class ChatbotApiController {
 
     private final ServiceChatbot serviceChatbot;
     private final ChatbotRateLimiter rateLimiter;
 
-    @PostMapping("/mensaje")
+    @PostMapping({"/mensaje", "", "/chat"})
     public ResponseEntity<ApiResponse<ChatbotRespuestaDTO>> enviarMensaje(
             @Valid @RequestBody ChatbotPreguntaRequest request,
             HttpServletRequest httpRequest) {

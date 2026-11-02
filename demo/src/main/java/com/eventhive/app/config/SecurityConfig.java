@@ -105,7 +105,7 @@ public class SecurityConfig {
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/oauth2/**").permitAll()
-                .requestMatchers("/api/chatbot/**").permitAll()
+                .requestMatchers("/api/chatbot/**", "/api/chat/**", "/api/chat").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/invitaciones/roles/validar").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/invitaciones/roles/aceptar").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/invitaciones/roles/rechazar").permitAll()

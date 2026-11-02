@@ -21,7 +21,7 @@ public class HealthApiController {
     @Value("${server.port:8080}")
     private int serverPort;
 
-    @Value("${RENDER_EXTERNAL_URL:${BACKEND_URL:${SERVER_URL:}}}")
+    @Value("${AZURE_EXTERNAL_URL:${WEBSITE_HOSTNAME:${BACKEND_URL:${SERVER_URL:${RENDER_EXTERNAL_URL:}}}}}")
     private String serverExternalUrl;
 
     // Instancia única y ligera de HttpClient para no generar hilos ni consumir memoria innecesaria
@@ -35,15 +35,18 @@ public class HealthApiController {
     }
 
     /**
-     * Tarea programada cada 13 minutos (780,000 ms) para mantener activo el servidor
-     * en entornos de nube (como Render) y evitar que entre en suspensión.
+     * Tarea programada cada 15 minutos (900,000 ms) para mantener activo el servidor
+     * en entornos de nube (como Azure App Service) y evitar que entre en suspensión.
      */
-    @Scheduled(fixedRate = 780000, initialDelay = 60000)
+    @Scheduled(fixedRateString = "${server.keepalive.rate-ms:900000}", initialDelay = 60000)
     public void ejecutarKeepAlive() {
         try {
             String targetUrl;
             if (serverExternalUrl != null && !serverExternalUrl.isBlank()) {
                 String cleanUrl = serverExternalUrl.trim().replaceAll("/+$", "");
+                if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
+                    cleanUrl = "https://" + cleanUrl;
+                }
                 targetUrl = cleanUrl + "/api/health";
             } else {
                 targetUrl = "http://localhost:" + serverPort + "/api/health";

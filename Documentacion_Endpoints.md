@@ -3860,14 +3860,14 @@ Este módulo administra los dos espacios promocionales propios de Eventhive. No 
 
 ## 28. Chatbot y Asistente Virtual
 
-### Base: `/api/chatbot`
+### Base: `/api/chatbot` o `/api/chat`
 
-Módulo del asistente virtual inteligente de EventHive para atención a visitantes y usuarios sobre la cartelera de eventos, compra de boletería y registro de organizadores. Cuenta con integración a Groq (Llama 3.1), resolución directa de eventos publicados en PostgreSQL (Supabase), guardrails para ahorro de tokens y un plan de contingencia ante caídas de red o límites de cuota.
+Módulo del asistente virtual inteligente de EventHive para atención a visitantes y usuarios sobre la cartelera de eventos, compra de boletería y registro de organizadores. Cuenta con integración a Groq (Llama 3.3/3.1), resolución directa de eventos publicados en PostgreSQL (Supabase), guardrails para ahorro de tokens y un plan de contingencia ante caídas de red o límites de cuota.
 
-#### `POST /api/chatbot/mensaje`
-- **Público**: no requiere token JWT ni autenticación (excluido explícitamente en `JwtAuthFilter` y habilitado con `permitAll()` en `SecurityConfig`).
+#### `POST /api/chat` o `POST /api/chatbot/mensaje`
+- **Público**: no requiere token JWT ni autenticación (excluido explícitamente en `JwtAuthFilter` y habilitado con `permitAll()` en `SecurityConfig`). Rutas soportadas: `/api/chat`, `/api/chat/mensaje`, `/api/chatbot`, `/api/chatbot/mensaje`.
 - Content-Type: `application/json`.
-- Recibe: `ChatbotPreguntaRequest` validado con `@NotBlank` y longitud máxima de 350 caracteres para optimizar tokens.
+- Recibe: `ChatbotPreguntaRequest` validado con `@NotBlank` y longitud máxima de 350 caracteres para optimizar tokens. Acepta indistintamente las claves JSON: `mensaje`, `message`, `pregunta`, `prompt`, `query` o `text`.
 - Devuelve: `ApiResponse<ChatbotRespuestaDTO>`.
 - Atributos del objeto devuelto en `data`:
   - `respuesta` (String): texto de respuesta al usuario.

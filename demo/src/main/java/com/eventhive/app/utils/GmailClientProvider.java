@@ -124,16 +124,16 @@ public class GmailClientProvider {
             codigoOAuth = "invalid_grant";
             if (textoAnalisis.contains("expired") || textoAnalisis.contains("revoked")) {
                 descripcion = "El refresh token fue revocado por el usuario o ha expirado (en proyectos en estado 'Testing' en Google Cloud expira a los 7 días).";
-                recomendacion = "Vuelve a autorizar visitando /oauth2/authorize/google, copia el nuevo refresh token y actualízalo en el panel de Render.";
+                recomendacion = "Vuelve a autorizar visitando /oauth2/authorize/google, copia el nuevo refresh token y actualízalo en el panel de Azure (Environment variables) o Render.";
             } else {
                 descripcion = "El refresh token no es válido para este cliente OAuth, está mal copiado o fue emitido para otro Client ID.";
-                recomendacion = "Asegúrate de que GMAIL_CLIENT_ID y GMAIL_CLIENT_SECRET en Render coincidan con las credenciales de Google Cloud y genera un nuevo token en /oauth2/authorize/google.";
+                recomendacion = "Asegúrate de que GMAIL_CLIENT_ID y GMAIL_CLIENT_SECRET en Azure coincidan con las credenciales de Google Cloud y genera un nuevo token en /oauth2/authorize/google.";
             }
         } else if (textoAnalisis.contains("invalid_client")) {
             status = status == 0 ? 401 : status;
             codigoOAuth = "invalid_client";
             descripcion = "Google no reconoce el Client ID o el Client Secret es incorrecto.";
-            recomendacion = "Revisa GMAIL_CLIENT_ID y GMAIL_CLIENT_SECRET en el panel de Render. Asegúrate de que no contengan espacios en blanco o comillas accidentales.";
+            recomendacion = "Revisa GMAIL_CLIENT_ID y GMAIL_CLIENT_SECRET en el panel de Azure (Environment variables). Asegúrate de que no contengan espacios en blanco o comillas accidentales.";
         } else if (textoAnalisis.contains("unauthorized_client")) {
             status = status == 0 ? 400 : status;
             codigoOAuth = "unauthorized_client";
