@@ -107,17 +107,20 @@ public class ServiceOrganizacion {
         boolean esAdministrador = usuario.getRol() != null
                 && ("ADMINISTRADOR".equalsIgnoreCase(usuario.getRol().getNombre())
                 || "MODERADOR".equalsIgnoreCase(usuario.getRol().getNombre()));
-        boolean esRepresentante = usuario.getOrganizacion() != null
-            && usuario.getOrganizacion().getId().equals(organizacionId)
-            && usuario.getOrganizacion().getRepresentante() != null
-            && usuario.getOrganizacion().getRepresentante().getId().equals(usuario.getId());
+        boolean esRepresentante = (organizacion.getRepresentante() != null
+                && organizacion.getRepresentante().getId().equals(usuario.getId()))
+                || (usuario.getOrganizacion() != null
+                && usuario.getOrganizacion().getId().equals(organizacionId));
         if (!esAdministrador && !esRepresentante) {
             throw new BusinessException("No autorizado para consultar este RUT");
         }
 
         String urlRutDoc = null;
-        if (esAdministrador) {
-            // Requirement 5.2: Obtener desde la entidad SolicitudVerificacion
+        // Si ya está aprobada o ya lo tiene en organizacion.rut se busca allá
+        if (organizacion.getUrlRut() != null && !organizacion.getUrlRut().isBlank()) {
+            urlRutDoc = organizacion.getUrlRut();
+        } else {
+            // Si está en verificación o no lo tiene aún en organizacion.rut, se busca en la solicitud de verificación
             Long repId = organizacion.getRepresentante() != null ? organizacion.getRepresentante().getId() : null;
             if (repId != null) {
                 var solOpt = solicitudRepository.findFirstByRepresentanteId(repId);
@@ -215,9 +218,11 @@ public class ServiceOrganizacion {
     // CAMBIO DE ESTADO (único punto de entrada: valida la transición)
     @Transactional
     public void cambiarEstado(Organizacion organizacion, EstadoOrganizacion nuevoEstado) {
-        EstadoOrganizacion actual = organizacion.getEstado();
+        EstadoOrganizacion actual = organizacion.getEstado() != null
+                ? organizacion.getEstado()
+                : EstadoOrganizacion.PENDIENTE_REVISION;
         if (actual == nuevoEstado) return; // idempotente
-        if (actual == null || !actual.puedeTransicionarA(nuevoEstado)) {
+        if (!actual.puedeTransicionarA(nuevoEstado)) {
             throw new BusinessException("Transición de estado no permitida: " + actual + " -> " + nuevoEstado);
         }
         organizacion.setEstado(nuevoEstado);
@@ -420,20 +425,32 @@ public class ServiceOrganizacion {
         dto.setEventosFinalizados(o.getEventosFinalizados());
         dto.setEventosRechazados(o.getEventosRechazados());
         dto.setNivel(o.getNivel());
-        dto.setEstado(o.getEstado());
+        dto.setEstado(o.getEstado() != null ? o.getEstado() : EstadoOrganizacion.PENDIENTE_REVISION);
 
-        if (o.getRepresentante() != null) {
+        boolean tieneRutEnOrg = o.getUrlRut() != null && !o.getUrlRut().isBlank();
+        boolean estaAprobada = o.getEstado() == EstadoOrganizacion.APROBADA;
+
+        if (estaAprobada) {
+            dto.setEstadoValidacionRut("APROBADA");
+        } else if (o.getRepresentante() != null) {
             solicitudRepository.findFirstByRepresentanteId(o.getRepresentante().getId()).ifPresentOrElse(
                     sol -> dto.setEstadoValidacionRut(sol.getEstado().name()),
-                    () -> dto.setEstadoValidacionRut((o.getUrlRut() != null && !o.getUrlRut().isBlank()) ? "CARGADO" : "NO_CARGADO")
+                    () -> dto.setEstadoValidacionRut(tieneRutEnOrg ? "CARGADO" : "NO_CARGADO")
             );
         } else {
-            dto.setEstadoValidacionRut((o.getUrlRut() != null && !o.getUrlRut().isBlank()) ? "CARGADO" : "NO_CARGADO");
+            dto.setEstadoValidacionRut(tieneRutEnOrg ? "CARGADO" : "NO_CARGADO");
         }
 
-        if (o.getUrlRut() != null && !o.getUrlRut().isBlank()) {
+        String rutParaFirmar = o.getUrlRut();
+        if ((rutParaFirmar == null || rutParaFirmar.isBlank()) && o.getRepresentante() != null) {
+            rutParaFirmar = solicitudRepository.findFirstByRepresentanteId(o.getRepresentante().getId())
+                    .map(com.eventhive.app.model.SolicitudVerificacion::getUrlRut)
+                    .orElse(null);
+        }
+
+        if (rutParaFirmar != null && !rutParaFirmar.isBlank()) {
             try {
-                dto.setUrlRutTemporal(storageService.generarUrlFirmada(o.getUrlRut(), 3600L));
+                dto.setUrlRutTemporal(storageService.generarUrlFirmada(rutParaFirmar, 3600L));
             } catch (Exception e) {
                 log.warn("No se pudo generar la URL firmada del RUT para organización {}: {}", o.getId(), e.getMessage());
             }

@@ -88,21 +88,32 @@ Se está concatenando un objeto JavaScript directamente en la URL (`/api/eventos
 
 ---
 
-## 4. Envío de Eventos a Revisión
-**Endpoint:** `PATCH /api/eventos/{id}/enviar-revision`
+## 4. Flujo de Creación de Eventos y Verificación de RUT de la Organización
 
-### Requisitos del Servidor:
-Para que un evento pase satisfactoriamente a `PENDIENTE_REVISION`, se evalúan las siguientes reglas:
-1. El evento debe estar en estado `BORRADOR` o `EN_CORRECCION`.
-2. La organización creadora **no debe estar en estado SUSPENDIDA**.
-3. La organización **debe tener cargado su documento RUT** (cargado previamente en el storage `verificacion-docs`).
+### A. Ciclo de Vida del RUT: Solicitud vs Organización
+1. **Fase de Solicitud de Verificación:**
+   - Cuando la organización se registra y sube el RUT diferido (`POST /api/solicitudes-verificacion/mi-solicitud/rut`), el documento queda en la tabla `solicitud_verificacion` (`solicitud.urlRut`) con estado `PENDIENTE`.
+   - El administrador revisa el RUT desde la solicitud (`GET /api/solicitudes-verificacion/{solicitudId}/rut`).
+2. **Aprobación de la Organización:**
+   - Al aprobar la solicitud (`POST /api/solicitudes-verificacion/{solicitudId}/aprobar`), el servidor copia automáticamente `solicitud.urlRut` al campo persistente de la organización (`organizacion.urlRut`) y actualiza el estado a `APROBADA`.
+   - Si el administrador consulta el RUT de la entidad (`GET /api/organizaciones/{id}/rut`), el servidor lo busca directamente en `organizacion.urlRut`. Si aún estuviera en trámite, busca en la tabla de solicitudes.
+3. **Consulta de Perfil de Organización (`GET /api/organizaciones/mi-organizacion`):**
+   - Si la organización está `APROBADA` y cuenta con RUT, responderá con:
+     - `"estado": "APROBADA"`
+     - `"estadoValidacionRut": "APROBADA"`
+     - `"urlRutTemporal": "https://..."` (URL firmada de lectura)
 
-### Comportamiento Requerido en Frontend:
-- Antes de que el organizador pulse "Enviar a revisión":
-  - Validar si la organización tiene el RUT cargado (`organizacion.urlRut != null`).
-  - Si no tiene el RUT registrado, bloquear el botón o abrir un modal informativo:
-    > *"Tu organización debe contar con el documento RUT cargado antes de enviar un evento a revisión."* con un botón directo a la sección de **Configuración / Verificación**.
-- Si el servidor responde con HTTP 400, mostrar directamente el mensaje devuelto en `response.mensaje`.
+### B. Creación del Evento (`POST /api/eventos`):
+- Los representantes legales con organización válida **pueden crear eventos** sin bloqueos indebidos de permiso.
+- Todo nuevo evento se guarda inicialmente en estado **`BORRADOR`**.
+- La respuesta HTTP 201 devuelve el detalle del evento y un mensaje orientador indicando si la organización está aprobada o pendiente.
+
+### C. Envío del Evento a Revisión (`PATCH /api/eventos/{id}/enviar-revision`):
+- Para enviar a moderación:
+  - El evento debe estar en `BORRADOR` o `EN_CORRECCION`.
+  - La organización no debe estar `SUSPENDIDA`.
+  - La organización debe tener su documento RUT cargado (bien sea en `organizacion.urlRut` o en su solicitud de verificación activa).
+- Si la organización tiene RUT cargado y está `APROBADA`, el evento transiciona inmediatamente a `PENDIENTE_REVISION` y activa las reglas automáticas de moderación.
 
 ---
 
@@ -177,3 +188,4 @@ Para que un evento pase satisfactoriamente a `PENDIENTE_REVISION`, se evalúan l
 | Timeout / Caída de conexión | *"El backend no responde"* | *"Error de servidor. Por favor, reintenta más tarde."* |
 | Fallo en Chatbot | *"No pude entender tu solicitud"* | *"Servicio temporalmente no disponible"* |
 | Seguir propia organización | Mensaje genérico de error | *"No puedes seguir a tu propia organización"* |
+

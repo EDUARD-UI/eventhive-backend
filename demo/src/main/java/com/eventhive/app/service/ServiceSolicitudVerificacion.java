@@ -67,9 +67,11 @@ public class ServiceSolicitudVerificacion {
         SolicitudVerificacionDTO dto = solicitudRepository.findFirstByRepresentanteId(representanteId)
                 .map(this::toDTO)
                 .orElse(null);
-        if (dto != null && org != null && org.getUrlRut() != null && !org.getUrlRut().isBlank()) {
-            dto.setEstado(EstadoSolicitud.APROBADA);
-            if (dto.getUrlRut() == null || dto.getUrlRut().isBlank()) {
+        if (dto != null && org != null) {
+            if (org.getEstado() == EstadoOrganizacion.APROBADA) {
+                dto.setEstado(EstadoSolicitud.APROBADA);
+            }
+            if (org.getUrlRut() != null && !org.getUrlRut().isBlank() && (dto.getUrlRut() == null || dto.getUrlRut().isBlank())) {
                 dto.setUrlRut(org.getUrlRut());
             }
         }
@@ -92,6 +94,17 @@ public class ServiceSolicitudVerificacion {
         }
 
         String urlRut = solicitud.getUrlRut();
+        if (urlRut == null || urlRut.isBlank()) {
+            if (solicitud.getRepresentanteLegal() != null) {
+                Organizacion org = solicitud.getRepresentanteLegal().getOrganizacion();
+                if (org == null) {
+                    org = organizacionRepository.findByRepresentanteId(solicitud.getRepresentanteLegal().getId()).orElse(null);
+                }
+                if (org != null && org.getUrlRut() != null && !org.getUrlRut().isBlank()) {
+                    urlRut = org.getUrlRut();
+                }
+            }
+        }
         if (urlRut == null || urlRut.isBlank()) {
             throw new BusinessException("La solicitud no tiene un documento RUT adjunto");
         }
@@ -203,9 +216,16 @@ public class ServiceSolicitudVerificacion {
             throw new BusinessException("El usuario no tiene organización asociada");
         }
 
-        organizacion.setUrlRut(solicitud.getUrlRut());
+        if (solicitud.getUrlRut() != null && !solicitud.getUrlRut().isBlank()) {
+            organizacion.setUrlRut(solicitud.getUrlRut());
+        }
         serviceOrganizacion.cambiarEstado(organizacion, EstadoOrganizacion.APROBADA);
-        organizacionRepository.save(organizacion); // persiste urlRut aunque el estado ya fuera APROBADA
+        organizacionRepository.save(organizacion); // persiste urlRut y estado APROBADA
+
+        if (representante.getOrganizacion() == null) {
+            representante.setOrganizacion(organizacion);
+            usuarioRepository.save(representante);
+        }
 
         solicitud.setEstado(EstadoSolicitud.APROBADA);
         solicitud.setFechaResolucion(LocalDateTime.now());

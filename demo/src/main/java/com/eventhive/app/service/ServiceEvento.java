@@ -355,12 +355,20 @@ public class ServiceEvento {
         Usuario usuario = authHelper.usuarioAutenticado();
         Categoria categoria = resolverCategoria(request.getCategoriaId());
 
-        if (usuario.getOrganizacion() == null) {
+        Organizacion organizacion = usuario.getOrganizacion();
+        if (organizacion == null) {
+            organizacion = organizacionRepository.findByRepresentanteIdConRepresentante(usuario.getId())
+                    .orElse(null);
+            if (organizacion != null) {
+                usuario.setOrganizacion(organizacion);
+            }
+        }
+
+        if (organizacion == null) {
             throw new BusinessException("Debe pertenecer a una organización para crear eventos");
         }
         validarPermisoSobreEvento(usuario, PermisoEvento.CREAR_EVENTO);
 
-        Organizacion organizacion = usuario.getOrganizacion();
         if (organizacion.getEstado() == EstadoOrganizacion.SUSPENDIDA) {
             throw new BusinessException("La organización está suspendida y no puede crear eventos");
         }
@@ -447,12 +455,27 @@ public class ServiceEvento {
             throw new BusinessException("La organización se encuentra suspendida y no puede enviar eventos a revisión");
         }
 
-        boolean tieneRutCargado = (organizacion.getUrlRut() != null && !organizacion.getUrlRut().isBlank())
-                || (solicitudVerificacionRepository != null
-                    && organizacion.getRepresentante() != null
-                    && solicitudVerificacionRepository.findFirstByRepresentanteId(organizacion.getRepresentante().getId())
-                        .filter(s -> s.getUrlRut() != null && !s.getUrlRut().isBlank())
-                        .isPresent());
+        // Si ya está aprobada o ya lo tiene en organizacion.rut se busca allá; si no, en la solicitud de verificación
+        boolean tieneRutEnOrg = organizacion.getUrlRut() != null && !organizacion.getUrlRut().isBlank();
+        boolean tieneRutEnSolicitud = false;
+        String rutSolicitud = null;
+
+        if (solicitudVerificacionRepository != null && organizacion.getRepresentante() != null) {
+            var solOpt = solicitudVerificacionRepository.findFirstByRepresentanteId(organizacion.getRepresentante().getId());
+            if (solOpt.isPresent() && solOpt.get().getUrlRut() != null && !solOpt.get().getUrlRut().isBlank()) {
+                tieneRutEnSolicitud = true;
+                rutSolicitud = solOpt.get().getUrlRut();
+            }
+        }
+
+        // Si está en la solicitud y no en el campo organizacion.urlRut, sincronizarlo al campo de la organización
+        if (!tieneRutEnOrg && tieneRutEnSolicitud) {
+            organizacion.setUrlRut(rutSolicitud);
+            organizacionRepository.save(organizacion);
+            tieneRutEnOrg = true;
+        }
+
+        boolean tieneRutCargado = tieneRutEnOrg || tieneRutEnSolicitud;
         if (organizacion.getEstado() != EstadoOrganizacion.APROBADA && !tieneRutCargado) {
             throw new BusinessException(
                     "Tu organización debe contar con el documento RUT cargado antes de enviar un evento a revisión o publicarlo");
@@ -621,9 +644,20 @@ public class ServiceEvento {
             return;
         }
 
-        boolean perteneceALaOrganizacion = usuario.getOrganizacion() != null
+        Organizacion orgUsuario = usuario.getOrganizacion();
+        if (orgUsuario == null) {
+            orgUsuario = organizacionRepository.findByRepresentanteIdConRepresentante(usuario.getId()).orElse(null);
+            if (orgUsuario != null) {
+                usuario.setOrganizacion(orgUsuario);
+            }
+        }
+
+        boolean perteneceALaOrganizacion = (orgUsuario != null
                 && evento.getOrganizacion() != null
-                && usuario.getOrganizacion().getId().equals(evento.getOrganizacion().getId());
+                && orgUsuario.getId().equals(evento.getOrganizacion().getId()))
+                || (evento.getOrganizacion() != null
+                && evento.getOrganizacion().getRepresentante() != null
+                && evento.getOrganizacion().getRepresentante().getId().equals(usuario.getId()));
 
         if (!perteneceALaOrganizacion) {
             throw new AccessDeniedException("No autorizado para modificar o acceder a este evento");
@@ -636,6 +670,12 @@ public class ServiceEvento {
             return;
         }
         Organizacion organizacion = usuario.getOrganizacion();
+        if (organizacion == null) {
+            organizacion = organizacionRepository.findByRepresentanteIdConRepresentante(usuario.getId()).orElse(null);
+            if (organizacion != null) {
+                usuario.setOrganizacion(organizacion);
+            }
+        }
         if (organizacion == null) {
             throw new AccessDeniedException("No perteneces a ninguna organización");
         }
