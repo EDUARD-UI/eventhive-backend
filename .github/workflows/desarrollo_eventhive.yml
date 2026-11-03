@@ -9,6 +9,10 @@ on:
       - desarrollo
   workflow_dispatch:
 
+concurrency:
+  group: azure-webapp-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,7 +31,7 @@ jobs:
 
       - name: Build with Maven
         working-directory: demo
-        run: mvn -B clean package -DskipTests
+        run: mvn -B clean verify
 
       - name: Upload artifact for deployment
         uses: actions/upload-artifact@v4

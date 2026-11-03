@@ -176,6 +176,17 @@ En caso de error, la respuesta suele devolver:
 }
 ```
 
+#### `POST /api/auth/olvide-password` (alias: `/api/auth/olvide-clave`)
+- Público. Recibe `{"correo":"persona@example.com"}`; también acepta el campo `email`.
+- Genera un token de un solo uso, válido durante 30 minutos, y envía el enlace al correo registrado.
+- Si el correo no existe o la cuenta está inactiva, devuelve la misma respuesta para no revelar cuentas.
+- Devuelve HTTP 200 cuando la solicitud puede procesarse; si Gmail no acepta el correo, devuelve HTTP 502 y registra el diagnóstico del proveedor.
+
+#### `POST /api/auth/restablecer-clave`
+- Público. Recibe `{"token":"...","clave":"NuevaClave123!"}`; también acepta `nuevaClave`, `password` o `newPassword`.
+- El token es de un solo uso y vence a los 30 minutos. Al utilizarlo, actualiza la contraseña y desbloquea la cuenta.
+- Devuelve HTTP 400 si el token es inválido, ya se usó o expiró.
+
 ---
 
 ## 3. Usuarios
@@ -3092,12 +3103,12 @@ descuentos de compra ya no están disponibles ni se aplican al checkout.
 #### Banners del Home
 - `GET /api/banners-home/admin` y las operaciones de escritura de `/api/banners-home` permiten ADMINISTRADOR y MARKETING. Banners soportan posiciones 1 y 2 con carga directa de imágenes mediante `multipart/form-data`.
 
-La aplicación usa `spring.jpa.hibernate.ddl-auto=none`. Antes de desplegar
-esta versión, aplicar una vez
-[`V1__marketing_invitations_and_paid_promotions.sql`](./demo/src/main/resources/db/manual/V1__marketing_invitations_and_paid_promotions.sql).
-Configurar el envío por Brevo SMTP mediante las variables `MAIL_HOST`,
-`MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` y
-`eventhive.frontend-url` (URL base de la web para aceptar invitaciones).
+La aplicación usa `spring.jpa.hibernate.ddl-auto=none`; aplicar manualmente
+los scripts SQL incluidos para los cambios de esquema antes de desplegarlos.
+Configurar el envío mediante Gmail API con `GMAIL_CLIENT_ID`,
+`GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, `GMAIL_SENDER` y
+`FRONTEND_URL` (URL base de la web para aceptar invitaciones y restablecer
+contraseñas).
 
 ---
 
@@ -3169,8 +3180,8 @@ Configurar el envío por Brevo SMTP mediante las variables `MAIL_HOST`,
 
 Una Administración autenticada puede invitar a MODERADOR o MARKETING; un
 REPRESENTANTE solo puede invitar a OPERADOR. Se puede invitar un correo
-sin cuenta o uno que ya tenga una cuenta CLIENTE. El enlace de Brevo es
-de un solo uso y vence 24 horas después del envío.
+sin cuenta o uno que ya tenga una cuenta CLIENTE. El enlace enviado por
+correo es de un solo uso y vence 24 horas después del envío.
 
 #### `POST /api/invitaciones/roles`
 - Body: `{ "correo": "persona@correo.com", "rol": "MARKETING" }`.
@@ -3191,10 +3202,10 @@ de un solo uso y vence 24 horas después del envío.
 #### `GET /api/invitaciones/roles/enviadas`
 - ADMINISTRADOR o REPRESENTANTE. Devuelve la lista paginada de invitaciones enviadas por la persona autenticada.
 
-#### Preparación de despliegue y prueba SMTP
-- Antes del primer despliegue, ejecutar una vez `demo/src/main/resources/db/migration/20261012_correo_invitaciones.sql` contra PostgreSQL/Supabase. `spring.jpa.hibernate.ddl-auto=none` está configurado, así que las tablas no se crean automáticamente.
-- Configurar `MAIL_HOST` (opcional; por defecto `smtp-relay.brevo.com`), `MAIL_PORT` (opcional; por defecto `587`), `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM` (remitente verificado por Brevo), `MAIL_FROM_NAME` (opcional; por defecto `EventHive`) y `FRONTEND_URL` (origen del frontend que recibe los enlaces).
-- Para probar el envío real, autenticar un ADMINISTRADOR y llamar a `POST /api/invitaciones/roles` con `{"correo":"destino@correo.com","rol":"MARKETING"}`; un REPRESENTANTE puede probar con `"rol":"OPERADOR"`. Un envío SMTP fallido responde con error y no deja guardada la invitación.
+#### Preparación de despliegue y prueba de correo
+- `spring.jpa.hibernate.ddl-auto=none` está configurado. Ejecutar `demo/src/main/resources/db/migration/20261102_tokens_recuperacion_clave.sql` una vez contra PostgreSQL/Supabase antes de habilitar la recuperación de contraseña.
+- El envío implementado utiliza Gmail API, no `MAIL_HOST`/SMTP. Configurar `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN` y `GMAIL_SENDER` en Azure App Service. `FRONTEND_URL` debe apuntar al frontend que implementa `/restablecer-clave?token=...`.
+- Para probar recuperación, enviar `POST /api/auth/olvide-password` con `{"correo":"destino@correo.com"}`. El correo se envía de forma síncrona; un error de Gmail devuelve HTTP 502 y queda registrado en los logs.
 
 ---
 
@@ -3533,7 +3544,7 @@ Este módulo administra los dos espacios promocionales propios de Eventhive. No 
   - `REPRESENTANTE`: solo puede invitar a `OPERADOR` para su propia organización (determinada por el representante autenticado). No puede invitar moderadores, marketing ni administradores.
   - La cuenta de destino no debe poseer ya un rol administrativo o estar vinculada a una organización distinta.
   - Si ya existe una invitación pendiente para ese correo, el sistema realiza un reenvío seguro: invalida el token previo, genera un nuevo token criptográfico de 32 bytes con expiración de 24 horas y reenvía el correo, previniendo duplicados en la base de datos.
-  - Si el envío de correo falla (SMTP), la transacción se revierte por completo evitando dejar invitaciones huérfanas.
+  - Si el envío por Gmail API falla, la transacción se revierte por completo evitando dejar invitaciones huérfanas.
 - **Respuesta**: HTTP 201 Created.
   ```json
   {
@@ -3959,14 +3970,14 @@ Para la operación en producción (por ejemplo en Render) y desarrollo local, se
 | `GROQ_MODEL` | Identificador del modelo de lenguaje en Groq | `llama-3.1-8b-instant` |
 | `GROQ_BASE_URL` | URL base compatible con OpenAI de Groq | `https://api.groq.com/openai/v1` |
 | `GROQ_RPM_LIMIT` | Límite preventivo de peticiones por minuto (margen de seguridad) | `25` |
-| `MAIL_HOST` | Host del servidor relay SMTP de Brevo / Gmail API | `smtp-relay.brevo.com` |
-| `MAIL_PORT` | Puerto SMTP con STARTTLS | `587` |
-| `MAIL_USERNAME` | Usuario SMTP (clave de API Brevo o login de relay) | `7a1b2c...@smtp-brevo.com` |
-| `MAIL_PASSWORD` | Contraseña SMTP (Master SMTP Key de Brevo) | `xsmtpsib-...` |
-| `MAIL_FROM` | Remitente verificado en la consola de correos | `eventhiveContacto@gmail.com` |
+| `GMAIL_CLIENT_ID` | Client ID OAuth de Google para Gmail API | Configurado en Google Cloud |
+| `GMAIL_CLIENT_SECRET` | Client secret OAuth de Google para Gmail API | Configurado en Google Cloud |
+| `GMAIL_REFRESH_TOKEN` | Refresh token autorizado con permiso `gmail.send` | Token generado en OAuth |
+| `GMAIL_SENDER` | Dirección de Gmail autorizada como remitente | `eventhiveContacto@gmail.com` |
+| `GMAIL_REDIRECT_URI` | URI de callback OAuth registrada en Google Cloud | `https://<app>/oauth2/callback/google` |
 | `MAIL_FROM_NAME` | Nombre visible del remitente en los correos | `EventHive` |
-| `MAIL_MAX_REINTENTOS` | Número de intentos automáticos ante fallos de conexión | `2` |
-| `FRONTEND_URL` | URL base del frontend para enlaces de invitación | `https://eventhive-ruby-zeta.vercel.app` |
+| `MAIL_MAX_REINTENTOS` | Número de intentos automáticos ante fallos de Gmail API | `2` |
+| `FRONTEND_URL` | URL base del frontend para enlaces de invitación y recuperación | `https://eventhive-ruby-zeta.vercel.app` |
 | `DB_URL` | URL de conexión JDBC a PostgreSQL (Supabase Session Pooler) | `jdbc:postgresql://...` |
 | `DB_USERNAME` | Usuario de base de datos PostgreSQL | `postgres.[id_proyecto]` |
 | `DB_PASSWORD` | Contraseña de base de datos PostgreSQL | `...` |
@@ -4369,5 +4380,3 @@ flowchart TD
 1. **Nunca asumir formato fijo**: No asumir que todas las imágenes contienen el subdominio de Supabase o la estructura `/object/public/`.
 2. **Prioridad a la consistencia de datos**: Si un archivo previo no puede identificarse o eliminarse físicamente en el storage, **la transacción de base de datos nunca debe cancelarse ni arrojar HTTP 500**.
 3. **Imágenes por defecto**: Las entidades `Evento`, `Organizacion`, `Usuario`, `Categoria` y `Banner` aceptan URLs externas como portadas o logos de prueba sin provocar errores al ser reemplazadas o eliminadas.
-
-

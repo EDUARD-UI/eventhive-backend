@@ -79,12 +79,14 @@ public class GlobalExceptionHandler {
         String mensaje = (ex.getMessage() != null && !ex.getMessage().isBlank())
                 ? ex.getMessage()
                 : "Credenciales incorrectas";
+        log.warn("Autenticación rechazada: {}", mensaje);
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ApiResponse.error(mensaje));
     }
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ApiResponse<Void>> handleAuthentication(AuthenticationException ex) {
+        log.warn("Autenticación rechazada: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ApiResponse.error("No autenticado o token inválido"));
     }

@@ -4,8 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -23,6 +27,7 @@ import com.eventhive.app.model.Evento;
 import com.eventhive.app.model.Localidad;
 import com.eventhive.app.model.Tiquete;
 import com.eventhive.app.model.Usuario;
+import com.eventhive.app.exception.CorreoException;
 import com.eventhive.app.repository.TiqueteRepository;
 import com.eventhive.app.utils.CorreoPlantillas;
 import com.eventhive.app.utils.CorreoSender;
@@ -33,6 +38,37 @@ class ServiceCorreoTest {
 
     @Mock private CorreoSender sender;
     @Mock private TiqueteRepository tiqueteRepository;
+
+    @Test
+    void enviaRecuperacionDeClaveSincronicamente() {
+        ServiceCorreo service = new ServiceCorreo(
+                sender, new CorreoPlantillas(), tiqueteRepository, new GeneradorCodigoQR());
+        Usuario usuario = org.mockito.Mockito.mock(Usuario.class);
+        when(usuario.getCorreo()).thenReturn("persona@example.com");
+        when(usuario.getNombreCompleto()).thenReturn("Ana");
+
+        service.enviarRecuperarClave(usuario, "https://eventhive.example/restablecer-clave?token=abc", 30);
+
+        verify(sender).enviar(
+                eq("persona@example.com"),
+                eq("Restablecer contraseña — EventHive"),
+                org.mockito.ArgumentMatchers.contains("https://eventhive.example/restablecer-clave?token=abc"));
+        verify(sender, never()).enviarAsync(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void propagaFalloDelProveedorEnElEnvioDeRecuperacion() {
+        ServiceCorreo service = new ServiceCorreo(
+                sender, new CorreoPlantillas(), tiqueteRepository, new GeneradorCodigoQR());
+        Usuario usuario = org.mockito.Mockito.mock(Usuario.class);
+        when(usuario.getCorreo()).thenReturn("persona@example.com");
+        when(usuario.getNombreCompleto()).thenReturn("Ana");
+        doThrow(new CorreoException("Gmail API no disponible"))
+                .when(sender).enviar(anyString(), anyString(), anyString());
+
+        assertThrows(CorreoException.class,
+                () -> service.enviarRecuperarClave(usuario, "https://eventhive.example/reset", 30));
+    }
 
     @Test
     void enviaUnQrEnLineaPorCadaBoletoIncluidoEnElCorreo() {

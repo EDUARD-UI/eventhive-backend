@@ -58,8 +58,13 @@ public class AuthApiController {
     //LOGEO
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<LoginResponseDTO>> login(@Valid @RequestBody LoginRequest request) {
-        LoginResponseDTO response = serviceAutenticacion.autenticar(request.getCorreo(), request.getClave());
-        return ResponseEntity.ok(ApiResponse.ok("Login exitoso", response));
+        try {
+            LoginResponseDTO response = serviceAutenticacion.autenticar(request.getCorreo(), request.getClave());
+            return ResponseEntity.ok(ApiResponse.ok("Login exitoso", response));
+        } catch (BadCredentialsException ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("Credenciales incorrectas"));
+        }
     }
 
     @PostMapping("/refresh")
@@ -106,7 +111,7 @@ public class AuthApiController {
     }
 
     //GESTION DE CLAVES
-    @PostMapping("/olvide-clave")
+    @PostMapping({"/olvide-clave", "/olvide-password"})
     public ResponseEntity<ApiResponse<Void>> olvideClave(@Valid @RequestBody OlvideClaveRequest request) {
         serviceRecuperacionClave.solicitar(request.getCorreo());
         return ResponseEntity.ok(ApiResponse.ok(

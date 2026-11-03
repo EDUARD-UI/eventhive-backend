@@ -93,7 +93,7 @@ public class ServiceCorreo {
 
     public void enviarRecuperarClave(Usuario usuario, String enlace, long minutosVigencia) {
         String html = plantillas.recuperarClave(usuario.getNombreCompleto(), enlace, minutosVigencia);
-        sender.enviarAsync(usuario.getCorreo(), "Restablecer contraseña — EventHive", html);
+        sender.enviar(usuario.getCorreo(), "Restablecer contraseña — EventHive", html);
     }
 
     // PROMOCIONES

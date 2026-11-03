@@ -162,7 +162,7 @@ public class ServiceCompra {
         eventoRepository.save(evento);
         PosicionamientoEvento guardado = posicionamientoEventoRepository.save(pago);
 
-        // Envío de correo sin interrumpir confirmación en caso de fallo SMTP
+        // Envío de correo sin interrumpir la confirmación si falla el proveedor.
         try {
             serviceCorreo.enviarPromocionConfirmada(guardado);
         } catch (Exception ex) {

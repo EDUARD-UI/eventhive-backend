@@ -100,6 +100,25 @@ class ServiceAutenticacionTest {
     }
 
     @Test
+    @DisplayName("Credenciales incorrectas se propaga después de registrar el intento fallido")
+    void autenticarConCredencialesIncorrectasRegistraIntentoYPropagaError() {
+        Usuario usuario = new Usuario();
+        usuario.setCorreo("test@eventhive.com");
+        usuario.setIntentosFallidos(0);
+        when(authenticationManager.authenticate(any()))
+                .thenThrow(new BadCredentialsException("Bad credentials"));
+        when(usuarioRepository.findByCorreo("test@eventhive.com"))
+                .thenReturn(Optional.of(usuario));
+
+        BadCredentialsException ex = assertThrows(BadCredentialsException.class,
+                () -> serviceAutenticacion.autenticar("test@eventhive.com", "clave-incorrecta"));
+
+        assertEquals("Credenciales incorrectas", ex.getMessage());
+        assertEquals(1, usuario.getIntentosFallidos());
+        verify(usuarioRepository).save(usuario);
+    }
+
+    @Test
     @DisplayName("Autenticación exitosa resetea intentos fallidos")
     void autenticacionExitosaReseteaIntentos() {
         Rol rol = new Rol();

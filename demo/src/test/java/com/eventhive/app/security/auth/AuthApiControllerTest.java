@@ -1,6 +1,7 @@
 package com.eventhive.app.security.auth;
 
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -51,6 +52,70 @@ class AuthApiControllerTest {
         mockMvc = MockMvcBuilders.standaloneSetup(authApiController)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
+    }
+
+    @Test
+    @DisplayName("POST /api/auth/olvide-password acepta la ruta usada por el frontend")
+    void olvidePasswordAceptaRutaDelFrontend() throws Exception {
+        mockMvc.perform(post("/api/auth/olvide-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"correo\":\"persona@example.com\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(serviceRecuperacionClave).solicitar("persona@example.com");
+    }
+
+    @Test
+    @DisplayName("POST /api/auth/olvide-clave conserva compatibilidad con la ruta existente")
+    void olvideClaveConservaRutaExistente() throws Exception {
+        mockMvc.perform(post("/api/auth/olvide-clave")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"correo\":\"persona@example.com\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(serviceRecuperacionClave).solicitar("persona@example.com");
+    }
+
+    @Test
+    @DisplayName("POST /api/auth/olvide-password acepta email como nombre del campo")
+    void olvidePasswordAceptaCampoEmail() throws Exception {
+        mockMvc.perform(post("/api/auth/olvide-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"persona@example.com\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(serviceRecuperacionClave).solicitar("persona@example.com");
+    }
+
+    @Test
+    @DisplayName("POST /api/auth/restablecer-clave acepta newPassword")
+    void restablecerClaveAceptaCampoNewPassword() throws Exception {
+        mockMvc.perform(post("/api/auth/restablecer-clave")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"token\":\"token-valido\",\"newPassword\":\"NuevaClave123!\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(serviceRecuperacionClave).restablecer("token-valido", "NuevaClave123!");
+    }
+
+    @Test
+    @DisplayName("POST /api/auth/login devuelve 401 cuando las credenciales son incorrectas")
+    void loginConCredencialesIncorrectasRetorna401() throws Exception {
+        when(serviceAutenticacion.autenticar("persona@example.com", "clave-incorrecta"))
+                .thenThrow(new BadCredentialsException("Credenciales incorrectas"));
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"correo\":\"persona@example.com\",\"clave\":\"clave-incorrecta\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.mensaje").value("Credenciales incorrectas"));
+
+        verify(serviceAutenticacion).autenticar("persona@example.com", "clave-incorrecta");
     }
 
     @Test
