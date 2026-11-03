@@ -12,7 +12,10 @@ public class CorreoPlantillas {
     public record Boleto(String evento, String fecha, String hora, String lugar,
                          String localidad, String codigoQR) {}
 
-    // ---------- Paleta (alineada con panel-theme.css) ----------
+    public record EventoSugerido(String titulo, String fecha, String hora, String lugar,
+                                 String precioDesde, String enlace) {}
+
+    // ---------- Paleta de la marca: azul oscuro y ámbar ----------
 
     private static final String FONDO       = "#f4f6fa";
     private static final String TARJETA     = "#ffffff";
@@ -30,7 +33,12 @@ public class CorreoPlantillas {
         return "qr-boleto-" + indice;
     }
 
-    // ---------- Correos del sistema ----------
+    /** Identificador del adjunto en línea con la imagen de cada evento sugerido (cid:). */
+    public static String cidEvento(int indice) {
+        return "evento-imagen-" + indice;
+    }
+
+    // ---------- Correos ----------
 
     public String pagoConfirmado(String nombre, Long compraId, String fecha,
                                  String total, String metodoPago, List<ItemPago> items) {
@@ -68,8 +76,7 @@ public class CorreoPlantillas {
                 + fila("Método de pago", esc(metodoPago)));
 
         return base("¡Pago confirmado!",
-                "Hola " + esc(nombre) + ", tu pago fue procesado con éxito. "
-                        + "Los boletos te llegan en un correo aparte.",
+                "Hola " + esc(nombre) + ", tu pago fue procesado con éxito. ¡Gracias por tu compra!",
                 tabla + totalBloque + detalle);
     }
 
@@ -81,6 +88,15 @@ public class CorreoPlantillas {
         return marcoTicket(tickets
                 + "<p style=\"margin:24px 0 0;text-align:center;color:" + TEXTO + ";"
                 + "font-size:15px;font-weight:600;\">Presenta el código QR en el ingreso.</p>");
+    }
+
+    /** Correo "Un evento que podría gustarte": tiquete con la imagen del evento en lugar del QR. */
+    public String eventoSugerido(String nombre, List<EventoSugerido> eventos) {
+        StringBuilder tickets = new StringBuilder();
+        for (int n = 0; n < eventos.size(); n++) {
+            tickets.append(ticketEvento(nombre, eventos.get(n), n, n == 0));
+        }
+        return marcoTicket(tickets.toString());
     }
 
     public String invitacionRol(String rol, String enlace, int horasVigencia) {
@@ -244,6 +260,68 @@ public class CorreoPlantillas {
                 + campo("Lugar", esc(b.lugar()), "16px")
                 + localidad
                 + "</td></tr>";
+    }
+
+    // ---------- Piezas del tiquete de evento sugerido ----------
+
+    /** Tiquete de evento: encabezado (solo el primero), imagen a todo el ancho y datos. */
+    private String ticketEvento(String nombre, EventoSugerido e, int indice, boolean conEncabezado) {
+        StringBuilder filas = new StringBuilder();
+        if (conEncabezado) {
+            filas.append(encabezadoEvento(nombre)).append(separadorTicket());
+        }
+        filas.append(imagenEvento(indice, e.titulo())).append(separadorTicket()).append(datosEvento(e));
+
+        return "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" "
+                + "style=\"margin-top:" + (indice == 0 ? "0" : "20px") + ";background:" + TARJETA + ";"
+                + "border:1px solid " + BORDE + ";border-radius:16px;overflow:hidden;\">"
+                + filas + "</table>";
+    }
+
+    private String encabezadoEvento(String nombre) {
+        return "<tr><td align=\"center\" style=\"background:" + OSCURO + ";padding:32px 24px 28px;\">"
+                + "<div style=\"color:#ffffff;font-size:13px;font-weight:600;letter-spacing:2px;"
+                + "text-transform:uppercase;\">EventHive</div>"
+                + "<h1 style=\"margin:12px 0 6px;color:" + AMBAR + ";font-size:26px;line-height:1.25;"
+                + "font-weight:700;\">Un evento que podría gustarte</h1>"
+                + "<p style=\"margin:0;color:#cbd5e1;font-size:14px;line-height:1.5;\">"
+                + "Hola " + esc(nombre) + ", pensamos en ti para tu próximo plan.</p>"
+                + "</td></tr>";
+    }
+
+    /** La imagen ocupa el lugar del QR: todo el ancho del tiquete y una altura fija. */
+    private String imagenEvento(int indice, String titulo) {
+        return "<tr><td style=\"padding:0;background:" + OSCURO + ";font-size:0;line-height:0;\">"
+                + "<img src=\"cid:" + cidEvento(indice) + "\" width=\"420\" height=\"220\" "
+                + "alt=\"" + esc(titulo) + "\" "
+                + "style=\"display:block;width:100%;height:220px;object-fit:cover;border:0;\">"
+                + "</td></tr>";
+    }
+
+    private String datosEvento(EventoSugerido e) {
+        String desde = (e.precioDesde() == null || e.precioDesde().isBlank()) ? "" :
+                "<div style=\"background:" + FONDO + ";border-left:4px solid " + AMBAR + ";"
+                + "border-radius:0 8px 8px 0;padding:12px 16px;\">"
+                + campo("Entradas desde", "$" + esc(e.precioDesde()), "0") + "</div>";
+
+        return "<tr><td style=\"padding:8px 24px 28px;\">"
+                + "<h2 style=\"margin:0 0 18px;color:" + TEXTO + ";font-size:19px;line-height:1.3;\">"
+                + esc(e.titulo()) + "</h2>"
+                + parCampos(campo("Fecha", esc(e.fecha()), "16px"), campo("Hora", esc(e.hora()), "16px"))
+                + campo("Lugar", esc(e.lugar()), "16px")
+                + desde
+                + botonTicket("Ver evento", e.enlace())
+                + "</td></tr>";
+    }
+
+    /** Botón ámbar de ancho completo para usar dentro del tiquete. */
+    private String botonTicket(String texto, String enlace) {
+        return "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" "
+                + "style=\"margin-top:20px;\"><tr>"
+                + "<td align=\"center\" style=\"background:" + AMBAR + ";border-radius:8px;\">"
+                + "<a href=\"" + esc(enlace) + "\" style=\"display:block;padding:14px 28px;"
+                + "color:" + OSCURO + ";font-size:15px;font-weight:700;text-decoration:none;\">"
+                + esc(texto) + "</a></td></tr></table>";
     }
 
     /** Etiqueta pequeña en mayúsculas sobre el valor, como en el diseño de referencia. */
